@@ -1,0 +1,32 @@
+# Environments
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+backend/venv/
+backend/.env
+
+# Node
+node_modules/
+dist/
+build/
+.DS_Store
+
+# Vite
+*.local
+.eslintcache
+
+# Test databases
+*.db
+!backend/legal_assistant.db
+
+# Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
