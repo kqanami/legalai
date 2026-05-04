@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from database import init_db
 from config import settings
-from routers import auth, chat, documents, counterparty, audit, stats, lawyer
+from routers import auth, chat, documents, counterparty, audit, stats, lawyer, escalation, marketplace, admin
 
 # ── Logging Setup ──
 logging.basicConfig(
@@ -34,13 +34,25 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Legal Assistant KZ — API",
     description="Full-stack legal AI platform for Republic of Kazakhstan",
-    version="2.1.0",
+    version="3.0.0",
     lifespan=lifespan,
 )
 
 # ── Rate Limiting ──
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"GLOBAL ERROR on {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "message": str(exc),
+            "path": request.url.path
+        }
+    )
 
 # ── CORS — allow frontend dev server ──
 app.add_middleware(
@@ -64,6 +76,9 @@ app.include_router(counterparty.router)
 app.include_router(audit.router)
 app.include_router(stats.router)
 app.include_router(lawyer.router)
+app.include_router(escalation.router)
+app.include_router(marketplace.router)
+app.include_router(admin.router)
 
 
 @app.get("/")
@@ -79,6 +94,8 @@ def root():
             "counterparty": "/api/counterparty",
             "audit": "/api/audit",
             "stats": "/api/stats",
+            "escalation": "/api/escalation",
+            "lawyers": "/api/lawyers",
         }
     }
 
@@ -86,3 +103,4 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+

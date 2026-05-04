@@ -7,6 +7,7 @@ import { Scale, ShieldCheck } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
 import KineticBackground from '../components/KineticBackground';
 import MagneticButton from '../components/MagneticButton';
+import CustomSelect from '../components/CustomSelect';
 
 export default function AuthPage() {
   const { t } = useLanguage();
@@ -25,10 +26,18 @@ export default function AuthPage() {
 
   const handleSendCode = (e) => {
     e.preventDefault();
-    if (phone.length < 10) {
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    if (cleanPhone.length < 10) {
       setError('Введите корректный номер телефона');
       return;
     }
+    // Auto-fix phone format for KZ
+    let formattedPhone = cleanPhone;
+    if (formattedPhone.startsWith('8')) formattedPhone = '+7' + formattedPhone.slice(1);
+    else if (formattedPhone.startsWith('7') && formattedPhone.length === 10) formattedPhone = '+7' + formattedPhone;
+    else if (!formattedPhone.startsWith('+')) formattedPhone = '+' + formattedPhone;
+    
+    setPhone(formattedPhone);
     setError('');
     setMode('otp');
   };
@@ -59,7 +68,7 @@ export default function AuthPage() {
         navigate('/dashboard');
       }
     } catch (e) {
-      setError('Неверный код или ошибка регистрации');
+      setError(e.response?.data?.detail || e.message || 'Неверный код или ошибка регистрации');
     }
   };
 
@@ -183,14 +192,12 @@ export default function AuthPage() {
                         </div>
                         <div>
                           <label className="block text-xs text-steel-400 mb-1">Специализация</label>
-                          <select value={specialization} onChange={(e) => setSpecialization(e.target.value)} className="input-field text-sm py-2 shadow-inner appearance-none">
-                            <option>Гражданское право</option>
-                            <option>Уголовное право</option>
-                            <option>Корпоративное право</option>
-                            <option>Налоговое право</option>
-                            <option>Семейное право</option>
-                            <option>Трудовое право</option>
-                          </select>
+                          <CustomSelect 
+                            value={specialization} 
+                            onChange={(e) => setSpecialization(e.target.value)} 
+                            options={['Гражданское право', 'Уголовное право', 'Корпоративное право', 'Налоговое право', 'Семейное право', 'Трудовое право']}
+                            className="w-full text-sm mt-1"
+                          />
                         </div>
                       </motion.div>
                     )}

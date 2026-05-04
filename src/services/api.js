@@ -1,6 +1,7 @@
 /**
  * API Service — connects React frontend to FastAPI backend.
- * Handles JWT auth, all endpoints for chat, documents, counterparty, audit, stats.
+ * Handles JWT auth, all endpoints for chat, documents, counterparty, audit, stats,
+ * escalation (AI→Lawyer bridge), marketplace, and lawyer workspace.
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
@@ -306,10 +307,100 @@ export const statsApi = {
   },
 };
 
+// ── Escalation API (AI → Lawyer Bridge) ──
+export const escalationApi = {
+  async createRequest(data) {
+    return request('/escalation/request', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getMyRequests() {
+    return request('/escalation/my-requests');
+  },
+
+  async getLeads(status = null) {
+    const qs = status ? `?status=${status}` : '';
+    return request(`/escalation/leads${qs}`);
+  },
+
+  async respondToLead(escalationId, action, message = null) {
+    return request(`/escalation/${escalationId}/respond`, {
+      method: 'PATCH',
+      body: JSON.stringify({ action, message }),
+    });
+  },
+};
+
+// ── Marketplace API (Public Lawyer Discovery) ──
+export const marketplaceApi = {
+  async searchLawyers(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.city) qs.set('city', params.city);
+    if (params.specialization) qs.set('specialization', params.specialization);
+    if (params.q) qs.set('q', params.q);
+    if (params.page) qs.set('page', params.page);
+    if (params.per_page) qs.set('per_page', params.per_page);
+    const query = qs.toString();
+    return request(`/lawyers/search${query ? '?' + query : ''}`);
+  },
+
+  async getRankings(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.city) qs.set('city', params.city);
+    if (params.specialization) qs.set('specialization', params.specialization);
+    if (params.limit) qs.set('limit', params.limit);
+    const query = qs.toString();
+    return request(`/lawyers/rankings${query ? '?' + query : ''}`);
+  },
+
+  async getPublicProfile(lawyerId) {
+    return request(`/lawyers/${lawyerId}/public-profile`);
+  },
+
+  async getReviews(lawyerId) {
+    return request(`/lawyers/${lawyerId}/reviews`);
+  },
+
+  async createReview(lawyerId, data) {
+    return request(`/lawyers/${lawyerId}/review`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getSpecializations() {
+    return request('/lawyers/specializations');
+  },
+
+  async getNotifications(unreadOnly = false) {
+    return request(`/lawyers/notifications/my${unreadOnly ? '?unread_only=true' : ''}`);
+  },
+
+  async markNotificationRead(notificationId) {
+    return request(`/lawyers/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+  },
+
+  async markAllNotificationsRead() {
+    return request('/lawyers/notifications/read-all', {
+      method: 'PATCH',
+    });
+  },
+};
+
 // ── Lawyer Workspace API ──
 export const lawyerApi = {
   async getProfile() {
     return request('/lawyer/profile');
+  },
+  async updateProfile(data) {
+    return request('/lawyer/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   },
   async getDashboardStats() {
     return request('/lawyer/dashboard-stats');
@@ -343,6 +434,12 @@ export const lawyerApi = {
       body: JSON.stringify(data),
     });
   },
+  async setCaseOutcome(caseId, data) {
+    return request(`/lawyer/cases/${caseId}/outcome`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
   async listTemplates() {
     return request('/lawyer/templates');
   },
@@ -352,4 +449,39 @@ export const lawyerApi = {
       body: JSON.stringify(data),
     });
   },
+};
+
+// ── Admin API (Dev / Testing Tools) ──
+export const adminApi = {
+  async getStats() {
+    return request('/admin/stats');
+  },
+  async getUsers(role = null) {
+    return request(`/admin/users${role ? '?role=' + role : ''}`);
+  },
+  async deleteUser(userId) {
+    return request(`/admin/users/${userId}`, { method: 'DELETE' });
+  },
+  async getLawyers(verified = null) {
+    const qs = verified !== null ? `?verified=${verified}` : '';
+    return request(`/admin/lawyers${qs}`);
+  },
+  async verifyLawyer(lawyerId, verified) {
+    return request(`/admin/lawyers/${lawyerId}/verify`, {
+      method: 'PATCH',
+      body: JSON.stringify({ verified }),
+    });
+  },
+  async getEscalations() {
+    return request('/admin/escalations');
+  },
+  async impersonate(userId) {
+    const data = await request(`/admin/impersonate/${userId}`, { method: 'POST' });
+    setToken(data.token);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    return data;
+  },
+  async seedDatabase() {
+    return request('/admin/seed', { method: 'POST' });
+  }
 };

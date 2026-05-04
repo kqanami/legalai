@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { lawyerApi } from '../services/api';
 import { Briefcase, Plus, X, Search, ChevronRight, User, Trophy, AlertCircle } from 'lucide-react';
 import MagneticButton from '../components/MagneticButton';
+import CustomSelect from '../components/CustomSelect';
+import { useToast } from '../components/Toast';
 
 export default function LawyerCases() {
   const [cases, setCases] = useState([]);
@@ -10,6 +12,7 @@ export default function LawyerCases() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { addToast } = useToast();
 
   const [formData, setFormData] = useState({ 
     title: '', 
@@ -64,10 +67,16 @@ export default function LawyerCases() {
 
   const updateCaseStatus = async (caseId, newStatus) => {
     try {
-      await lawyerApi.updateCase(caseId, { status: newStatus });
+      if (newStatus === 'won' || newStatus === 'closed') {
+        await lawyerApi.setCaseOutcome(caseId, { result: newStatus });
+      } else {
+        await lawyerApi.updateCase(caseId, { status: newStatus });
+      }
       fetchData();
+      addToast(`Статус обновлен: ${getStatusText(newStatus)}`, 'success');
     } catch (e) {
       console.error(e);
+      addToast('Ошибка при обновлении статуса', 'error');
     }
   };
 
@@ -219,11 +228,11 @@ export default function LawyerCases() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm text-steel-400 mb-1">Клиент <span className="text-red-500">*</span></label>
-                    <select required value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})} className="input-field shadow-inner appearance-none bg-obsidian-800 text-white border border-obsidian-600 focus:border-chrome-400 rounded-xl px-4 py-3 w-full outline-none">
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
+                    <CustomSelect 
+                      value={formData.client_id} 
+                      onChange={e => setFormData({...formData, client_id: e.target.value})} 
+                      options={clients.map(c => ({ value: c.id.toString(), label: c.name }))}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm text-steel-400 mb-1">Название дела <span className="text-red-500">*</span></label>
@@ -231,13 +240,11 @@ export default function LawyerCases() {
                   </div>
                   <div>
                     <label className="block text-sm text-steel-400 mb-1">Категория</label>
-                    <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="input-field shadow-inner appearance-none bg-obsidian-800 text-white border border-obsidian-600 focus:border-chrome-400 rounded-xl px-4 py-3 w-full outline-none">
-                      <option>Гражданское право</option>
-                      <option>Уголовное право</option>
-                      <option>Корпоративное право</option>
-                      <option>Семейное право</option>
-                      <option>Административное право</option>
-                    </select>
+                    <CustomSelect 
+                      value={formData.category} 
+                      onChange={e => setFormData({...formData, category: e.target.value})} 
+                      options={['Гражданское право', 'Уголовное право', 'Корпоративное право', 'Семейное право', 'Административное право']}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm text-steel-400 mb-1">Описание / Суть</label>
@@ -245,12 +252,16 @@ export default function LawyerCases() {
                   </div>
                   <div>
                     <label className="block text-sm text-steel-400 mb-1">Статус</label>
-                    <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="input-field shadow-inner appearance-none bg-obsidian-800 text-white border border-obsidian-600 focus:border-chrome-400 rounded-xl px-4 py-3 w-full outline-none">
-                      <option value="active">В работе</option>
-                      <option value="pending">Ожидание</option>
-                      <option value="closed">Закрыто</option>
-                      <option value="won">Выиграно</option>
-                    </select>
+                    <CustomSelect 
+                      value={formData.status} 
+                      onChange={e => setFormData({...formData, status: e.target.value})} 
+                      options={[
+                        { value: 'active', label: 'В работе' },
+                        { value: 'pending', label: 'Ожидание' },
+                        { value: 'closed', label: 'Закрыто' },
+                        { value: 'won', label: 'Выиграно' }
+                      ]}
+                    />
                   </div>
                   
                   <MagneticButton type="submit" className="btn-primary w-full py-3 mt-6">

@@ -61,7 +61,7 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
     prev_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at).all()
     history = [{"role": m.role, "content": m.content} for m in prev_messages]
 
-    ai_response = await gemini_service.chat(req.content, history)
+    ai_response = await gemini_service.chat(req.content, history, user_role=user.role)
 
     if ai_response.get("segment"):
         session.segment = ai_response["segment"]
@@ -69,12 +69,14 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
         session.title = req.content[:60] + ("..." if len(req.content) > 60 else "")
 
     refs_json = json.dumps(ai_response.get("references", []), ensure_ascii=False) if ai_response.get("references") else None
-    ai_msg = ChatMessage(session_id=session_id, role="assistant", content=ai_response["content"], segment=ai_response.get("segment"), references_json=refs_json)
+    escalation_json = json.dumps(ai_response.get("escalation"), ensure_ascii=False) if ai_response.get("escalation") else None
+    
+    ai_msg = ChatMessage(session_id=session_id, role="assistant", content=ai_response["content"], segment=ai_response.get("segment"), references_json=refs_json, escalation_json=escalation_json)
     db.add(ai_msg)
     db.commit()
     db.refresh(ai_msg)
 
-    return MessageResponse(id=ai_msg.id, role="assistant", content=ai_msg.content, segment=ai_msg.segment, references=ai_response.get("references", []), timestamp=ai_msg.created_at.isoformat())
+    return MessageResponse(id=ai_msg.id, role="assistant", content=ai_msg.content, segment=ai_msg.segment, references=ai_response.get("references", []), escalation=ai_response.get("escalation"), timestamp=ai_msg.created_at.isoformat())
 
 
 @router.post("/sessions/{session_id}/messages/stream")
@@ -96,10 +98,14 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
         session.title = req.content[:60] + ("..." if len(req.content) > 60 else "")
         db.commit()
 
+    user_role = user.role
+
     async def generate():
         full_content = ""
         try:
-            async for chunk in gemini_service.chat_stream(req.content, history):
+            async for chunk in gemini_service.chat_stream(req.content, history, user_role=user_role):
+                if not chunk or not chunk.strip():
+                    continue
                 full_content += chunk
                 yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
         except Exception as e:
@@ -113,12 +119,14 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
             session.segment = parsed["segment"]
 
         refs_json = json.dumps(parsed.get("references", []), ensure_ascii=False) if parsed.get("references") else None
-        ai_msg = ChatMessage(session_id=session_id, role="assistant", content=parsed["content"], segment=parsed.get("segment"), references_json=refs_json)
+        escalation_json = json.dumps(parsed.get("escalation"), ensure_ascii=False) if parsed.get("escalation") else None
+
+        ai_msg = ChatMessage(session_id=session_id, role="assistant", content=parsed["content"], segment=parsed.get("segment"), references_json=refs_json, escalation_json=escalation_json)
         db.add(ai_msg)
         db.commit()
         db.refresh(ai_msg)
 
-        yield f"data: {json.dumps({'done': True, 'id': ai_msg.id, 'segment': parsed.get('segment'), 'references': parsed.get('references', []), 'content': parsed['content']}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'done': True, 'id': ai_msg.id, 'segment': parsed.get('segment'), 'references': parsed.get('references', []), 'escalation': parsed.get('escalation'), 'content': parsed['content']}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -139,7 +147,15 @@ def get_messages(session_id: int, user: User = Depends(get_current_user), db: Se
                 refs = json.loads(m.references_json)
             except (json.JSONDecodeError, TypeError) as e:
                 logger.warning(f"Failed to parse refs for message {m.id}: {e}")
-        result.append(MessageResponse(id=m.id, role=m.role, content=m.content, segment=m.segment, references=refs if refs else None, timestamp=m.created_at.isoformat()))
+                
+        escalation = None
+        if m.escalation_json:
+            try:
+                escalation = json.loads(m.escalation_json)
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse escalation for message {m.id}: {e}")
+
+        result.append(MessageResponse(id=m.id, role=m.role, content=m.content, segment=m.segment, references=refs if refs else None, escalation=escalation, timestamp=m.created_at.isoformat()))
     return result
 
 

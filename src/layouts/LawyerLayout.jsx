@@ -1,10 +1,11 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LayoutDashboard, Users, Briefcase, FileText, BrainCircuit, UserCircle, ShieldCheck } from 'lucide-react';
-import ThemeToggle from '../components/ThemeToggle';
+import { LayoutDashboard, Users, Briefcase, FileText, BrainCircuit, UserCircle, ShieldCheck, Inbox } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LawyerLayout() {
   const { user } = useAuth();
+  const location = useLocation();
 
   return (
     <div className="flex h-screen bg-obsidian-950 text-white overflow-hidden relative">
@@ -22,9 +23,10 @@ export default function LawyerLayout() {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           <NavItem to="/lawyer" end icon={<LayoutDashboard size={18} />} label="Обзор" />
           <NavItem to="/lawyer/clients" icon={<Users size={18} />} label="Клиенты" />
+          <NavItem to="/lawyer/leads" icon={<Inbox size={18} />} label="Входящие заявки" />
           <NavItem to="/lawyer/cases" icon={<Briefcase size={18} />} label="Истории дел" />
           <NavItem to="/lawyer/templates" icon={<FileText size={18} />} label="Шаблоны" />
           <NavItem to="/lawyer/audit" icon={<ShieldCheck size={18} />} label="Аудит договоров" />
@@ -33,10 +35,6 @@ export default function LawyerLayout() {
         </nav>
 
         <div className="p-4 border-t border-obsidian-800 bg-obsidian-900/30">
-          <div className="flex items-center justify-between mb-4">
-             <span className="text-xs font-medium text-steel-500 tracking-wider">TEMA</span>
-             <ThemeToggle />
-          </div>
           <NavLink
             to="/lawyer/profile"
             className={({ isActive }) => `flex items-center justify-between p-3 rounded-xl transition-all ${
@@ -55,7 +53,19 @@ export default function LawyerLayout() {
       {/* Main Content */}
       <main className="flex-1 relative overflow-hidden z-10 bg-obsidian-950">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-chrome-900/10 via-obsidian-950 to-obsidian-950 pointer-events-none" />
-        <Outlet />
+        
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="h-full w-full"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

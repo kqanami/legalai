@@ -161,6 +161,57 @@
     @apply segment-badge bg-chrome-200/5 text-chrome-300 border border-chrome-500/25;
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.02);
   }
+
+  /* ======= Professional Markdown Styling ======= */
+  .markdown-content {
+    @apply text-steel-200 leading-relaxed text-[15px];
+  }
+
+  .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+    @apply font-bold text-white mb-4 mt-6 first:mt-0 tracking-tight;
+  }
+
+  .markdown-content h3 { @apply text-lg; }
+
+  .markdown-content p {
+    @apply mb-4 last:mb-0;
+  }
+
+  .markdown-content strong {
+    @apply font-bold text-chrome-100;
+  }
+
+  .markdown-content ul, .markdown-content ol {
+    @apply mb-4 pl-5 space-y-2;
+  }
+
+  .markdown-content ul {
+    @apply list-disc;
+  }
+
+  .markdown-content ul li::marker {
+    @apply text-chrome-500;
+  }
+
+  .markdown-content table {
+    @apply w-full border-collapse mb-4 mt-4 rounded-xl overflow-hidden border border-obsidian-700/50;
+  }
+
+  .markdown-content th, .markdown-content td {
+    @apply p-3 text-left border-b border-obsidian-700/50 text-sm;
+  }
+
+  .markdown-content th {
+    @apply bg-obsidian-800/50 font-bold text-chrome-300;
+  }
+
+  .markdown-content tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .markdown-content code {
+    @apply px-1.5 py-0.5 rounded bg-obsidian-800 text-chrome-300 font-mono text-xs border border-obsidian-700;
+  }
 }
 
 @layer utilities {
@@ -178,108 +229,6 @@
 @keyframes shimmer-border {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
-}
-
-/* ======= Light Theme Overrides ======= */
-.light-theme {
-  --lt-bg: #F8FAFC;
-  --lt-card: rgba(255, 255, 255, 0.85);
-  --lt-border: #E2E8F0;
-  --lt-text: #1E293B;
-  --lt-text-muted: #64748B;
-}
-
-.light-theme body {
-  background-color: var(--lt-bg) !important;
-  color: var(--lt-text) !important;
-}
-
-.light-theme .bg-obsidian-950 {
-  background-color: var(--lt-bg) !important;
-}
-
-.light-theme .bg-obsidian-900,
-.light-theme .bg-obsidian-900\/60,
-.light-theme .bg-obsidian-900\/95,
-.light-theme .bg-obsidian-900\/40,
-.light-theme .bg-obsidian-900\/50 {
-  background-color: var(--lt-card) !important;
-}
-
-.light-theme .bg-obsidian-800,
-.light-theme .bg-obsidian-800\/80,
-.light-theme .bg-obsidian-800\/40,
-.light-theme .bg-obsidian-800\/70 {
-  background-color: #F1F5F9 !important;
-}
-
-.light-theme .text-white {
-  color: var(--lt-text) !important;
-}
-
-.light-theme .text-chrome-200,
-.light-theme .text-chrome-300,
-.light-theme .text-chrome-400 {
-  color: #475569 !important;
-}
-
-.light-theme .text-steel-400,
-.light-theme .text-steel-500 {
-  color: var(--lt-text-muted) !important;
-}
-
-.light-theme .border-obsidian-700,
-.light-theme .border-obsidian-700\/60,
-.light-theme .border-obsidian-700\/50,
-.light-theme .border-obsidian-600,
-.light-theme .border-obsidian-600\/50 {
-  border-color: var(--lt-border) !important;
-}
-
-.light-theme .glass-card {
-  background: var(--lt-card) !important;
-  border-color: var(--lt-border) !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04) !important;
-}
-
-.light-theme .input-field {
-  background-color: #FFFFFF !important;
-  border-color: #CBD5E1 !important;
-  color: var(--lt-text) !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-}
-
-.light-theme .input-field:focus {
-  border-color: #3B82F6 !important;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.1) !important;
-}
-
-.light-theme .chat-bubble-ai {
-  background: #FFFFFF !important;
-  border-color: var(--lt-border) !important;
-  color: var(--lt-text) !important;
-}
-
-.light-theme .sidebar-link {
-  color: var(--lt-text-muted) !important;
-}
-
-.light-theme .sidebar-link:hover {
-  color: var(--lt-text) !important;
-  background-color: #F1F5F9 !important;
-}
-
-.light-theme .sidebar-link.active {
-  color: var(--lt-text) !important;
-  background-color: #E2E8F0 !important;
-}
-
-.light-theme ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-}
-
-.light-theme ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
 }
 
 #root {

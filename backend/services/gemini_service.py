@@ -20,18 +20,39 @@ except ImportError:
 
 from config import settings
 
-LEGAL_CHAT_SYSTEM = """Ты — узкоспециализированный AI-Юрист по законодательству РК.
+LEGAL_CHAT_SYSTEM = """Ты — высококлассный AI-Юрист по законодательству РК. 
+ОТВЕЧАЙ СТРОГО НА РУССКОМ ИЛИ КАЗАХСКОМ ЯЗЫКЕ.
+
 ПРАВИЛА:
-1. Только право, законы, налоги и юридические процедуры РК.
-2. Если вопрос НЕ касается юриспруденции — вежливо откажись.
+1. НИКАКИХ ИЕРОГЛИФОВ, КИТАЙСКИХ ИЛИ ДРУГИХ ИНОСТРАННЫХ СИМВОЛОВ. Только кириллица или латиница (для ссылок).
+2. СТРУКТУРА: Всегда ставь ПУСТУЮ СТРОКУ после заголовков (###) и между абзацами. Не склеивай текст.
+3. КРАСОТА: Используй заголовки (###), жирный текст (**важное**) и списки.
+4. ЗАКОНЫ: Ссылайся на статьи Кодексов и Законов РК.
+
+ФОРМАТ ЗАВЕРШЕНИЯ (ОБЯЗАТЕЛЬНО В КОНЦЕ):
+
+[REFS]
+[{"title": "...", "url": "...", "articles": "..."}]
+
+[SEGMENT]
+b2c
+
+[ESCALATION]
+{"needed": true, "reason": "...", "category": "..."}
+"""
+LAWYER_CHAT_SYSTEM = """Ты — высококлассный AI-ассистент для юристов по законодательству РК.
+ПРАВИЛА:
+1. Твоя цель — помогать профессиональному юристу РК в его работе (поиск прецедентов, анализ законов, подготовка стратегий).
+2. Общайся профессиональным юридическим языком.
 3. Отвечай на языке пользователя (русский или казахский).
-4. Ссылайся на конкретные статьи законов РК.
+4. Ссылайся на конкретные статьи законов РК и нормативно-правовые акты.
 5. Формат: Markdown.
 6. В конце добавляй:
 <!--REFS-->
 [{"title": "Название закона", "url": "https://adilet.zan.kz/...", "articles": "Ст. XX-YY"}]
 7. Добавляй сегмент:
 <!--SEGMENT-->b2c или b2b
+8. ВАЖНО: Никогда не предлагай нанять юриста или обратиться к адвокату, так как ты УЖЕ общаешься с юристом. Не добавляй блок эскалации.
 """
 
 AUDIT_SYSTEM = """Ты — AI-аудитор договоров РК. Проанализируй текст и выяви юридические риски.
@@ -41,6 +62,21 @@ COUNTERPARTY_SYSTEM = """Ты — AI-аналитик по БИН РК. Найд
 Верни JSON: companyName, bin, status, registrationDate, director, address, activity, taxDebt, riskLevel, employees, aiAnalysis."""
 
 DOCUMENT_GEN_SYSTEM = """Ты — AI-генератор юридических документов РК. Сгенерируй полный текст в Markdown."""
+
+LAWYER_CHAT_SYSTEM = """Ты — высококлассный AI-ассистент для юристов по законодательству РК.
+ПРАВИЛА:
+1. Твоя цель — помогать профессиональному юристу РК в его работе (поиск прецедентов, анализ законов, подготовка стратегий).
+2. Общайся профессиональным юридическим языком.
+3. Отвечай на языке пользователя (русский или казахский).
+4. Ссылайся на конкретные статьи законов РК и нормативно-правовые акты.
+5. Формат: Markdown.
+6. В конце добавляй:
+<!--REFS-->
+[{"title": "Название закона", "url": "https://adilet.zan.kz/...", "articles": "Ст. XX-YY"}]
+7. Добавляй сегмент:
+<!--SEGMENT-->b2c или b2b
+8. ВАЖНО: Никогда не предлагай нанять юриста или обратиться к адвокату, так как ты УЖЕ общаешься с юристом. Не добавляй блок эскалации.
+"""
 
 
 class LLMService:
@@ -64,31 +100,31 @@ class LLMService:
                 logger.error(f"Gemini init error: {e}")
 
     # ── Chat ──
-    async def chat(self, user_message: str, history: List[Dict] = None) -> Dict:
+    async def chat(self, user_message: str, history: List[Dict] = None, user_role: str = "citizen") -> Dict:
         if self.groq_client:
             try:
-                return await self._chat_groq(user_message, history)
+                return await self._chat_groq(user_message, history, user_role)
             except Exception as e:
                 logger.warning(f"Groq Chat Error: {e}. Falling back...")
         if self.gemini_client:
             try:
-                return await self._chat_gemini(user_message, history)
+                return await self._chat_gemini(user_message, history, user_role)
             except Exception as e:
                 logger.warning(f"Gemini Chat Error: {e}. Falling back to Mock...")
         return self._mock_chat(user_message)
 
-    async def chat_stream(self, user_message: str, history: List[Dict] = None) -> AsyncGenerator[str, None]:
+    async def chat_stream(self, user_message: str, history: List[Dict] = None, user_role: str = "citizen") -> AsyncGenerator[str, None]:
         """Stream chat response token by token."""
         if self.groq_client:
             try:
-                async for chunk in self._chat_groq_stream(user_message, history):
+                async for chunk in self._chat_groq_stream(user_message, history, user_role):
                     yield chunk
                 return
             except Exception as e:
                 logger.warning(f"Groq stream error: {e}")
         if self.gemini_client:
             try:
-                async for chunk in self._chat_gemini_stream(user_message, history):
+                async for chunk in self._chat_gemini_stream(user_message, history, user_role):
                     yield chunk
                 return
             except Exception as e:
@@ -137,21 +173,22 @@ class LLMService:
         return f"# Шаблон ({doc_type})\n\n{description}\n\n> Мок-версия."
 
     # ── Groq Implementations ──
-    def _build_messages(self, message, history, max_history=8):
-        messages = [{"role": "system", "content": LEGAL_CHAT_SYSTEM}]
+    def _build_messages(self, message, history, max_history=8, user_role="citizen"):
+        sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
+        messages = [{"role": "system", "content": sys_prompt}]
         if history:
             for h in history[-max_history:]:
                 messages.append({"role": h["role"], "content": h["content"]})
         messages.append({"role": "user", "content": message})
         return messages
 
-    async def _chat_groq(self, message, history):
-        msgs = self._build_messages(message, history)
+    async def _chat_groq(self, message, history, user_role="citizen"):
+        msgs = self._build_messages(message, history, user_role=user_role)
         resp = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.7)
         return self._parse_chat_response(resp.choices[0].message.content)
 
-    async def _chat_groq_stream(self, message, history) -> AsyncGenerator[str, None]:
-        msgs = self._build_messages(message, history)
+    async def _chat_groq_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
+        msgs = self._build_messages(message, history, user_role=user_role)
         stream = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.7, stream=True)
         for chunk in stream:
             c = chunk.choices[0].delta.content
@@ -180,14 +217,16 @@ class LLMService:
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=message)]))
         return contents
 
-    async def _chat_gemini(self, message, history):
+    async def _chat_gemini(self, message, history, user_role="citizen"):
         contents = self._build_gemini_contents(message, history)
-        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=LEGAL_CHAT_SYSTEM, temperature=0.7))
+        sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
+        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.7))
         return self._parse_chat_response(resp.text or "")
 
-    async def _chat_gemini_stream(self, message, history) -> AsyncGenerator[str, None]:
+    async def _chat_gemini_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
         contents = self._build_gemini_contents(message, history)
-        resp = self.gemini_client.models.generate_content_stream(model="gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=LEGAL_CHAT_SYSTEM, temperature=0.7))
+        sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
+        resp = self.gemini_client.models.generate_content_stream(model="gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.7))
         for chunk in resp:
             if chunk.text:
                 yield chunk.text
@@ -238,19 +277,47 @@ class LLMService:
         return {"risks": clean, "summary": data.get("summary") or f"Выявлено {len(clean)} замечаний.", "totalRisks": len(clean)}
 
     def _parse_chat_response(self, raw):
-        content, refs, segment = raw, [], "b2c"
-        if "<!--REFS-->" in raw:
-            parts = raw.split("<!--REFS-->")
-            content = parts[0].strip()
+        content = raw
+        refs = []
+        segment = "b2c"
+        escalation = None
+
+        if "[ESCALATION]" in content:
+            parts = content.split("[ESCALATION]")
+            content = parts[0]
             try:
-                for r in json.loads(parts[1].split("<!--SEGMENT-->")[0].strip()):
-                    refs.append({"title": r.get("title", "Закон"), "url": r.get("url", "#"), "articles": r.get("articles", "")})
-            except (json.JSONDecodeError, IndexError, KeyError) as e:
+                escalation = json.loads(parts[1].strip())
+            except Exception as e:
+                logger.warning(f"Failed to parse escalation: {e}")
+
+        if "[SEGMENT]" in content:
+            parts = content.split("[SEGMENT]")
+            content = parts[0]
+            segment_part = parts[1].strip()
+            segment = "b2b" if "b2b" in segment_part.lower() else "b2c"
+
+        if "[REFS]" in content:
+            parts = content.split("[REFS]")
+            content = parts[0]
+            try:
+                refs = json.loads(parts[1].strip())
+            except Exception as e:
                 logger.warning(f"Failed to parse refs: {e}")
-        if "<!--SEGMENT-->" in raw:
-            segment = "b2b" if "b2b" in raw.split("<!--SEGMENT-->")[-1].lower() else "b2c"
-            content = content.split("<!--SEGMENT-->")[0].strip()
-        return {"content": content, "segment": segment, "references": refs}
+
+        # Fallback for old style if needed (compatibility)
+        if "<!--ESCALATION-->" in content:
+            parts = content.split("<!--ESCALATION-->")
+            content = parts[0]
+            try:
+                escalation = json.loads(parts[1].strip())
+            except: pass
+            
+        return {
+            "content": content.strip(),
+            "segment": segment,
+            "references": refs,
+            "escalation": escalation
+        }
 
     def _parse_json_response(self, raw, fallback):
         try:

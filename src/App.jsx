@@ -52,6 +52,12 @@ const LawyerLayout = lazy(() => import('./layouts/LawyerLayout'));
 const LawyerDashboard = lazy(() => import('./pages/LawyerDashboard'));
 const LawyerClients = lazy(() => import('./pages/LawyerClients'));
 const LawyerCases = lazy(() => import('./pages/LawyerCases'));
+const LawyerLeads = lazy(() => import('./pages/LawyerLeads'));
+const LawyerTemplates = lazy(() => import('./pages/LawyerTemplates'));
+const LawyerProfile = lazy(() => import('./pages/LawyerProfile'));
+const LawyerMarketplace = lazy(() => import('./pages/LawyerMarketplace'));
+const LawyerPublicProfile = lazy(() => import('./pages/LawyerPublicProfile'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
 // Route guard components
 const PrivateRoute = ({ children }) => {
@@ -79,6 +85,10 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/lawyers" element={<LawyerMarketplace />} />
+        <Route path="/lawyers/rankings" element={<Placeholder title="Глобальный рейтинг юристов" />} />
+        <Route path="/lawyers/:id" element={<LawyerPublicProfile />} />
         
         <Route path="/dashboard" element={
           <PrivateRoute>
@@ -97,16 +107,19 @@ function AppRoutes() {
 
         <Route path="/lawyer" element={
           <PrivateRoute>
-            <LawyerLayout />
+            <ChatProvider>
+              <LawyerLayout />
+            </ChatProvider>
           </PrivateRoute>
         }>
           <Route index element={<LawyerDashboard />} />
+          <Route path="leads" element={<LawyerLeads />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="clients" element={<LawyerClients />} />
           <Route path="cases" element={<LawyerCases />} />
-          <Route path="templates" element={<Placeholder title="Шаблоны" />} />
-          <Route path="ai" element={<Placeholder title="AI Ассистент" />} />
-          <Route path="profile" element={<Placeholder title="Профиль юриста" />} />
+          <Route path="templates" element={<LawyerTemplates />} />
+          <Route path="ai" element={<ChatPage />} />
+          <Route path="profile" element={<LawyerProfile />} />
         </Route>
       </Routes>
     </Suspense>

@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
 import AnimatedIcon from './AnimatedIcon';
-import ThemeToggle from './ThemeToggle';
+
 
 const navItems = [
   { path: '/dashboard', key: 'nav_chat', exact: true, anim: 'chat' },
   { path: '/dashboard/documents', key: 'nav_documents', anim: 'document' },
   { path: '/dashboard/history', key: 'nav_history', anim: 'history' },
   { path: '/dashboard/counterparty', key: 'nav_counterparty', anim: 'search' },
+  { path: '/lawyers', key: 'nav_lawyers', anim: 'profile' }, // New marketplace link
   { path: '/dashboard/profile', key: 'nav_profile', anim: 'profile' },
 ];
 
@@ -132,10 +133,9 @@ export default function Sidebar({ isOpen, onClose }) {
             })}
           </nav>
 
-          {/* Theme Toggle */}
-          <div className="mt-4 flex items-center justify-between px-3 py-2 rounded-xl bg-obsidian-900/40 border border-obsidian-700/40">
-            <span className="text-[11px] text-steel-400 font-medium tracking-wide uppercase">Тема</span>
-            <ThemeToggle />
+          {/* System version */}
+          <div className="mt-4 flex items-center justify-center px-3 py-2 rounded-xl bg-obsidian-900/40 border border-obsidian-700/40">
+            <span className="text-[11px] text-steel-500 font-medium tracking-wide uppercase">LegalAI • v3.0</span>
           </div>
 
           {/* Bottom info */}

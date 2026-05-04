@@ -71,17 +71,9 @@ export function ChatProvider({ children }) {
         setSessionId(currentSessionId);
       }
 
-      // Add empty AI message placeholder for streaming
-      const aiMsgId = (Date.now() + 1).toString();
-      setMessages((prev) => [...prev, {
-        id: aiMsgId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString(),
-      }]);
-
       let fullContent = '';
       let finalData = {};
+      let aiMsgId = null;
 
       try {
         // Try streaming first
@@ -89,6 +81,15 @@ export function ChatProvider({ children }) {
           if (data.done) {
             finalData = data;
           } else if (data.content) {
+            if (!aiMsgId) {
+              aiMsgId = (Date.now() + 1).toString();
+              setMessages((prev) => [...prev, {
+                id: aiMsgId,
+                role: 'assistant',
+                content: '',
+                timestamp: new Date().toISOString(),
+              }]);
+            }
             fullContent += data.content;
             setMessages((prev) => prev.map(m =>
               m.id === aiMsgId ? { ...m, content: fullContent } : m
@@ -99,15 +100,18 @@ export function ChatProvider({ children }) {
         });
 
         // Update with final data (refs, segment, real ID)
-        setMessages((prev) => prev.map(m =>
-          m.id === aiMsgId ? {
-            ...m,
-            id: finalData.id?.toString() || aiMsgId,
-            content: finalData.content || fullContent,
-            segment: finalData.segment,
-            references: finalData.references,
-          } : m
-        ));
+        if (aiMsgId) {
+          setMessages((prev) => prev.map(m =>
+            m.id === aiMsgId ? {
+              ...m,
+              id: finalData.id?.toString() || aiMsgId,
+              content: finalData.content || fullContent,
+              segment: finalData.segment,
+              references: finalData.references,
+              escalation: finalData.escalation,
+            } : m
+          ));
+        }
 
         if (finalData.segment) {
           setCurrentSegment(finalData.segment);
@@ -118,17 +122,31 @@ export function ChatProvider({ children }) {
         console.warn('Streaming failed, falling back:', streamError);
 
         const response = await chatApi.sendMessage(currentSessionId, text);
+        const fallbackId = (Date.now() + 2).toString();
 
-        setMessages((prev) => prev.map(m =>
-          m.id === aiMsgId ? {
-            ...m,
-            id: response.id?.toString() || aiMsgId,
+        if (aiMsgId) {
+          setMessages((prev) => prev.map(m =>
+            m.id === aiMsgId ? {
+              ...m,
+              id: response.id?.toString() || fallbackId,
+              content: response.content,
+              segment: response.segment,
+              references: response.references,
+              escalation: response.escalation,
+              timestamp: response.timestamp || new Date().toISOString(),
+            } : m
+          ));
+        } else {
+          setMessages((prev) => [...prev, {
+            id: response.id?.toString() || fallbackId,
+            role: 'assistant',
             content: response.content,
             segment: response.segment,
             references: response.references,
+            escalation: response.escalation,
             timestamp: response.timestamp || new Date().toISOString(),
-          } : m
-        ));
+          }]);
+        }
 
         if (response.segment) {
           setCurrentSegment(response.segment);

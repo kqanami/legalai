@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { lawyerApi } from '../services/api';
-import { Users, UserPlus, Mail, Phone, X, Search, Trash2 } from 'lucide-react';
+import { Users, UserPlus, Mail, Phone, X, Search, Trash2, AlertTriangle } from 'lucide-react';
 import MagneticButton from '../components/MagneticButton';
+import { useToast } from '../components/Toast';
 
 export default function LawyerClients() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const { addToast } = useToast();
 
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', notes: '' });
 
@@ -39,15 +42,17 @@ export default function LawyerClients() {
     }
   };
 
-  const handleDeleteClient = async (id) => {
-    if (window.confirm('Вы уверены, что хотите удалить этого клиента? Все связанные дела также будут удалены.')) {
-      try {
-        await lawyerApi.deleteClient(id);
-        fetchClients();
-      } catch (e) {
-        console.error(e);
-        alert('Не удалось удалить клиента');
-      }
+  const confirmDeleteClient = async () => {
+    if (!clientToDelete) return;
+    try {
+      await lawyerApi.deleteClient(clientToDelete);
+      fetchClients();
+      addToast('Клиент удален', 'success');
+    } catch (e) {
+      console.error(e);
+      addToast('Не удалось удалить клиента', 'error');
+    } finally {
+      setClientToDelete(null);
     }
   };
 
@@ -102,7 +107,7 @@ export default function LawyerClients() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteClient(client.id);
+                    setClientToDelete(client.id);
                   }}
                   className="absolute top-4 right-4 p-2 text-steel-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors z-10 opacity-0 group-hover:opacity-100"
                   title="Удалить клиента"
@@ -170,6 +175,42 @@ export default function LawyerClients() {
                   Сохранить клиента
                 </MagneticButton>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm Delete Modal */}
+      <AnimatePresence>
+        {clientToDelete && (
+          <motion.div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="glass-card w-full max-w-sm p-6 text-center border-red-500/30"
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+            >
+              <div className="w-16 h-16 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Удалить клиента?</h2>
+              <p className="text-sm text-steel-400 mb-6">Это действие необратимо. Все связанные с ним дела также будут удалены.</p>
+              
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setClientToDelete(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-steel-300 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button 
+                  onClick={confirmDeleteClient}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                >
+                  Удалить
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

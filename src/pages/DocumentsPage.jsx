@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { FileText, Download, Trash2, Plus, FileSignature, UploadCloud, X, Loader2 } from 'lucide-react';
 import MagneticButton from '../components/MagneticButton';
+import CustomSelect from '../components/CustomSelect';
 import { docsApi } from '../services/api';
 
 const containerVariants = {
@@ -193,16 +194,17 @@ export default function DocumentsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-steel-400 uppercase tracking-widest mb-2">Тип документа</label>
-                  <select 
+                  <CustomSelect 
                     value={docType} 
-                    onChange={(e) => setDocType(e.target.value)}
-                    className="w-full bg-obsidian-900 border border-obsidian-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-chrome-500 transition-colors"
-                  >
-                    <option value="contract">Договор (услуг, аренды и т.д.)</option>
-                    <option value="claim">Исковое заявление в суд</option>
-                    <option value="complaint">Жалоба / Претензия</option>
-                    <option value="statement">Официальное заявление</option>
-                  </select>
+                    onChange={(val) => setDocType(val)}
+                    options={[
+                      { value: 'contract', label: 'Договор (услуг, аренды и т.д.)' },
+                      { value: 'claim', label: 'Исковое заявление в суд' },
+                      { value: 'complaint', label: 'Жалоба / Претензия' },
+                      { value: 'statement', label: 'Официальное заявление' },
+                    ]}
+                    className="w-full text-sm mb-4"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-steel-400 uppercase tracking-widest mb-2">Описание ситуации</label>

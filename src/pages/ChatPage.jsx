@@ -6,7 +6,9 @@ import { useChat } from '../contexts/ChatContext';
 import AIWaveform from '../components/AIWaveform';
 import MagneticButton from '../components/MagneticButton';
 import { chatApi } from '../services/api';
-import { Scale, Settings2, Home, Building2, Link2, Download } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Scale, Settings2, Home, Building2, Link2, Download, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const msgVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
@@ -27,6 +29,36 @@ const suggestionVariants = {
     transition: { delay: 0.4 + i * 0.1, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
   }),
 };
+
+/* ── Escalation Banner ── */
+function EscalationBanner({ escalation }) {
+  const { user } = useAuth();
+  if (!escalation || !escalation.needed || user?.role === 'lawyer') return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-6 p-5 rounded-xl border border-amber-500/30 bg-amber-500/5 relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 shadow-[0_0_15px_#f59e0b]" />
+      <div className="flex items-start gap-4">
+        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 flex-shrink-0">
+          <Scale size={20} />
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-amber-500 mb-1">Рекомендуется помощь адвоката</h4>
+          <p className="text-xs text-amber-500/80 mb-3">{escalation.reason}</p>
+          <Link
+            to={`/lawyers?specialization=${encodeURIComponent(escalation.category || '')}`}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-obsidian-950 text-xs font-bold hover:bg-amber-400 transition-colors"
+          >
+            Найти юриста ({escalation.category}) <ChevronRight size={14} />
+          </Link>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 // Grok-style simulated streaming typewriter for Markdown
 const StreamingMarkdown = memo(({ content, isLatest, onUpdate }) => {
@@ -56,16 +88,54 @@ const StreamingMarkdown = memo(({ content, isLatest, onUpdate }) => {
     return () => clearInterval(interval);
   }, [content, isLatest, onUpdate]);
 
-  return <ReactMarkdown>{displayedText}</ReactMarkdown>;
+  const normalizeMarkdown = (text) => {
+    if (!text) return '';
+    return text
+      // Исправляем склейку заголовка и текста (строчная буква + заглавная без пробела)
+      // Например: "увольнениеЕсли" -> "увольнение. Если" или перенос
+      .replace(/([а-яё])([А-ЯЁ])/g, '$1\n\n$2')
+      // Убеждаемся, что после # всегда есть пробел
+      .replace(/^(#+)([^\s#])/gm, '$1 $2')
+      // Убеждаемся, что после заголовка всегда есть пустая строка
+      .replace(/^(#+.+)$(?!\n\n)/gm, '$1\n\n')
+      // Исправляем ситуацию, когда текст начинается сразу после заголовка без переноса
+      .replace(/([^\n])(###\s)/g, '$1\n\n$2');
+  };
+
+  const cleanText = (text) => {
+    const raw = text
+      .split('[REFS]')[0]
+      .split('[SEGMENT]')[0]
+      .split('[ESCALATION]')[0]
+      .split('<!--REFS-->')[0]
+      .split('<!--SEGMENT-->')[0]
+      .split('<!--ESCALATION-->')[0]
+      .trim();
+    
+    return normalizeMarkdown(raw);
+  };
+
+  return (
+    <div className="markdown-content">
+      <ReactMarkdown>{cleanText(displayedText)}</ReactMarkdown>
+    </div>
+  );
 });
 
 export default function ChatPage() {
   const { t } = useLanguage();
   const { messages, isTyping, currentSegment, sendMessage, sessionId } = useChat();
+  const { user } = useAuth();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
+  const isLawyer = user?.role === 'lawyer';
 
-  const suggestions = [
+  const suggestions = isLawyer ? [
+    t('lawyer_suggestion_1'),
+    t('lawyer_suggestion_2'),
+    t('lawyer_suggestion_3'),
+    t('lawyer_suggestion_4'),
+  ] : [
     t('chat_suggestion_1'),
     t('chat_suggestion_2'),
     t('chat_suggestion_3'),
@@ -145,7 +215,7 @@ export default function ChatPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                {t('chat_welcome')}
+                {isLawyer ? t('lawyer_welcome') : t('chat_welcome')}
               </motion.p>
 
               {/* Segment auto-detect badge */}
@@ -230,19 +300,7 @@ export default function ChatPage() {
                     {msg.role === 'user' ? (
                       <p className="text-sm sm:text-base font-semibold tracking-wide">{msg.content}</p>
                     ) : (
-                      <div className="prose prose-invert prose-sm max-w-none
-                        prose-headings:text-white prose-headings:font-bold
-                        prose-h2:text-lg prose-h2:mt-0 prose-h2:mb-4
-                        prose-h3:text-base prose-h3:mt-5 prose-h3:mb-3
-                        prose-p:text-steel-300 prose-p:leading-relaxed prose-p:tracking-wide
-                        prose-strong:text-chrome-100 prose-strong:font-bold
-                        prose-a:text-chrome-300 prose-a:underline hover:prose-a:text-white
-                        prose-blockquote:border-chrome-500/50 prose-blockquote:bg-obsidian-700/30 prose-blockquote:rounded-r-lg prose-blockquote:py-3 prose-blockquote:px-5 prose-blockquote:my-4
-                        prose-li:text-steel-300
-                        prose-table:text-sm prose-table:border-collapse
-                        prose-th:text-chrome-200 prose-th:font-semibold prose-th:border-b-2 prose-th:border-obsidian-600/50 prose-th:pb-2
-                        prose-td:text-steel-300 prose-td:border-b prose-td:border-obsidian-700/50 prose-td:py-2
-                      ">
+                      <div>
                         <StreamingMarkdown content={msg.content} isLatest={isLatestAI} onUpdate={scrollToBottom} />
                       </div>
                     )}
@@ -271,6 +329,11 @@ export default function ChatPage() {
                           </a>
                         ))}
                       </motion.div>
+                    )}
+
+                    {/* Escalation Banner */}
+                    {msg.escalation && msg.escalation.needed && (
+                      <EscalationBanner escalation={msg.escalation} />
                     )}
 
                       <p className="text-[10px] text-steel-600 mt-3 font-medium tracking-widest uppercase flex justify-end">

@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
     phone: str
     email: Optional[str] = None
     role: str
+    city: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -43,12 +44,20 @@ class ReferenceItem(BaseModel):
     url: str
     articles: str
 
+class EscalationData(BaseModel):
+    needed: bool = False
+    reason: Optional[str] = None
+    category: Optional[str] = None
+    city: Optional[str] = None
+    recommended_lawyers: Optional[List[dict]] = None
+
 class MessageResponse(BaseModel):
     id: int
     role: str
     content: str
     segment: Optional[str] = None
     references: Optional[List[ReferenceItem]] = None
+    escalation: Optional[EscalationData] = None
     timestamp: datetime
 
 class SessionResponse(BaseModel):
@@ -152,6 +161,17 @@ class RegisterLawyerRequest(BaseModel):
     iin: str
     license_number: str
     specialization: str
+    city: Optional[str] = None
+
+class LawyerProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    city: Optional[str] = None
+    specialization: Optional[str] = None
+    experience_years: Optional[int] = None
+    hourly_rate: Optional[int] = None
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    is_accepting_clients: Optional[bool] = None
 
 class LawyerProfileResponse(BaseModel):
     id: int
@@ -160,11 +180,45 @@ class LawyerProfileResponse(BaseModel):
     specialization: str
     verified: bool
     bio: Optional[str] = None
+    photo_url: Optional[str] = None
     rating: float
     cases_won: int
+    cases_total: int
+    city: Optional[str] = None
+    experience_years: int
+    hourly_rate: int = 0
+    is_accepting_clients: bool
+    win_rate: float = 0.0
+    is_top_rated: bool = False
 
     class Config:
         from_attributes = True
+
+class LawyerPublicProfileResponse(BaseModel):
+    """Public-facing lawyer profile for marketplace."""
+    id: int
+    name: str
+    specialization: str
+    specializations: List[str] = []
+    verified: bool
+    bio: Optional[str] = None
+    rating: float
+    cases_won: int
+    cases_total: int
+    win_rate: float = 0.0
+    is_top_rated: bool = False
+    city: Optional[str] = None
+    experience_years: int = 0
+    is_accepting_clients: bool = True
+    photo_url: Optional[str] = None
+    response_time_hours: Optional[float] = None
+    review_count: int = 0
+
+class LawyerSearchResult(BaseModel):
+    lawyers: List[LawyerPublicProfileResponse]
+    total: int
+    page: int
+    per_page: int
 
 class ClientBase(BaseModel):
     name: str
@@ -177,6 +231,7 @@ class ClientCreate(ClientBase):
 
 class ClientResponse(ClientBase):
     id: int
+    source: str = "manual"
     created_at: datetime
 
     class Config:
@@ -209,9 +264,11 @@ class CaseUpdate(BaseModel):
     status: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
+    court_case_number: Optional[str] = None
 
 class CaseResponse(CaseBase):
     id: int
+    court_case_number: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     notes: List[CaseNoteResponse] = []
@@ -221,6 +278,20 @@ class CaseResponse(CaseBase):
 
 class CaseWithClientResponse(CaseResponse):
     client: ClientResponse
+
+    class Config:
+        from_attributes = True
+
+class CaseOutcomeCreate(BaseModel):
+    result: str  # "won", "lost", "settled"
+    court_decision_number: Optional[str] = None
+    amount_won: Optional[float] = None
+    notes: Optional[str] = None
+
+class CaseOutcomeResponse(CaseOutcomeCreate):
+    id: int
+    verified: bool
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -240,10 +311,115 @@ class DocumentTemplateResponse(DocumentTemplateBase):
     class Config:
         from_attributes = True
 
+
+# ── Escalation (AI → Lawyer Bridge) ──
+
+class EscalationCreateRequest(BaseModel):
+    """Created by AI when it detects a complex case."""
+    session_id: Optional[int] = None
+    category: str
+    city: Optional[str] = None
+    description: str
+    ai_analysis: Optional[str] = None
+    urgency: str = "normal"
+    lawyer_id: Optional[int] = None  # If user selects a specific lawyer
+
+class EscalationRespondRequest(BaseModel):
+    """Lawyer responds to an escalation request."""
+    action: str  # "accept" or "decline"
+    message: Optional[str] = None
+
+class EscalationResponse(BaseModel):
+    id: int
+    user_id: int
+    user_name: str
+    session_id: Optional[int] = None
+    category: str
+    city: Optional[str] = None
+    description: str
+    ai_analysis: Optional[str] = None
+    status: str
+    urgency: str
+    created_at: datetime
+    responded_at: Optional[datetime] = None
+
+class EscalationForClient(BaseModel):
+    id: int
+    category: str
+    description: str
+    status: str
+    lawyer_name: Optional[str] = None
+    lawyer_rating: Optional[float] = None
+    created_at: datetime
+
+
+# ── Reviews ──
+
+class ReviewCreate(BaseModel):
+    lawyer_id: int
+    case_id: Optional[int] = None
+    rating: float  # 1.0 - 5.0
+    comment: Optional[str] = None
+    is_anonymous: bool = False
+
+class ReviewResponse(BaseModel):
+    id: int
+    rating: float
+    comment: Optional[str] = None
+    reviewer_name: Optional[str] = None  # Hidden if anonymous
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Notifications ──
+
+class NotificationResponse(BaseModel):
+    id: int
+    type: str
+    title: str
+    message: Optional[str] = None
+    reference_id: Optional[int] = None
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Rankings ──
+
+class LawyerRankingItem(BaseModel):
+    id: int
+    name: str
+    specialization: str
+    city: Optional[str] = None
+    rating: float
+    win_rate: float
+    cases_won: int
+    cases_total: int
+    is_top_rated: bool
+    verified: bool
+    review_count: int = 0
+
+class RankingsResponse(BaseModel):
+    rankings: List[LawyerRankingItem]
+    total: int
+
+
+# ── Lawyer Dashboard Stats (Extended) ──
+
 class LawyerDashboardStats(BaseModel):
     total_clients: int
     active_cases: int
     total_templates: int
     recent_cases: List[CaseWithClientResponse]
     cases_won: int
+    cases_total: int
     rating: float
+    win_rate: float
+    is_top_rated: bool
+    pending_leads: int
+    total_reviews: int
+    unread_notifications: int
