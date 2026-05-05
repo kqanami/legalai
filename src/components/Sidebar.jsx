@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, ChevronRight, Plus } from 'lucide-react';
+import { MessageSquare, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
+import { useToast } from './Toast';
 
 
 const navItems = [
@@ -36,7 +37,8 @@ const itemVariants = {
 
 export default function Sidebar({ isOpen, onClose }) {
   const { t } = useLanguage();
-  const { currentSegment, chatHistory, loadSession, sessionId, clearMessages } = useChat();
+  const { currentSegment, chatHistory, loadSession, sessionId, clearMessages, deleteSession } = useChat();
+  const { addToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -155,18 +157,31 @@ export default function Sidebar({ isOpen, onClose }) {
                 <p className="text-[10px] text-obsidian-600 px-2 italic">История пуста</p>
               ) : (
                 chatHistory.slice(0, 10).map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => { loadSession(chat.id); navigate('/dashboard'); onClose(); }}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs transition-all duration-200 group flex items-center gap-3
-                      ${sessionId === chat.id 
-                        ? 'bg-chrome-500/10 text-chrome-200 border border-chrome-500/20 shadow-sm' 
-                        : 'text-steel-400 hover:bg-obsidian-900/60 hover:text-steel-200'}`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${chat.segment === 'b2b' ? 'bg-amber-500' : 'bg-indigo-500'}`} />
-                    <span className="truncate flex-1">{chat.question}</span>
-                    <ChevronRight size={12} className={`opacity-0 group-hover:opacity-100 transition-opacity ${sessionId === chat.id ? 'text-chrome-400' : 'text-obsidian-600'}`} />
-                  </button>
+                  <div key={chat.id} className="relative group">
+                    <button
+                      onClick={() => { loadSession(chat.id); navigate('/dashboard'); onClose(); }}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs transition-all duration-200 flex items-center gap-3 pr-12
+                        ${sessionId === chat.id 
+                          ? 'bg-chrome-500/10 text-chrome-200 border border-chrome-500/20 shadow-sm' 
+                          : 'text-steel-400 hover:bg-obsidian-900/60 hover:text-steel-200'}`}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${chat.segment === 'b2b' ? 'bg-amber-500' : 'bg-indigo-500'}`} />
+                      <span className="truncate flex-1">{chat.question}</span>
+                      <ChevronRight size={12} className={`opacity-0 group-hover:opacity-100 transition-opacity ${sessionId === chat.id ? 'text-chrome-400' : 'text-obsidian-600'}`} />
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSession(chat.id);
+                        addToast('Чат удален', 'info');
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 text-steel-600 transition-all z-10"
+                      title="Удалить чат"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 ))
               )}
             </div>

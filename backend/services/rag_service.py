@@ -5,28 +5,29 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from config import settings
+from google import genai
+import numpy as np
+
 class LegalRAGService:
-    """
-    Proprietary RAG Vector Database for Legal Documents.
-    This creates a huge moat by anchoring our AI to actual, curated Kazakhstan laws
-    rather than relying on LLM hallucinations.
-    """
     def __init__(self):
-        # We store the vector database locally in a specific directory
         db_path = os.path.join(os.path.dirname(__file__), "..", "db", "vector_store")
         os.makedirs(db_path, exist_ok=True)
         
         try:
             self.client = chromadb.PersistentClient(path=db_path)
-            # Default embedding function: sentence-transformers/all-MiniLM-L6-v2
-            self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
+            # Устанавливаем API ключ в окружение
+            os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY
             
-            # Get or create the collection for KZ Legal Codes
+            self.embedding_fn = embedding_functions.GoogleGenaiEmbeddingFunction(
+                model_name="models/gemini-embedding-001"
+            )
+            
             self.collection = self.client.get_or_create_collection(
-                name="kz_legal_knowledge",
+                name="kz_legal_knowledge_v3",
                 embedding_function=self.embedding_fn
             )
-            logger.info("ChromaDB LegalRAG initialized successfully.")
+            logger.info("ChromaDB with GoogleGenaiEmbeddingFunction (gemini-embedding-001) initialized.")
         except Exception as e:
             logger.error(f"Failed to initialize ChromaDB: {e}")
             self.client = None

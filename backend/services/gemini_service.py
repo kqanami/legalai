@@ -25,12 +25,12 @@ LEGAL_CHAT_SYSTEM = """Ты — высококлассный AI-Юрист по 
 ОТВЕЧАЙ СТРОГО НА РУССКОМ ИЛИ КАЗАХСКОМ ЯЗЫКЕ (в зависимости от языка запроса пользователя).
 
 ПРАВИЛА И СТАНДАРТЫ ОТВЕТОВ:
-1. ЭКСПЕРТНОСТЬ: Опирайся только на действующее законодательство РК (Кодексы, Законы, НПА). Не придумывай законы.
-2. СТРУКТУРА: Разделяй текст на логические блоки с помощью заголовков (###), абзацев и нумерованных/маркированных списков. Всегда оставляй пустую строку перед и после заголовка.
-3. ТОЧНОСТЬ: Обязательно указывай точные номера статей и названия нормативных актов.
-4. ОФОРМЛЕНИЕ: Выделяй ключевые мысли **жирным** шрифтом. Делай ответы визуально красивыми и легко читаемыми в Markdown.
-5. ТОН: Профессиональный, вежливый, объективный и уверенный.
-6. ЯЗЫК: НИКАКИХ ИЕРОГЛИФОВ, КИТАЙСКИХ ИЛИ ДРУГИХ ИНОСТРАННЫХ СИМВОЛОВ. Только кириллица (и латиница для URL/специфичных терминов).
+1. ПРИОРИТЕТ ДАННЫХ: Тебе предоставлены данные из БАЗЫ ЗНАНИЙ (RAG). Используй их как основной и наиболее достоверный источник.
+2. ГИБКОСТЬ: Если конкретной статьи нет в RAG, отвечай на основе своих общих знаний о законодательстве РК. Не извиняйся за отсутствие данных в RAG, просто дай максимально полезный и точный ответ.
+3. ЭКСПЕРТНОСТЬ: Опирайся только на действующее законодательство РК. Не придумывай законы.
+4. СТРУКТУРА: Разделяй текст на блоки (###), абзацы. Пустая строка ДО и ПОСЛЕ заголовка.
+5. ЯЗЫК: Только кириллица. НИКАКИХ ИЕРОГЛИФОВ.
+6. ТОЧНОСТЬ: Если уверен на 100% — пиши номер статьи. Если есть сомнение — пиши только название Кодекса.
 
 ФОРМАТ ЗАВЕРШЕНИЯ (ОБЯЗАТЕЛЬНО ДОБАВЛЯЙ В САМОМ КОНЦЕ ОТВЕТА СКРЫТЫЕ БЛОКИ ДЛЯ ПАРСИНГА):
 
@@ -48,11 +48,11 @@ LAWYER_CHAT_SYSTEM = """Ты — элитный AI-ассистент для п�
 Твоя цель — ускорить и облегчить работу юриста: анализ сложных прецедентов, подготовка стратегий, глубокий анализ законодательства РК.
 
 ПРАВИЛА И СТАНДАРТЫ ОТВЕТОВ:
-1. ПРОФЕССИОНАЛИЗМ: Используй строгую юридическую терминологию, принятую в правовой системе РК. Не разжевывай базовые вещи, переходи сразу к сути.
-2. ГЛУБИНА: Анализируй противоречия в праве, судебную практику (Верховный Суд РК) и нормативные постановления.
-3. ФОРМАТИРОВАНИЕ: Markdown. Четкая структура, заголовки (###), списки.
-4. ВАЖНО: Ты общаешься с профи. Никогда не предлагай нанять юриста или "обратиться к специалисту".
-5. ОТВЕЧАЙ НА ЯЗЫКЕ ЗАПРОСА (русский/казахский).
+1. ПРИОРИТЕТ RAG: Твои ответы должны в первую очередь опираться на извлеченные законы (УК, ГК, ТК, КоАП РК).
+2. ПОЛНОТА: Если в RAG недостаточно информации, используй свою экспертную базу знаний по праву РК, чтобы дополнить ответ. Юрист ждет от тебя качественного анализа в любом случае.
+3. ГЛУБИНА: Анализируй противоречия, судебную практику и нормативные постановления.
+4. ФОРМАТИРОВАНИЕ: Markdown (###, жирный шрифт).
+5. ОТВЕЧАЙ НА ЯЗЫКЕ ЗАПРОСА.
 
 В конце ответа ОБЯЗАТЕЛЬНО добавляй системные теги:
 <!--REFS-->
@@ -140,12 +140,14 @@ class LLMService:
             try:
                 return await self._chat_groq(user_message, history, user_role)
             except Exception as e:
-                logger.warning(f"Groq Chat Error: {e}. Falling back...")
+                logger.warning(f"Groq Chat Error: {e}. Falling back to Gemini...")
+        
         if self.gemini_client:
             try:
                 return await self._chat_gemini(user_message, history, user_role)
             except Exception as e:
                 logger.warning(f"Gemini Chat Error: {e}. Falling back to Mock...")
+        
         return self._mock_chat(user_message)
 
     async def chat_stream(self, user_message: str, history: List[Dict] = None, user_role: str = "citizen") -> AsyncGenerator[str, None]:
@@ -157,6 +159,7 @@ class LLMService:
                 return
             except Exception as e:
                 logger.warning(f"Groq stream error: {e}")
+        
         if self.gemini_client:
             try:
                 async for chunk in self._chat_gemini_stream(user_message, history, user_role):
@@ -219,12 +222,13 @@ class LLMService:
 
     async def _chat_groq(self, message, history, user_role="citizen"):
         msgs = self._build_messages(message, history, user_role=user_role)
-        resp = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.7)
+        # Переключаем на 3.3 Versatile и ставим минимальную температуру для точности
+        resp = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1)
         return self._parse_chat_response(resp.choices[0].message.content)
 
     async def _chat_groq_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
         msgs = self._build_messages(message, history, user_role=user_role)
-        stream = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.7, stream=True)
+        stream = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1, stream=True)
         for chunk in stream:
             c = chunk.choices[0].delta.content
             if c:
@@ -255,13 +259,25 @@ class LLMService:
     async def _chat_gemini(self, message, history, user_role="citizen"):
         contents = self._build_gemini_contents(message, history)
         sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
-        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.7))
+        # Добавляем Google Search Retrieval для 100% точности по внешним данным
+        config = types.GenerateContentConfig(
+            system_instruction=sys_prompt, 
+            temperature=0.1, 
+            tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
+        )
+        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=contents, config=config)
         return self._parse_chat_response(resp.text or "")
 
     async def _chat_gemini_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
         contents = self._build_gemini_contents(message, history)
         sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
-        resp = self.gemini_client.models.generate_content_stream(model="gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.7))
+        config = types.GenerateContentConfig(
+            system_instruction=sys_prompt, 
+            temperature=0.1,
+            max_tokens=2048,
+            tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
+        )
+        resp = self.gemini_client.models.generate_content_stream(model="gemini-2.0-flash", contents=contents, config=config)
         for chunk in resp:
             if chunk.text:
                 yield chunk.text
@@ -312,7 +328,16 @@ class LLMService:
         return {"risks": clean, "summary": data.get("summary") or f"Выявлено {len(clean)} замечаний.", "totalRisks": len(clean)}
 
     def _parse_chat_response(self, raw):
-        content = raw
+        if not raw: return ""
+        # КРИТИЧЕСКИЙ ФИЛЬТР: Удаляем иероглифы, вьетнамские символы и прочий мусор.
+        # Оставляем: Кирилллицу, Латиницу (для ссылок), Цифры и Пунктуацию.
+        import re
+        # Регулярка для удаления всего, кроме RU, KZ, EN, цифр и знаков препинания
+        # [\u0400-\u04FF] - Cyrillic (incl. KZ chars)
+        # [a-zA-Z0-9\s] - Latin, digits, space
+        # [.,!?;:()\"\'\-] - Punctuation
+        content = re.sub(r'[^\u0400-\u04FFa-zA-Z0-9\s\.,!?;:()\"\'\-\/\\\[\]\{\}\%\&\@\=\+\*\#\_\n\r]+', '', str(raw))
+        
         refs = []
         segment = "b2c"
         escalation = None

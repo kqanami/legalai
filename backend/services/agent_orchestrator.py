@@ -60,12 +60,27 @@ class LegalAgentOrchestrator:
         2. Synthesis Agent (Generates response using context)
         """
         logger.info("Agent 1: RAG Retrieval for Chat...")
-        context = self.rag.get_context_string(query, n_results=2)
+        context = self.rag.get_context_string(query, n_results=5)
+        
+        # Fallback: если поиск по текущему сообщению пуст (например, "найди еще раз"),
+        # пробуем поиск с учетом предыдущего сообщения
+        if not context and history:
+            last_user_msg = next((m['content'] for m in reversed(history) if m['role'] == 'user'), "")
+            if last_user_msg:
+                logger.info("RAG Fallback: Searching with history context...")
+                context = self.rag.get_context_string(f"{last_user_msg} {query}", n_results=5)
         
         logger.info("Agent 2: Chat Synthesizer...")
         
         if context:
-            enriched_query = f"Контекст из базы знаний РК:\n{context}\n\nВопрос пользователя: {query}"
+            # Предоставляем контекст как приоритетный, но не запрещаем использовать общие знания
+            enriched_query = f"""Ниже приведены статьи из официальной Базы Знаний Казахстана (RAG). 
+Используй их как приоритетный источник информации для ответа.
+БАЗА ЗНАНИЙ РК:
+{context}
+
+ВОПРОС ПОЛЬЗОВАТЕЛЯ: 
+{query}"""
         else:
             enriched_query = query
             
@@ -74,12 +89,23 @@ class LegalAgentOrchestrator:
     async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str):
         """Stream version of the multi-agent chat workflow."""
         logger.info("Agent 1: RAG Retrieval for Chat Stream...")
-        context = self.rag.get_context_string(query, n_results=2)
+        context = self.rag.get_context_string(query, n_results=5)
+        
+        if not context and history:
+            last_user_msg = next((m['content'] for m in reversed(history) if m['role'] == 'user'), "")
+            if last_user_msg:
+                logger.info("RAG Fallback (Stream): Searching with history context...")
+                context = self.rag.get_context_string(f"{last_user_msg} {query}", n_results=5)
         
         logger.info("Agent 2: Chat Synthesizer Stream...")
         
         if context:
-            enriched_query = f"Контекст из базы знаний РК (Использовать только если релевантно):\n{context}\n\nВопрос пользователя: {query}"
+            enriched_query = f"""Опирайся на эти статьи из базы знаний (RAG) при ответе. 
+СТАТЬИ ИЗ БАЗЫ:
+{context}
+
+ВОПРОС: 
+{query}"""
         else:
             enriched_query = query
             
