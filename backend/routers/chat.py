@@ -10,6 +10,7 @@ from models import User, ChatSession, ChatMessage
 from schemas import CreateSessionRequest, SendMessageRequest, MessageResponse, SessionResponse
 from auth import get_current_user
 from services.gemini_service import gemini_service
+from services.agent_orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -61,7 +62,7 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
     prev_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at).all()
     history = [{"role": m.role, "content": m.content} for m in prev_messages]
 
-    ai_response = await gemini_service.chat(req.content, history, user_role=user.role)
+    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role)
 
     if ai_response.get("segment"):
         session.segment = ai_response["segment"]
@@ -103,8 +104,8 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
     async def generate():
         full_content = ""
         try:
-            async for chunk in gemini_service.chat_stream(req.content, history, user_role=user_role):
-                if not chunk or not chunk.strip():
+            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role):
+                if not chunk:
                     continue
                 full_content += chunk
                 yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"

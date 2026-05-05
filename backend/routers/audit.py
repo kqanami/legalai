@@ -9,6 +9,7 @@ from auth import get_current_user
 from models import User, AuditResult
 from schemas import AuditResponse, AuditHistoryItem
 from services.gemini_service import gemini_service
+from services.agent_orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/audit", tags=["audit"])
@@ -64,7 +65,7 @@ async def analyze_contract(file: UploadFile = File(...), user: User = Depends(ge
         if not contract_text.strip():
             raise HTTPException(status_code=400, detail="Не удалось извлечь текст из документа")
 
-        result = await gemini_service.audit_contract(contract_text)
+        result = await orchestrator.process_contract_audit(contract_text)
         risks = result.get("risks", [])
         summary = result.get("summary", "Анализ завершён")
         total = result.get("totalRisks", len(risks))

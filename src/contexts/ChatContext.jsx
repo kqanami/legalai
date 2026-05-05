@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { chatApi } from '../services/api';
 
 const ChatContext = createContext();
@@ -89,6 +89,7 @@ export function ChatProvider({ children }) {
                 content: '',
                 timestamp: new Date().toISOString(),
               }]);
+              setIsTyping(false); // Hide the generic typing indicator once the real bubble appears
             }
             fullContent += data.content;
             setMessages((prev) => prev.map(m =>
@@ -200,6 +201,10 @@ export function ChatProvider({ children }) {
       console.error('Delete session error:', e);
     }
   }, [sessionId, clearMessages]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   return (
     <ChatContext.Provider value={{

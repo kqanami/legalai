@@ -2,12 +2,15 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
+import { useNavigate } from 'react-router-dom';
+import { MessageSquare, ChevronRight, Plus } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
 
 
 const navItems = [
   { path: '/dashboard', key: 'nav_chat', exact: true, anim: 'chat' },
   { path: '/dashboard/documents', key: 'nav_documents', anim: 'document' },
+  { path: '/dashboard/audit', key: 'nav_audit', anim: 'audit' },
   { path: '/dashboard/history', key: 'nav_history', anim: 'history' },
   { path: '/dashboard/counterparty', key: 'nav_counterparty', anim: 'search' },
   { path: '/lawyers', key: 'nav_lawyers', anim: 'profile' }, // New marketplace link
@@ -33,8 +36,9 @@ const itemVariants = {
 
 export default function Sidebar({ isOpen, onClose }) {
   const { t } = useLanguage();
-  const { currentSegment } = useChat();
+  const { currentSegment, chatHistory, loadSession, sessionId, clearMessages } = useChat();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const segmentColor = currentSegment === 'b2b' ? '#D1D5DB' : currentSegment === 'b2c' ? '#E5E7EB' : '#F3F4F6';
 
@@ -79,6 +83,14 @@ export default function Sidebar({ isOpen, onClose }) {
               {currentSegment ? (currentSegment === 'b2c' ? 'C2C Mode' : 'B2B Mode') : 'AI System Active'}
             </span>
           </div>
+          
+          {/* New Chat Button */}
+          <button
+            onClick={() => { clearMessages(); navigate('/dashboard'); onClose(); }}
+            className="mb-6 w-full py-4 rounded-xl chrome-gradient text-obsidian-950 font-bold text-xs uppercase tracking-widest shadow-[0_4px_20px_rgba(255,255,255,0.1)] hover:shadow-[0_8px_30px_rgba(255,255,255,0.2)] transition-all group flex items-center justify-center gap-2"
+          >
+            <Plus size={16} /> Новая консультация
+          </button>
 
           {/* Navigation */}
           <nav className="flex-1 space-y-1.5">
@@ -132,6 +144,33 @@ export default function Sidebar({ isOpen, onClose }) {
               );
             })}
           </nav>
+          
+          {/* Recent Chats - Persistence Proof */}
+          <div className="mt-8 flex-1 flex flex-col min-h-0">
+            <h3 className="text-[10px] font-bold text-steel-500 uppercase tracking-[0.2em] mb-4 px-2 flex items-center gap-2">
+              <MessageSquare size={12} className="text-chrome-500" /> {t('nav_history')}
+            </h3>
+            <div className="flex-1 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+              {chatHistory.length === 0 ? (
+                <p className="text-[10px] text-obsidian-600 px-2 italic">История пуста</p>
+              ) : (
+                chatHistory.slice(0, 10).map((chat) => (
+                  <button
+                    key={chat.id}
+                    onClick={() => { loadSession(chat.id); navigate('/dashboard'); onClose(); }}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs transition-all duration-200 group flex items-center gap-3
+                      ${sessionId === chat.id 
+                        ? 'bg-chrome-500/10 text-chrome-200 border border-chrome-500/20 shadow-sm' 
+                        : 'text-steel-400 hover:bg-obsidian-900/60 hover:text-steel-200'}`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${chat.segment === 'b2b' ? 'bg-amber-500' : 'bg-indigo-500'}`} />
+                    <span className="truncate flex-1">{chat.question}</span>
+                    <ChevronRight size={12} className={`opacity-0 group-hover:opacity-100 transition-opacity ${sessionId === chat.id ? 'text-chrome-400' : 'text-obsidian-600'}`} />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
 
           {/* System version */}
           <div className="mt-4 flex items-center justify-center px-3 py-2 rounded-xl bg-obsidian-900/40 border border-obsidian-700/40">

@@ -17,7 +17,7 @@ const itemVariants = {
 
 export default function HistoryPage() {
   const { t } = useLanguage();
-  const { chatHistory } = useChat();
+  const { chatHistory, loadSession } = useChat();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -98,7 +98,7 @@ export default function HistoryPage() {
               </div>
               <div className="space-y-4">
                 {items.map((item) => (
-                  <div key={item.id} className="glass-card p-5 flex items-center gap-5 cursor-pointer group bg-obsidian-900/40 hover:bg-obsidian-800 border border-obsidian-700 transition-all shadow-md hover:shadow-[0_5px_20px_rgba(0,0,0,0.5)]" onClick={() => navigate('/dashboard')}>
+                  <div key={item.id} className="glass-card p-5 flex items-center gap-5 cursor-pointer group bg-obsidian-900/40 hover:bg-obsidian-800 border border-obsidian-700 transition-all shadow-md hover:shadow-[0_5px_20px_rgba(0,0,0,0.5)]" onClick={() => { loadSession(item.id); navigate('/dashboard'); }}>
                     {/* Icon Box */}
                     <div className="w-12 h-12 rounded-xl chrome-gradient flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.05)] text-obsidian-950">
                       <MessageSquare size={20} className="opacity-80 group-hover:opacity-100 transition-opacity" />
