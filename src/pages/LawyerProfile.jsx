@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { lawyerApi } from '../services/api';
 import { useToast } from '../components/Toast';
-import { User, MapPin, Briefcase, DollarSign, Camera, Save, Star, ShieldCheck, Languages, LogOut } from 'lucide-react';
+import { User, MapPin, Briefcase, Camera, Save, Star, ShieldCheck, Languages, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MagneticButton from '../components/MagneticButton';
 import CustomSelect from '../components/CustomSelect';
@@ -18,7 +18,6 @@ export default function LawyerProfile() {
     city: '',
     specialization: '',
     experience_years: 0,
-    hourly_rate: 0,
     description: '',
     photo_url: '',
     is_accepting_clients: true
@@ -31,7 +30,6 @@ export default function LawyerProfile() {
         city: user.city || 'Алматы',
         specialization: user.lawyer_profile?.specialization || 'Гражданское право',
         experience_years: user.lawyer_profile?.experience_years || 5,
-        hourly_rate: user.lawyer_profile?.hourly_rate || 15000,
         description: user.lawyer_profile?.description || '',
         photo_url: user.lawyer_profile?.photo_url || '',
         is_accepting_clients: user.lawyer_profile?.is_accepting_clients ?? true
@@ -121,22 +119,13 @@ export default function LawyerProfile() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-bold text-steel-400 mb-2 uppercase tracking-widest">Стаж (лет)</label>
                 <input 
                   type="number" 
                   value={profile.experience_years}
                   onChange={e => setProfile({...profile, experience_years: parseInt(e.target.value)})}
-                  className="input-field shadow-inner"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-steel-400 mb-2 uppercase tracking-widest">Ставка (₸/час)</label>
-                <input 
-                  type="number" 
-                  value={profile.hourly_rate}
-                  onChange={e => setProfile({...profile, hourly_rate: parseInt(e.target.value)})}
                   className="input-field shadow-inner"
                 />
               </div>

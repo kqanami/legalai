@@ -72,6 +72,7 @@ AUDIT_SYSTEM = """Ты — строгий AI-аудитор и ревьюер ю
       "description": "Детальное описание проблемы и почему это риск",
       "recommendation": "Как переформулировать пункт или что добавить",
       "article": "Ссылка на ст. ГК РК или иного закона",
+      "location": "ТОЧНАЯ ЦИТАТА ИЗ ТЕКСТА ДОГОВОРА, К КОТОРОЙ ОТНОСИТСЯ РИСК",
       "url": "Ссылка на adilet.zan.kz (если применимо)"
     }
   ],
@@ -123,10 +124,23 @@ class LLMService:
     def _init_clients(self):
         if Groq and settings.GROQ_API_KEY:
             try:
+                # Try standard initialization first
                 self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
                 logger.info("Groq client initialized (Primary)")
             except Exception as e:
-                logger.error(f"Groq init error: {e}")
+                if "proxies" in str(e):
+                    try:
+                        import httpx
+                        # Explicitly disable proxies if they cause init failure
+                        self.groq_client = Groq(
+                            api_key=settings.GROQ_API_KEY,
+                            http_client=httpx.Client(proxies=None)
+                        )
+                        logger.info("Groq client initialized with proxies disabled")
+                    except Exception as e2:
+                        logger.error(f"Groq init error after proxy fallback: {e2}")
+                else:
+                    logger.error(f"Groq init error: {e}")
         if genai and settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "your-gemini-api-key":
             try:
                 self.gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -324,7 +338,15 @@ class LLMService:
                 fl = "medium"
             else:
                 fl = "low"
-            clean.append({"level": fl, "title": r.get("title") or "Замечание", "description": r.get("description") or "Требует внимания.", "recommendation": r.get("recommendation") or "Проконсультируйтесь с юристом.", "article": r.get("article") or "ГК РК", "url": r.get("url") or "https://adilet.zan.kz"})
+            clean.append({
+                "level": fl, 
+                "title": r.get("title") or "Замечание", 
+                "description": r.get("description") or "Требует внимания.", 
+                "recommendation": r.get("recommendation") or "Проконсультируйтесь с юристом.", 
+                "article": r.get("article") or "ГК РК", 
+                "location": r.get("location") or "",
+                "url": r.get("url") or "https://adilet.zan.kz"
+            })
         return {"risks": clean, "summary": data.get("summary") or f"Выявлено {len(clean)} замечаний.", "totalRisks": len(clean)}
 
     def _parse_chat_response(self, raw):

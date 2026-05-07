@@ -17,14 +17,16 @@ const itemVariants = {
 
 export default function AuditPage() {
   const { t } = useLanguage();
-  const [file, setFile] = useState(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
-  const [summary, setSummary] = useState('');
-  const [dragActive, setDragActive] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [file, setFile] = useState(null);
   const [error, setError] = useState('');
+  const [summary, setSummary] = useState('');
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [contractText, setContractText] = useState('');
+  const [activeRiskIndex, setActiveRiskIndex] = useState(null);
 
   useEffect(() => { loadHistory(); }, []);
 
@@ -45,6 +47,7 @@ export default function AuditPage() {
       const data = await auditApi.analyze(file);
       setResults(data.risks || []);
       setSummary(data.summary || '');
+      setContractText(data.original_text || '');
       loadHistory();
     } catch (err) {
       setError(err.message || 'Ошибка анализа');
@@ -58,34 +61,79 @@ export default function AuditPage() {
       const data = await auditApi.getDetail(item.id);
       setResults(data.risks || []);
       setSummary(data.summary || '');
+      setContractText(data.original_text || '');
     } catch (e) { setError(e.message); }
   };
 
   const levelColors = {
-    high: { bg: 'bg-red-500/10', border: 'border-red-500/40', text: 'text-red-400', icon: <AlertTriangle size={14} className="text-red-400"/>, label: 'ВЫСОКИЙ РИСК' },
-    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/40', text: 'text-amber-400', icon: <SlidersHorizontal size={14} className="text-amber-400"/>, label: 'СРЕДНИЙ РИСК' },
-    low: { bg: 'bg-sky-500/10', border: 'border-sky-500/40', text: 'text-sky-400', icon: <CheckCircle2 size={14} className="text-sky-400"/>, label: 'РЕКОМЕНДАЦИЯ' },
+    high: { bg: 'bg-red-500/10', border: 'border-red-500/40', text: 'text-red-400', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', icon: <AlertTriangle size={14} className="text-red-400"/>, label: 'ВЫСОКИЙ РИСК' },
+    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/40', text: 'text-amber-400', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.3)]', icon: <SlidersHorizontal size={14} className="text-amber-400"/>, label: 'СРЕДНИЙ РИСК' },
+    low: { bg: 'bg-sky-500/10', border: 'border-sky-500/40', text: 'text-sky-400', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.3)]', icon: <CheckCircle2 size={14} className="text-sky-400"/>, label: 'РЕКОМЕНДАЦИЯ' },
+  };
+
+  const renderHighlightedText = () => {
+    if (!contractText) return null;
+    
+    // Simple highlighting logic
+    let highlighted = contractText;
+    const sortedRisks = [...results].sort((a, b) => (b.location?.length || 0) - (a.location?.length || 0));
+
+    return (
+      <div className="whitespace-pre-wrap font-serif text-steel-200 leading-relaxed text-sm bg-obsidian-950/30 p-8 rounded-2xl border border-obsidian-800 shadow-inner max-h-[70vh] overflow-y-auto custom-scrollbar">
+        {contractText.split('\n').map((line, li) => {
+            let lineContent = line;
+            results.forEach((risk, ri) => {
+                if (risk.location && line.includes(risk.location)) {
+                    const colors = levelColors[risk.level];
+                    const isActive = activeRiskIndex === ri;
+                    lineContent = line.split(risk.location).map((part, i, arr) => (
+                        <span key={i}>
+                            {part}
+                            {i < arr.length - 1 && (
+                                <span 
+                                    className={`cursor-pointer px-1 rounded-sm transition-all duration-300 ${colors.bg} ${colors.text} ${isActive ? 'ring-2 ring-white/50 bg-white/10' : 'border-b border-dashed border-current'}`}
+                                    onClick={() => setActiveRiskIndex(ri)}
+                                >
+                                    {risk.location}
+                                </span>
+                            )}
+                        </span>
+                    ));
+                }
+            });
+            return <p key={li} className="mb-4">{lineContent}</p>;
+        })}
+      </div>
+    );
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-8 mt-4 pb-20">
+    <div className="max-w-[1400px] mx-auto p-4 sm:p-8 mt-4 pb-20">
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Main */}
+        {/* Main Content */}
         <div className="flex-1 min-w-0">
           <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
             
             {/* Header */}
-            <motion.div variants={itemVariants} className="text-center sm:text-left mb-8">
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight flex items-center justify-center sm:justify-start gap-4 mb-2">
-                <FileSearch className="text-chrome-400" size={36} strokeWidth={2.5} />
-                {t('audit_title')}
-              </h1>
-              <p className="text-steel-400 text-sm tracking-wide">Глубокая AI-проверка договоров на соответствие законодательству РК.</p>
+            <motion.div variants={itemVariants} className="text-center sm:text-left mb-8 flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight flex items-center gap-4 mb-2">
+                    <FileSearch className="text-chrome-400" size={36} strokeWidth={2.5} />
+                    {t('audit_title')}
+                </h1>
+                <p className="text-steel-400 text-sm tracking-wide">Интерактивный анализ и поиск рисков в документах.</p>
+              </div>
+              {results && (
+                  <MagneticButton as="button" onClick={() => { setResults(null); setFile(null); setSummary(''); setContractText(''); setActiveRiskIndex(null); }}
+                    className="btn-secondary text-xs px-6 py-3 border border-obsidian-600 bg-obsidian-800" strength={0.3}>
+                    Загрузить новый
+                  </MagneticButton>
+              )}
             </motion.div>
 
             {/* Upload Zone */}
             <AnimatePresence mode="wait">
-              {!results && (
+              {!results && !analyzing && (
                 <motion.div key="upload" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="glass-card p-2 sm:p-2 rounded-2xl relative bg-obsidian-900 border border-obsidian-700/80 shadow-2xl">
@@ -114,8 +162,8 @@ export default function AuditPage() {
                           className="mb-6 text-steel-500 group-hover:text-chrome-400 transition-colors">
                           <UploadCloud size={64} strokeWidth={1} />
                         </motion.div>
-                        <p className="text-white font-bold text-xl tracking-wide mb-2">Перетащите файл документа сюда</p>
-                        <p className="text-xs text-steel-500 font-mono tracking-widest uppercase">ИЛИ НАЖМИТЕ ДЛЯ ВЫБОРА ФАЙЛА (PDF, DOCX)</p>
+                        <p className="text-white font-bold text-xl tracking-wide mb-2">Перетащите файл договора сюда</p>
+                        <p className="text-xs text-steel-500 font-mono tracking-widest uppercase">ИЛИ НАЖМИТЕ ДЛЯ ВЫБОРА ФАЙЛА</p>
                       </div>
                     )}
                   </div>
@@ -127,94 +175,93 @@ export default function AuditPage() {
                           ${!analyzing ? 'btn-primary chrome-gradient text-obsidian-950 shadow-[0_0_20px_rgba(255,255,255,0.15)]'
                             : 'bg-obsidian-800 border border-obsidian-700/50 text-steel-500 cursor-not-allowed grayscale'}`}
                         strength={0.1}>
-                        {analyzing ? (
-                          <span className="flex items-center gap-3">
-                            <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                            Анализ по базам НПА РК...
-                          </span>
-                        ) : <>Запустить глубокий аудит →</>}
+                        Начать аудит →
                       </MagneticButton>
                     </div>
                   )}
                 </motion.div>
               )}
 
-              {/* Results */}
+              {analyzing && (
+                  <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-40">
+                      <div className="relative w-32 h-32 mb-8">
+                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                              className="absolute inset-0 border-4 border-chrome-500/20 border-t-chrome-500 rounded-full" />
+                          <div className="absolute inset-4 bg-obsidian-900 rounded-full flex items-center justify-center">
+                              <ShieldAlert className="text-chrome-400 animate-pulse" size={32} />
+                          </div>
+                      </div>
+                      <p className="text-xl font-bold text-white mb-2">Глубокий анализ документа...</p>
+                      <p className="text-steel-500 text-sm animate-pulse">Проверяем на соответствие ГК РК и НПА</p>
+                  </motion.div>
+              )}
+
+              {/* Split View Results */}
               {results && !analyzing && (
-                <motion.div key="results" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-obsidian-700/80 gap-4">
-                    <div className="flex items-center gap-4">
-                      <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                        <ShieldAlert className="text-amber-400" size={28} /> Результаты Аудита
-                      </h2>
-                      <span className="segment-b2b flex items-center gap-1"><Building2 size={12}/> B2B</span>
-                    </div>
-                    <MagneticButton as="button" onClick={() => { setResults(null); setFile(null); setSummary(''); }}
-                      className="btn-secondary text-xs px-4 py-2 border border-obsidian-600 bg-obsidian-800" strength={0.3}>
-                      Загрузить другой
-                    </MagneticButton>
-                  </div>
-
-                  {/* Summary */}
-                  <div className="glass-card p-6 border-l-4 border-amber-500/50 bg-amber-950/10 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-                    <div className="flex items-center gap-5 relative z-10">
-                      <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.15)] flex-shrink-0">
-                        <AlertTriangle size={32} className="text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-white mb-1 tracking-wide">Выявлено {results.length} замечаний</p>
-                        <p className="text-sm font-mono tracking-widest text-steel-400">
-                          <span className="text-red-400">{results.filter(r => r.level === 'high').length} КРИТ.</span> • 
-                          <span className="text-amber-400 mx-1">{results.filter(r => r.level === 'medium').length} СРЕДН.</span> • 
-                          <span className="text-sky-400 ml-1">{results.filter(r => r.level === 'low').length} ИНФО.</span>
-                        </p>
-                        {summary && <p className="text-xs text-steel-400 mt-2">{summary}</p>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Risks */}
+                <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
+                    className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+                  
+                  {/* Left: Document View */}
                   <div className="space-y-4">
-                    {results.map((risk, i) => {
-                      const colors = levelColors[risk.level] || levelColors.low;
-                      return (
-                        <motion.div key={i} className={`glass-card p-6 border-l-[3px] ${colors.border} bg-obsidian-900/60 shadow-lg`}
-                          initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                            <h3 className="text-lg font-bold text-white tracking-wide">{risk.title}</h3>
-                            <span className={`flex items-center gap-1.5 text-[10px] font-bold tracking-widest px-3 py-1.5 rounded-md ${colors.bg} ${colors.text} border ${colors.border}`}>
-                              {colors.icon} {colors.label}
-                            </span>
-                          </div>
-                          <p className="text-sm text-steel-400 leading-relaxed max-w-3xl mb-5">{risk.description}</p>
-                          <div className="bg-obsidian-950/80 rounded-xl p-4 sm:p-5 border border-obsidian-800 shadow-inner">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CheckCircle2 size={16} className="text-chrome-400" />
-                              <p className="text-xs uppercase font-bold tracking-widest text-steel-500">Рекомендация ИИ:</p>
-                            </div>
-                            <p className="text-sm font-medium text-white mb-4 leading-relaxed">{risk.recommendation}</p>
-                            <a href={risk.url} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 text-[11px] font-mono tracking-wider text-chrome-500 hover:text-chrome-300 transition-colors bg-chrome-500/10 px-3 py-1.5 rounded-lg">
-                              <LinkIcon size={12} /> {risk.article} — ADILET.ZAN.KZ
-                            </a>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                    <h3 className="text-xs font-bold tracking-widest text-steel-500 uppercase flex items-center gap-2">
+                        <FileText size={14} className="text-chrome-400" /> Текст документа
+                    </h3>
+                    {renderHighlightedText()}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                  {/* Right: Risks List */}
+                  <div className="space-y-6">
+                    <div className="glass-card p-6 border-l-4 border-amber-500/50 bg-amber-950/10 relative overflow-hidden">
+                      <div className="flex items-center gap-5 relative z-10">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                          <AlertTriangle size={24} className="text-amber-400" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-white tracking-wide">Выявлено {results.length} рисков</p>
+                          <p className="text-xs text-steel-400 mt-1">{summary}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                      {results.map((risk, i) => {
+                        const colors = levelColors[risk.level] || levelColors.low;
+                        const isActive = activeRiskIndex === i;
+                        return (
+                          <motion.div key={i} 
+                            onClick={() => setActiveRiskIndex(i)}
+                            className={`glass-card p-5 border-l-[3px] transition-all duration-300 cursor-pointer 
+                                ${isActive ? `${colors.border} ${colors.bg} scale-[1.02] ${colors.glow}` : 'border-obsidian-700/50 hover:border-obsidian-600 bg-obsidian-900/40'}`}
+                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <h3 className="text-base font-bold text-white tracking-wide">{risk.title}</h3>
+                              <span className={`text-[9px] font-bold tracking-widest px-2 py-1 rounded ${colors.bg} ${colors.text} border ${colors.border}`}>
+                                {colors.label}
+                              </span>
+                            </div>
+                            <p className="text-xs text-steel-400 leading-relaxed mb-4">{risk.description}</p>
+                            <div className="bg-obsidian-950/80 rounded-xl p-4 border border-obsidian-800">
+                                <p className="text-[10px] uppercase font-bold tracking-widest text-steel-500 mb-2">Рекомендация:</p>
+                                <p className="text-xs font-medium text-white mb-3">{risk.recommendation}</p>
+                                <a href={risk.url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 text-[10px] font-mono text-chrome-500 hover:text-chrome-300 transition-colors">
+                                  <LinkIcon size={10} /> {risk.article}
+                                </a>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+
                     <MagneticButton as="button"
                       onClick={async () => {
                         try {
                           await docsApi.generate('contract', `Исправленный договор на основе аудита: ${file?.name || 'документ'}`);
-                          alert("Успех! Перейдите в 'Мои документы' для скачивания.");
+                          alert("Успех! Перейдите в 'Мои документы'.");
                         } catch (e) { alert("Ошибка генерации"); }
                       }}
-                      className="flex-1 btn-primary chrome-gradient text-obsidian-950 shadow-[0_0_20px_rgba(255,255,255,0.1)] py-4 text-sm font-bold tracking-widest uppercase cursor-pointer">
-                      <FileText size={16} className="mr-2 inline" /> Сгенерировать исправленный документ
+                      className="w-full btn-primary chrome-gradient text-obsidian-950 py-4 text-xs font-bold tracking-widest uppercase">
+                      Сгенерировать исправленную версию
                     </MagneticButton>
                   </div>
                 </motion.div>
@@ -223,30 +270,25 @@ export default function AuditPage() {
           </motion.div>
         </div>
 
-        {/* History sidebar */}
+        {/* Sidebar History */}
         <div className="w-full lg:w-72 flex-shrink-0">
           <div className="glass-card p-5 border border-obsidian-700/60 sticky top-24">
             <h3 className="text-xs text-steel-500 uppercase tracking-widest font-bold mb-4 flex items-center gap-2">
-              <Clock size={14} className="text-chrome-400" /> История аудитов
+              <Clock size={14} className="text-chrome-400" /> Последние проверки
             </h3>
             {historyLoading ? (
               <p className="text-xs text-steel-600 animate-pulse">Загрузка...</p>
-            ) : history.length === 0 ? (
-              <p className="text-xs text-steel-600">Пока нет аудитов</p>
             ) : (
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
                 {history.map((item) => (
                   <button key={item.id} onClick={() => loadFromHistory(item)}
                     className="w-full text-left p-3 rounded-xl bg-obsidian-800/40 hover:bg-obsidian-800/80 border border-transparent hover:border-obsidian-600/50 transition-all duration-200 group">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-chrome-300 truncate max-w-[80%]">{item.filename}</span>
-                      <ChevronRight size={12} className="text-steel-600 group-hover:text-chrome-400 transition-colors flex-shrink-0" />
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className={`text-[10px] font-bold ${item.total_risks > 3 ? 'text-red-400' : item.total_risks > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                        {item.total_risks} замечаний
+                    <span className="text-xs text-chrome-300 truncate block mb-1">{item.filename}</span>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-bold ${item.total_risks > 2 ? 'text-red-400' : 'text-amber-400'}`}>
+                        {item.total_risks} рисков
                       </span>
-                      <span className="text-[10px] text-steel-600">{new Date(item.created_at).toLocaleDateString('ru')}</span>
+                      <span className="text-[9px] text-steel-600">{new Date(item.created_at).toLocaleDateString('ru')}</span>
                     </div>
                   </button>
                 ))}

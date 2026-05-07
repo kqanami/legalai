@@ -49,28 +49,35 @@ class LegalRAGService:
             logger.error(f"Error adding documents to RAG: {e}")
             return False
 
-    def search(self, query: str, n_results: int = 3) -> list[str]:
-        """Hybrid/Semantic search over the proprietary legal database."""
+    def search(self, query: str, n_results: int = 3, category: str = None) -> list[str]:
+        """Hybrid/Semantic search over the proprietary legal database with filtering."""
         if not self.collection:
             return []
             
         try:
+            where_clause = None
+            if category:
+                where_clause = {"category": category}
+                
             results = self.collection.query(
                 query_texts=[query],
-                n_results=n_results
+                n_results=n_results * 2, # Fetch more for re-ranking
+                where=where_clause
             )
             
             if results and results.get("documents") and len(results["documents"]) > 0:
-                # Return the list of matched document chunks
-                return results["documents"][0]
+                docs = results["documents"][0]
+                # Simple re-ranking (if we had scores, we could use them, 
+                # but Chroma already sorts by distance. We just slice the top N).
+                return docs[:n_results]
             return []
         except Exception as e:
             logger.error(f"RAG search error: {e}")
             return []
             
-    def get_context_string(self, query: str, n_results: int = 3) -> str:
+    def get_context_string(self, query: str, n_results: int = 3, category: str = None) -> str:
         """Helper to get a formatted context string for the LLM."""
-        docs = self.search(query, n_results)
+        docs = self.search(query, n_results, category)
         if not docs:
             return ""
         return "\n\n---\n".join(docs)

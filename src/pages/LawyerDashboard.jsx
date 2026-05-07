@@ -6,16 +6,18 @@ import { Users, Briefcase, FileText, Activity, Star, Trophy, TrendingUp, Scale, 
 import { Link } from 'react-router-dom';
 
 const containerVariants = {
+  hidden: { opacity: 0 },
   visible: { 
     opacity: 1, 
-    transition: { duration: 0.4 }
+    transition: { staggerChildren: 0.1 }
   }
 };
 
 const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
   visible: { 
-    opacity: 1, 
-    transition: { duration: 0 }
+    opacity: 1, y: 0,
+    transition: { type: 'spring', stiffness: 100, damping: 15 }
   }
 };
 
@@ -51,11 +53,16 @@ export default function LawyerDashboard() {
   const winRateValue = stats?.cases_total > 0 ? Math.round((stats.cases_won / stats.cases_total) * 100) : 100;
 
   return (
-    <div className="p-8 min-h-full bg-obsidian-950 overflow-y-auto custom-scrollbar relative">
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="p-8 min-h-full bg-obsidian-950 overflow-y-auto custom-scrollbar relative"
+    >
       <div className="max-w-6xl mx-auto space-y-10 pb-20 relative z-10">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
               Обзор <span className="text-chrome-400">Практики</span>
@@ -75,10 +82,10 @@ export default function LawyerDashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard 
             icon={<Trophy className="text-yellow-500" />} 
             title="Выиграно дел" 
@@ -111,11 +118,11 @@ export default function LawyerDashboard() {
             trend="Высокая скорость"
             trendUp={true}
           />
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recent Cases */}
-          <div className="lg:col-span-2 space-y-6">
+          <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Activity className="text-chrome-400" size={20} />
@@ -157,10 +164,10 @@ export default function LawyerDashboard() {
                 <Link to="/lawyer/cases" className="mt-4 text-sm text-chrome-400 hover:text-chrome-300 underline underline-offset-4">Создать дело</Link>
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Tools Section */}
-          <div className="space-y-6">
+          <motion.div variants={itemVariants} className="space-y-6">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <Zap className="text-chrome-400" size={20} />
               Инструменты
@@ -201,7 +208,7 @@ export default function LawyerDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

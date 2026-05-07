@@ -1,111 +1,150 @@
 import logging
-from typing import Dict, Any, List
+import json
+from typing import Dict, Any, List, AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
 class LegalAgentOrchestrator:
     """
-    Multi-Agent Legal Orchestrator (Proprietary IP).
-    Instead of passing a prompt directly to an LLM, we orchestrate multiple 
-    internal "agents" (Classifier -> Retrieval -> Analyzer -> Synthesizer)
-    to create a defensible, complex AI pipeline.
+    Advanced Multi-Agent Legal Orchestrator.
+    Orchestrates specialized steps: Query Generation -> Retrieval -> Analysis -> Verification.
     """
     def __init__(self, llm_service, rag_service, risk_scorer):
         self.llm = llm_service
         self.rag = rag_service
         self.scorer = risk_scorer
 
+    async def generate_search_queries(self, query: str, history: List[Dict]) -> List[str]:
+        """Agent that transforms user intent into optimized legal search queries."""
+        prompt = f"""Преврати вопрос пользователя в 2-3 точных поисковых запроса для юридической базы данных Казахстана.
+Используй только ключевые юридические термины (например: 'расторжение договора аренды', 'неустойка ГК РК').
+
+ИСТОРИЯ ЧАТА:
+{history[-2:] if history else "Нет истории"}
+
+ВОПРОС: {query}
+
+Верни только список строк через запятую.
+"""
+        try:
+            # Using LLM directly for utility tasks
+            response = await self.llm.chat(prompt, history=[], user_role="lawyer")
+            content = response.get("content", query)
+            # Simple parsing: split by comma and clean
+            queries = [q.strip() for q in content.split(",") if q.strip()]
+            return queries if queries else [query]
+        except Exception as e:
+            logger.error(f"Query generation failed: {e}")
+            return [query]
+
+    async def verify_legal_accuracy(self, query: str, response: str, context: str) -> str:
+        """Verification agent to ensure the answer matches retrieved legal norms."""
+        if not context:
+            return response
+            
+        prompt = f"""Проверь ответ AI-юриста на соответствие предоставленным статьям закона Казахстана.
+Если в ответе есть фактические ошибки относительно статей, исправь их. 
+Если ответ верный, оставь его без изменений.
+
+СТАТЬИ ЗАКОНА (RAG):
+{context}
+
+ОТВЕТ AI:
+{response}
+
+Верни исправленный текст или оригинал.
+"""
+        try:
+            verified = await self.llm.chat(prompt, history=[], user_role="lawyer")
+            return verified.get("content", response)
+        except Exception as e:
+            logger.error(f"Verification failed: {e}")
+            return response
+
     async def process_contract_audit(self, contract_text: str) -> Dict[str, Any]:
-        """
-        Multi-agent workflow for contract auditing.
-        1. Heuristic Risk Agent (Rule-based)
-        2. RAG Agent (Retrieves relevant legal norms)
-        3. LLM Audit Agent (Synthesizes)
-        """
+        """Multi-agent workflow for contract auditing."""
         logger.info("Agent 1: Heuristic Risk Scorer running...")
         heuristic_risks = self.scorer.calculate_risk(contract_text)
         
-        logger.info("Agent 2: RAG Retrieval running...")
-        # Search our local DB for laws related to "расторжение", "штраф", "неустойка"
-        context_laws = self.rag.get_context_string("штраф неустойка расторжение договора форс-мажор", n_results=3)
+        logger.info("Agent 2: Dynamic RAG Retrieval...")
+        # Dynamic query for contract audit
+        audit_queries = await self.generate_search_queries(f"Риски в договоре: {contract_text[:500]}", [])
         
-        logger.info("Agent 3: LLM Synthesizer running...")
-        # Combine heuristic findings and RAG context to force the LLM into a highly accurate response
+        combined_context = ""
+        for q in audit_queries[:2]:
+            context = self.rag.get_context_string(q, n_results=2)
+            if context:
+                combined_context += context + "\n---\n"
+        
+        logger.info("Agent 3: LLM Audit Synthesizer...")
         enriched_prompt = f"""
-ОБНАРУЖЕННЫЕ АЛГОРИТМИЧЕСКИЕ РИСКИ (ПРОПРИЕТАРНАЯ СИСТЕМА):
+ОБНАРУЖЕННЫЕ АЛГОРИТМИЧЕСКИЕ РИСКИ:
 Уровень риска: {heuristic_risks['level'].upper()} (Score: {heuristic_risks['score']}/100)
 Триггеры: {', '.join([t['trigger'] for t in heuristic_risks['found_triggers']])}
 
 ИЗВЛЕЧЕННАЯ БАЗА ЗНАНИЙ (RAG):
-{context_laws if context_laws else "База знаний пока не заполнена. Опирайся на общие нормы ГК РК."}
+{combined_context if combined_context else "Опирайся на общие нормы ГК РК."}
 
 ТЕКСТ ДОГОВОРА:
 {contract_text}
-
----
-Используй эти алгоритмические подсказки и базу знаний, чтобы сформировать итоговый JSON-отчет по аудиту.
 """
-        # Call the existing LLM service but with enriched, orchestrated data
-        if self.llm.groq_client:
-            return await self.llm._audit_groq(enriched_prompt)
-        elif self.llm.gemini_client:
-            return await self.llm._audit_gemini(enriched_prompt)
-        else:
-            return self.llm._mock_audit()
+        audit_results = await self.llm.audit_contract(enriched_prompt)
+        return {
+            **audit_results,
+            "original_text": contract_text
+        }
 
     async def process_chat_query(self, query: str, history: List[Dict], user_role: str) -> Dict[str, Any]:
-        """
-        Multi-agent workflow for general legal chat.
-        1. Retrieval Agent (Searches Local Laws)
-        2. Synthesis Agent (Generates response using context)
-        """
-        logger.info("Agent 1: RAG Retrieval for Chat...")
-        context = self.rag.get_context_string(query, n_results=5)
+        """Orchestrated chat query processing."""
+        # 1. Dynamic Query Generation
+        search_queries = await self.generate_search_queries(query, history)
+        logger.info(f"Generated queries: {search_queries}")
+
+        # 2. Multi-query Retrieval
+        all_docs = []
+        for sq in search_queries:
+            docs = self.rag.search(sq, n_results=2)
+            all_docs.extend(docs)
         
-        # Fallback: если поиск по текущему сообщению пуст (например, "найди еще раз"),
-        # пробуем поиск с учетом предыдущего сообщения
-        if not context and history:
-            last_user_msg = next((m['content'] for m in reversed(history) if m['role'] == 'user'), "")
-            if last_user_msg:
-                logger.info("RAG Fallback: Searching with history context...")
-                context = self.rag.get_context_string(f"{last_user_msg} {query}", n_results=5)
+        # Deduplicate and format context
+        unique_docs = list(set(all_docs))
+        context = "\n\n---\n".join(unique_docs)
         
-        logger.info("Agent 2: Chat Synthesizer...")
+        # 3. Synthesis
+        thought_process = f"Ищу в базе по запросам: {', '.join(search_queries)}. Найдено {len(unique_docs)} релевантных статей."
         
         if context:
-            # Предоставляем контекст как приоритетный, но не запрещаем использовать общие знания
-            enriched_query = f"""Ниже приведены статьи из официальной Базы Знаний Казахстана (RAG). 
-Используй их как приоритетный источник информации для ответа.
-БАЗА ЗНАНИЙ РК:
-{context}
-
-ВОПРОС ПОЛЬЗОВАТЕЛЯ: 
-{query}"""
+            enriched_query = f"БАЗА ЗНАНИЙ РК:\n{context}\n\nВОПРОС:\n{query}"
         else:
             enriched_query = query
             
-        return await self.llm.chat(enriched_query, history, user_role)
+        response = await self.llm.chat(enriched_query, history, user_role)
+        
+        # 4. Verification (Optional but recommended for high-stakes)
+        if context and user_role == "lawyer":
+            response["content"] = await self.verify_legal_accuracy(query, response["content"], context)
+            
+        response["thought"] = thought_process
+        return response
 
-    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str):
-        """Stream version of the multi-agent chat workflow."""
-        logger.info("Agent 1: RAG Retrieval for Chat Stream...")
-        context = self.rag.get_context_string(query, n_results=5)
+    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str) -> AsyncGenerator[str, None]:
+        """Stream version with orchestrated retrieval."""
+        # For streaming, we do retrieval upfront to avoid interruption
+        search_queries = await self.generate_search_queries(query, history)
         
-        if not context and history:
-            last_user_msg = next((m['content'] for m in reversed(history) if m['role'] == 'user'), "")
-            if last_user_msg:
-                logger.info("RAG Fallback (Stream): Searching with history context...")
-                context = self.rag.get_context_string(f"{last_user_msg} {query}", n_results=5)
+        all_docs = []
+        for sq in search_queries:
+            docs = self.rag.search(sq, n_results=2)
+            all_docs.extend(docs)
         
-        logger.info("Agent 2: Chat Synthesizer Stream...")
+        context = "\n\n---\n".join(list(set(all_docs)))
+        
+        # Send initial "thought" as a hidden chunk or separate event if frontend supports it
+        # Here we just log it and proceed to stream the main content
+        logger.info(f"Streaming with queries: {search_queries}")
         
         if context:
-            enriched_query = f"""Опирайся на эти статьи из базы знаний (RAG) при ответе. 
-СТАТЬИ ИЗ БАЗЫ:
-{context}
-
-ВОПРОС: 
-{query}"""
+            enriched_query = f"Используй эти статьи как основной источник:\n{context}\n\nВОПРОС: {query}"
         else:
             enriched_query = query
             
