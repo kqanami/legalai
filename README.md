@@ -14,7 +14,29 @@
 
 ## 🚀 Быстрый запуск
 
-### 1. Подготовка окружения (Backend)
+### Запуск через Docker (Рекомендуемый способ)
+Самый простой и надежный способ запустить проект — использовать Docker Compose.
+
+1. Убедитесь, что у вас установлены Docker и Docker Compose.
+2. Создайте файл `backend/.env` и заполните его:
+```env
+GEMINI_API_KEY=ваш_ключ
+GROQ_API_KEY=ваш_ключ
+DATABASE_URL=sqlite:///./legal_assistant.db
+JWT_SECRET=ваш_секретный_ключ
+DEBUG_MODE=true
+```
+3. Запустите проект одной командой из корня репозитория:
+```bash
+docker-compose up -d --build
+```
+Платформа будет доступна по адресу: `http://localhost:5173` (бэкенд на порту `8000`).
+
+---
+
+### Запуск без Docker (Локальная среда)
+
+#### 1. Подготовка окружения (Backend)
 Перейдите в директорию бэкенда и создайте виртуальное окружение:
 
 ```bash
@@ -24,32 +46,12 @@ source venv/bin/activate  # На Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Настройка переменных окружения
-Создайте файл `backend/.env` и заполните его:
-
-```env
-GEMINI_API_KEY=ваш_ключ
-GROQ_API_KEY=ваш_ключ
-DATABASE_URL=sqlite:///./legal_assistant.db
-JWT_SECRET=ваш_секретный_ключ
-DEBUG_MODE=true
-```
-
-### 3. Инициализация базы знаний (RAG)
-Для того чтобы ИИ знал законы РК, нужно проиндексировать базу:
-
+#### 2. Запуск бэкенда
 ```bash
-# Находясь в папке backend
-python scripts/reset_rag.py
-```
-
-### 4. Запуск бэкенда
-```bash
-# Находясь в папке backend
 uvicorn main:app --reload --port 8000
 ```
 
-### 5. Запуск фронтенда
+#### 3. Запуск фронтенда
 Откройте новый терминал в директории `ai-legal-kz`:
 
 ```bash
@@ -76,4 +78,3 @@ npm run dev
 - `npm run build` — сборка фронтенда для продакшена.
 
 ---
-*Разработано для Agentic AI Hackathon 2026*
