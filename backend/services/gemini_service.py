@@ -1,7 +1,7 @@
 """
 AI Legal Assistant Service — Groq (Primary) + Gemini (Fallback).
 """
-import json, logging, traceback
+import json, logging, traceback, asyncio
 from typing import List, Dict, AsyncGenerator
 
 logger = logging.getLogger(__name__)
@@ -197,19 +197,22 @@ class LLMService:
         return self._mock_audit()
 
     async def check_counterparty(self, bin_number: str) -> Dict:
+        # Counterparty MUST have live search, so we rely entirely on Gemini.
+        # Falling back to Groq guarantees hallucinations.
         if self.gemini_client:
             try:
                 result = await self._counterparty_gemini(bin_number)
                 return self._normalize_counterparty_result(result, bin_number)
             except Exception as e:
                 logger.warning(f"Gemini Counterparty Error: {e}")
-        if self.groq_client:
-            try:
-                result = await self._counterparty_groq(bin_number)
-                return self._normalize_counterparty_result(result, bin_number)
-            except Exception as e:
-                logger.warning(f"Groq Counterparty Error: {e}")
-        return self._mock_counterparty(bin_number)
+                if "RESOURCE_EXHAUSTED" in str(e) or "429" in str(e):
+                    return self._normalize_counterparty_result({
+                        "aiAnalysis": "Ошибка: Лимит запросов к Google Search API исчерпан. Повторите попытку позже."
+                    }, bin_number)
+                
+        return self._normalize_counterparty_result({
+            "aiAnalysis": "Не удалось выполнить поиск. Проверьте правильность БИН или попробуйте позже."
+        }, bin_number)
 
     async def generate_document(self, doc_type: str, description: str) -> str:
         if self.groq_client:
@@ -236,28 +239,48 @@ class LLMService:
 
     async def _chat_groq(self, message, history, user_role="citizen"):
         msgs = self._build_messages(message, history, user_role=user_role)
-        # Переключаем на 3.3 Versatile и ставим минимальную температуру для точности
-        resp = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1)
+        resp = await asyncio.to_thread(
+            self.groq_client.chat.completions.create,
+            model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1
+        )
         return self._parse_chat_response(resp.choices[0].message.content)
 
     async def _chat_groq_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
         msgs = self._build_messages(message, history, user_role=user_role)
-        stream = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1, stream=True)
+        stream = await asyncio.to_thread(
+            self.groq_client.chat.completions.create,
+            model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1, stream=True
+        )
         for chunk in stream:
             c = chunk.choices[0].delta.content
             if c:
                 yield c
 
     async def _audit_groq(self, text):
-        resp = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": AUDIT_SYSTEM}, {"role": "user", "content": text[:12000]}], response_format={"type": "json_object"}, temperature=0.2)
+        resp = await asyncio.to_thread(
+            self.groq_client.chat.completions.create,
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "system", "content": AUDIT_SYSTEM}, {"role": "user", "content": text[:12000]}],
+            response_format={"type": "json_object"}, temperature=0.2
+        )
         return self._normalize_audit_result(json.loads(resp.choices[0].message.content))
 
     async def _counterparty_groq(self, bin_num):
-        resp = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": COUNTERPARTY_SYSTEM}, {"role": "user", "content": bin_num}], response_format={"type": "json_object"}, temperature=0.5)
+        resp = await asyncio.to_thread(
+            self.groq_client.chat.completions.create,
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "system", "content": COUNTERPARTY_SYSTEM}, {"role": "user", "content": bin_num}],
+            response_format={"type": "json_object"}, temperature=0.5
+        )
         return json.loads(resp.choices[0].message.content)
 
     async def _gen_doc_groq(self, dtype, desc):
-        resp = self.groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": DOCUMENT_GEN_SYSTEM}, {"role": "user", "content": f"{dtype}: {desc}"}], temperature=0.4)
+        resp = await asyncio.to_thread(
+            self.groq_client.chat.completions.create,
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "system", "content": DOCUMENT_GEN_SYSTEM}, {"role": "user", "content": f"{dtype}: {desc}"}],
+            temperature=0.4
+        )
         return resp.choices[0].message.content
 
     # ── Gemini Implementations ──
@@ -279,7 +302,7 @@ class LLMService:
             temperature=0.1, 
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=contents, config=config)
+        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=contents, config=config)
         return self._parse_chat_response(resp.text or "")
 
     async def _chat_gemini_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
@@ -291,22 +314,26 @@ class LLMService:
             max_tokens=2048,
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content_stream(model="gemini-2.0-flash", contents=contents, config=config)
+        resp = self.gemini_client.models.generate_content_stream(model="gemini-2.5-flash", contents=contents, config=config)
         for chunk in resp:
             if chunk.text:
                 yield chunk.text
 
     async def _audit_gemini(self, text):
-        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=text[:15000], config=types.GenerateContentConfig(system_instruction=AUDIT_SYSTEM, temperature=0.3))
+        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=text[:15000], config=types.GenerateContentConfig(system_instruction=AUDIT_SYSTEM, temperature=0.3, response_mime_type="application/json"))
         return self._normalize_audit_result(self._parse_json_response(resp.text or "", self._mock_audit()))
 
     async def _counterparty_gemini(self, bin_num):
-        config = types.GenerateContentConfig(system_instruction=COUNTERPARTY_SYSTEM, temperature=0.0, tools=[types.Tool(google_search=types.GoogleSearchRetrieval())])
-        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=f"Найди данные компании по БИН {bin_num} в Казахстане.", config=config)
+        config = types.GenerateContentConfig(
+            system_instruction=COUNTERPARTY_SYSTEM, 
+            temperature=0.0, 
+            tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
+        )
+        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=f"Найди данные компании по БИН {bin_num} в Казахстане. Обязательно верни JSON.", config=config)
         return self._parse_json_response(resp.text or "", self._mock_counterparty(bin_num))
 
     async def _gen_doc_gemini(self, dtype, desc):
-        resp = self.gemini_client.models.generate_content(model="gemini-2.0-flash", contents=f"{dtype}: {desc}", config=types.GenerateContentConfig(system_instruction=DOCUMENT_GEN_SYSTEM, temperature=0.4))
+        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=f"{dtype}: {desc}", config=types.GenerateContentConfig(system_instruction=DOCUMENT_GEN_SYSTEM, temperature=0.4))
         return resp.text or "Ошибка Gemini"
 
     # ── Normalization & Parsing ──

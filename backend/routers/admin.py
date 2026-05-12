@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import get_db
 from models import User, LawyerProfile, Case, ClientReview, EscalationRequest, SpecializationCategory, ChatMessage
-from auth import create_token
+from auth import create_token, require_role
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -29,10 +29,10 @@ class ImpersonateResponse(BaseModel):
 class VerifyLawyerRequest(BaseModel):
     verified: bool
 
-# ── Endpoints ──
+# ── Endpoints (all require admin role) ──
 
 @router.get("/stats", response_model=AdminStatsResponse)
-def get_admin_stats(db: Session = Depends(get_db)):
+def get_admin_stats(user: User = require_role("admin"), db: Session = Depends(get_db)):
     """Full system overview stats."""
     return {
         "total_users": db.query(User).count(),
@@ -45,7 +45,7 @@ def get_admin_stats(db: Session = Depends(get_db)):
     }
 
 @router.get("/users")
-def get_all_users(role: Optional[str] = None, db: Session = Depends(get_db)):
+def get_all_users(role: Optional[str] = None, user: User = require_role("admin"), db: Session = Depends(get_db)):
     """List all users with advanced filtering."""
     query = db.query(User).order_by(User.created_at.desc())
     if role:
@@ -69,7 +69,7 @@ def get_all_users(role: Optional[str] = None, db: Session = Depends(get_db)):
     return result
 
 @router.get("/lawyers")
-def get_all_lawyers(verified: Optional[bool] = None, db: Session = Depends(get_db)):
+def get_all_lawyers(verified: Optional[bool] = None, user: User = require_role("admin"), db: Session = Depends(get_db)):
     """List all lawyers for verification management."""
     query = db.query(LawyerProfile).join(User)
     if verified is not None:
@@ -94,7 +94,7 @@ def get_all_lawyers(verified: Optional[bool] = None, db: Session = Depends(get_d
     return result
 
 @router.patch("/lawyers/{lawyer_id}/verify")
-def verify_lawyer(lawyer_id: int, req: VerifyLawyerRequest, db: Session = Depends(get_db)):
+def verify_lawyer(lawyer_id: int, req: VerifyLawyerRequest, user: User = require_role("admin"), db: Session = Depends(get_db)):
     """Approve or revoke lawyer verification."""
     lp = db.query(LawyerProfile).filter(LawyerProfile.id == lawyer_id).first()
     if not lp:
@@ -104,7 +104,7 @@ def verify_lawyer(lawyer_id: int, req: VerifyLawyerRequest, db: Session = Depend
     return {"success": True, "verified": lp.verified}
 
 @router.get("/escalations")
-def get_all_escalations(db: Session = Depends(get_db)):
+def get_all_escalations(user: User = require_role("admin"), db: Session = Depends(get_db)):
     """Monitor all AI->Lawyer leads globally."""
     escalations = db.query(EscalationRequest).order_by(EscalationRequest.created_at.desc()).limit(100).all()
     result = []
@@ -121,58 +121,69 @@ def get_all_escalations(db: Session = Depends(get_db)):
     return result
 
 @router.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, user: User = require_role("admin"), db: Session = Depends(get_db)):
     """Hard delete a user and all their data."""
     u = db.query(User).filter(User.id == user_id).first()
     if not u:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if u.id == user.id:
+        raise HTTPException(status_code=400, detail="Нельзя удалить самого себя")
     db.delete(u)
     db.commit()
     return {"success": True}
 
 @router.post("/impersonate/{user_id}", response_model=ImpersonateResponse)
-def impersonate_user(user_id: int, db: Session = Depends(get_db)):
-    """Generate a token for ANY user to quickly switch accounts."""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
+def impersonate_user(user_id: int, user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Generate a token for ANY user to quickly switch accounts. Admin only."""
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     
-    token = create_token(user_id=user.id)
+    logger.warning(f"Admin {user.id} ({user.name}) impersonating user {target.id} ({target.name})")
+    
+    token = create_token(user_id=target.id)
     return {
         "token": token,
         "user": {
-            "id": user.id,
-            "name": user.name,
-            "phone": user.phone,
-            "role": user.role,
-            "city": user.city
+            "id": target.id,
+            "name": target.name,
+            "phone": target.phone,
+            "role": target.role,
+            "city": target.city
         }
     }
 
 @router.post("/seed")
-def seed_database(db: Session = Depends(get_db)):
+def seed_database(user: User = require_role("admin"), db: Session = Depends(get_db)):
     """Seed the database with mock lawyers, reviews, and cases for testing."""
     existing = db.query(LawyerProfile).count()
     if existing > 5:
         return {"success": True, "message": "В базе уже есть юристы, сидирование пропущено."}
 
-    cities = ['Алматы', 'Астана', 'Шымкент']
-    first_names = ['Азамат', 'Тимур', 'Руслан', 'Арман', 'Данияр', 'Айнур', 'Динара', 'Асель', 'Мадина']
-    last_names = ['Омаров', 'Сыздыков', 'Ахметов', 'Иванов', 'Кусаинов', 'Асанова', 'Жумабаева']
+    cities = ['Алматы', 'Астана', 'Шымкент', 'Караганда', 'Актобе']
+    first_names = ['Азамат', 'Тимур', 'Руслан', 'Арман', 'Данияр', 'Айнур', 'Динара', 'Асель', 'Мадина', 'Бахыт']
+    last_names = ['Омаров', 'Сыздыков', 'Ахметов', 'Иванов', 'Кусаинов', 'Асанова', 'Жумабаева', 'Нурланов', 'Бекетов']
 
     specs = db.query(SpecializationCategory).all()
     if not specs:
         raise HTTPException(status_code=400, detail="Сначала нужно инициализировать специализации (зайдите в /lawyers)")
 
+    bios = [
+        "Опытный юрист с многолетней практикой в судах Казахстана. Защищаю интересы клиентов до победного конца.",
+        "Специализируюсь на корпоративном праве и арбитражных спорах. Более 200 выигранных дел.",
+        "Консультирую малый и средний бизнес по вопросам налогового и трудового законодательства РК.",
+        "Выпускник КазГЮА. Практикую защиту прав потребителей и семейные споры.",
+    ]
+
     new_lawyers = []
     for i in range(15):
-        user = User(
+        u = User(
             name=f"{random.choice(first_names)} {random.choice(last_names)}",
             phone=f"+777700020{i:02d}",
             role="lawyer",
             city=random.choice(cities)
         )
-        db.add(user)
+        db.add(u)
         db.flush()
 
         lawyer_specs = random.sample(specs, random.randint(1, 3))
@@ -182,16 +193,16 @@ def seed_database(db: Session = Depends(get_db)):
         cases_won = int(cases_total * random.uniform(0.6, 0.95))
         
         profile = LawyerProfile(
-            user_id=user.id,
+            user_id=u.id,
             iin=f"800101400{i:03d}",
             license_number=f"№{random.randint(1000, 9999)} от 20{random.randint(10, 23)}",
             specialization=main_spec,
             verified=random.choice([True, True, False]),
-            bio="Опытный юрист с многолетней практикой в судах Казахстана. Защищаю интересы клиентов до победного конца.",
+            bio=random.choice(bios),
             rating=round(random.uniform(3.8, 5.0), 1),
             cases_won=cases_won,
             cases_total=cases_total,
-            city=user.city,
+            city=u.city,
             experience_years=random.randint(3, 20),
             is_accepting_clients=True,
             response_time_hours=round(random.uniform(0.5, 5.0), 1)
@@ -201,14 +212,23 @@ def seed_database(db: Session = Depends(get_db)):
         db.flush()
         new_lawyers.append(profile)
 
-    # Generate some reviews
+    # Generate some reviews — use a valid reviewer for each
+    all_users = db.query(User).filter(User.role != "lawyer").limit(5).all()
+    fallback_reviewer_id = all_users[0].id if all_users else user.id
+
     for lp in new_lawyers:
         for _ in range(random.randint(2, 10)):
+            reviewer_id = random.choice(all_users).id if all_users else fallback_reviewer_id
             review = ClientReview(
                 lawyer_id=lp.id,
-                reviewer_id=user.id,
+                reviewer_id=reviewer_id,
                 rating=round(random.uniform(3.5, 5.0), 1),
-                comment="Отличный специалист, очень помог с делом!",
+                comment=random.choice([
+                    "Отличный специалист, очень помог с делом!",
+                    "Профессиональный подход, рекомендую.",
+                    "Быстро разобрался в ситуации и дал четкие рекомендации.",
+                    "Благодарю за качественную юридическую помощь.",
+                ]),
                 is_anonymous=random.choice([True, False])
             )
             db.add(review)

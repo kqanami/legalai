@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 import logging
+import re
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
@@ -37,13 +38,29 @@ def list_sessions(
     """List chat sessions with pagination and search."""
     query = db.query(ChatSession).filter(ChatSession.user_id == user.id)
     if q:
-        query = query.filter(ChatSession.title.ilike(f"%{q}%"))
+        # Sanitize LIKE wildcards to prevent DoS
+        safe_q = re.sub(r'[%_\\]', '', q)
+        query = query.filter(ChatSession.title.ilike(f"%{safe_q}%"))
     sessions = query.order_by(ChatSession.updated_at.desc()).offset(skip).limit(limit).all()
+
+    # Batch load first user message for each session (avoids N+1)
+    session_ids = [s.id for s in sessions]
+    from sqlalchemy import func as sqla_func
+    first_msgs = {}
+    if session_ids:
+        subq = (
+            db.query(ChatMessage.session_id, sqla_func.min(ChatMessage.id).label("min_id"))
+            .filter(ChatMessage.session_id.in_(session_ids), ChatMessage.role == "user")
+            .group_by(ChatMessage.session_id)
+            .subquery()
+        )
+        msgs = db.query(ChatMessage).join(subq, ChatMessage.id == subq.c.min_id).all()
+        for m in msgs:
+            first_msgs[m.session_id] = m.content[:80]
 
     result = []
     for s in sessions:
-        first_msg = db.query(ChatMessage).filter(ChatMessage.session_id == s.id, ChatMessage.role == "user").first()
-        preview = first_msg.content[:80] if first_msg else None
+        preview = first_msgs.get(s.id)
         result.append(SessionResponse(id=s.id, title=s.title, segment=s.segment, created_at=s.created_at.isoformat(), updated_at=s.updated_at.isoformat(), preview=preview))
     return result
 

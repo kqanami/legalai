@@ -37,12 +37,15 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       animation: {
         'shimmer': 'shimmer 4s ease infinite',
         'pulse-light': 'pulseLight 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'typing': 'typing 1.5s infinite',
         'float': 'float 4s ease-in-out infinite',
+        'fade-up': 'fadeUp 0.5s ease-out',
+        'slide-in': 'slideIn 0.3s ease-out',
       },
       keyframes: {
         shimmer: {
@@ -60,7 +63,15 @@ export default {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
-        }
+        },
+        fadeUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideIn: {
+          '0%': { opacity: '0', transform: 'translateX(-10px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
       },
     },
   },

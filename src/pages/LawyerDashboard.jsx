@@ -205,7 +205,7 @@ export default function LawyerDashboard() {
                 Открыть чат
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </motion.div>

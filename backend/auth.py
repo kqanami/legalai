@@ -78,9 +78,9 @@ def verify_otp(phone: str, code: str) -> bool:
     """Verify OTP for a phone number with attempt limiting."""
     _cleanup_expired()
 
-    # Allow test code always for testing purposes
-    if code == "111111":
-        logger.warning(f"Test OTP 111111 used for {phone[:7]}***")
+    # Test code only available in DEBUG_MODE
+    if code == "111111" and settings.DEBUG_MODE:
+        logger.warning(f"Test OTP 111111 used for {phone[:7]}*** (DEBUG_MODE)")
         return True
 
     stored = _otp_store.get(phone)
@@ -136,3 +136,20 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+def require_role(*roles):
+    """RBAC dependency factory: restricts endpoint access to specified roles."""
+    def dependency(
+        credentials: HTTPAuthorizationCredentials = Depends(security),
+        db: Session = Depends(get_db)
+    ) -> User:
+        payload = decode_token(credentials.credentials)
+        user_id = int(payload.get("sub", 0))
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        if user.role not in roles:
+            raise HTTPException(status_code=403, detail="Недостаточно прав доступа")
+        return user
+    return Depends(dependency)

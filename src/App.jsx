@@ -5,6 +5,7 @@ import { LanguageProvider } from './i18n/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/Toast';
 import { ChatProvider } from './contexts/ChatContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Scale } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -128,19 +129,21 @@ function AppRoutes() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <ThemeProvider>
-        <LanguageProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <div className="min-h-screen font-inter bg-obsidian-950 text-white selection:bg-chrome-500/30 selection:text-white">
-                <AppRoutes />
-              </div>
-            </ToastProvider>
-          </AuthProvider>
-        </LanguageProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <ThemeProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <div className="min-h-screen font-inter bg-obsidian-950 text-white selection:bg-chrome-500/30 selection:text-white">
+                  <AppRoutes />
+                </div>
+              </ToastProvider>
+            </AuthProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

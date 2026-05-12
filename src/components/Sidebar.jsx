@@ -189,7 +189,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
           {/* System version */}
           <div className="mt-4 flex items-center justify-center px-3 py-2 rounded-xl bg-obsidian-900/40 border border-obsidian-700/40">
-            <span className="text-[11px] text-steel-500 font-medium tracking-wide uppercase">LegalAI • v3.0</span>
+            <span className="text-[11px] text-steel-500 font-medium tracking-wide uppercase">LegalAI • v3.1</span>
           </div>
 
           {/* Bottom info */}

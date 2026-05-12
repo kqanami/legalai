@@ -7,7 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from database import init_db
-from config import settings
+from config import settings, APP_VERSION
 from routers import auth, chat, documents, counterparty, audit, stats, lawyer, escalation, marketplace, admin
 
 # ── Logging Setup ──
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Legal Assistant KZ — API",
     description="Full-stack legal AI platform for Republic of Kazakhstan",
-    version="3.0.0",
+    version=APP_VERSION,
     lifespan=lifespan,
 )
 
@@ -85,7 +85,7 @@ app.include_router(admin.router)
 def root():
     return {
         "service": "AI Legal Assistant KZ",
-        "version": "2.1.0",
+        "version": APP_VERSION,
         "status": "online",
         "endpoints": {
             "auth": "/api/auth",

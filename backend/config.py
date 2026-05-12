@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=env_path)
 
+# ── Unified version constant ──
+APP_VERSION = "3.1.0"
+
 
 class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -21,8 +24,9 @@ class Settings:
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
 
     # Security settings
-    DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "false").lower() in ("true", "1", "yes")
+    DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "true").lower() in ("true", "1", "yes")
     RATE_LIMIT: str = os.getenv("RATE_LIMIT", "10/minute")
+    AI_RATE_LIMIT: str = os.getenv("AI_RATE_LIMIT", "5/minute")
 
     def validate(self):
         """Validate critical settings on startup."""
