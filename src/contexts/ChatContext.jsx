@@ -77,24 +77,34 @@ export function ChatProvider({ children }) {
 
       try {
         // Try streaming first
+        let lastUpdate = 0;
+        const UPDATE_INTERVAL = 40; // Only update UI every 40ms (~25fps)
+
         await chatApi.streamMessage(currentSessionId, text, (data) => {
           if (data.done) {
             finalData = data;
           } else if (data.content) {
-            if (!aiMsgId) {
-              aiMsgId = (Date.now() + 1).toString();
-              setMessages((prev) => [...prev, {
-                id: aiMsgId,
-                role: 'assistant',
-                content: '',
-                timestamp: new Date().toISOString(),
-              }]);
-              setIsTyping(false); // Hide the generic typing indicator once the real bubble appears
-            }
             fullContent += data.content;
-            setMessages((prev) => prev.map(m =>
-              m.id === aiMsgId ? { ...m, content: fullContent } : m
-            ));
+            
+            const now = Date.now();
+            if (now - lastUpdate > UPDATE_INTERVAL || !aiMsgId) {
+              lastUpdate = now;
+              
+              if (!aiMsgId) {
+                aiMsgId = (Date.now() + 1).toString();
+                setMessages((prev) => [...prev, {
+                  id: aiMsgId,
+                  role: 'assistant',
+                  content: '',
+                  timestamp: new Date().toISOString(),
+                }]);
+                setIsTyping(false);
+              }
+              
+              setMessages((prev) => prev.map(m =>
+                m.id === aiMsgId ? { ...m, content: fullContent } : m
+              ));
+            }
           } else if (data.error) {
             throw new Error(data.error);
           }

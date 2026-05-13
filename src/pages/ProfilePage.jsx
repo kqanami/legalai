@@ -100,27 +100,33 @@ export default function ProfilePage() {
               </h2>
               
               <div className="mt-4 flex-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-chrome-500/20 border border-chrome-500/30 text-chrome-200 text-xs font-bold uppercase tracking-widest mb-4 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
-                  Enterprise
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-chrome-500/20 border border-chrome-500/30 text-chrome-200 text-[10px] font-bold uppercase tracking-widest mb-4 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+                  {user?.plan || 'FREEMIUM'}
                 </div>
-                <p className="text-sm text-steel-400 leading-relaxed mb-4">
-                  У вас активирован корпоративный доступ к полному пакету AI-Юрист.
+                <p className="text-xs text-steel-400 leading-relaxed mb-4">
+                  {user?.plan === 'business' ? 'Доступ к Deep Smart Audit и Opus ИИ.' : 
+                   user?.plan === 'go' ? 'Безлимитный чат на модели Claude 3.5 Sonnet.' :
+                   '3 премиум-ответа, далее — чат на базовой модели.'}
                 </p>
                 
                 <div className="space-y-2 mt-auto">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-steel-500">Доступно запросов:</span>
-                    <span className="text-white font-mono font-bold">Безлимит</span>
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-steel-500 uppercase tracking-tighter">Лимит ИИ:</span>
+                    <span className="text-white font-mono font-bold">
+                      {user?.plan === 'go' ? '50 / день' : user?.plan === 'freemium' ? '3 премиум' : 'Безлимит'}
+                    </span>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-steel-500">Генерация документов:</span>
-                    <span className="text-white font-mono font-bold">Доступно</span>
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-steel-500 uppercase tracking-tighter">Интеллект:</span>
+                    <span className="text-white font-mono font-bold">
+                      {user?.plan === 'business' ? 'Claude Opus' : 'Sonnet 3.5'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <button className="w-full mt-6 py-2.5 rounded-xl border border-obsidian-600 hover:border-chrome-500 text-sm text-white font-medium transition-all hover:bg-white/5 active:scale-95">
-                Управление подпиской
+              <button className="w-full mt-6 py-2.5 rounded-xl chrome-gradient text-obsidian-950 text-xs font-bold uppercase tracking-widest transition-all active:scale-95 shadow-lg">
+                Обновить тариф
               </button>
             </div>
           </motion.div>

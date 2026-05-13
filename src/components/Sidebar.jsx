@@ -2,8 +2,9 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { MessageSquare, ChevronRight, Plus, Trash2, Crown } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
 import { useToast } from './Toast';
 
@@ -38,6 +39,7 @@ const itemVariants = {
 export default function Sidebar({ isOpen, onClose }) {
   const { t } = useLanguage();
   const { currentSegment, chatHistory, loadSession, sessionId, clearMessages, deleteSession } = useChat();
+  const { user } = useAuth();
   const { addToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,15 +77,25 @@ export default function Sidebar({ isOpen, onClose }) {
         `}</style>
 
         <div className="flex flex-col h-full p-5">
-          {/* Minimalistic AI Status Indicator */}
-          <div className="flex items-center gap-2 mb-8 px-2">
-            <div className="relative flex items-center justify-center w-3 h-3">
-              <span className={`absolute inset-0 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-500/40' : currentSegment === 'b2b' ? 'bg-amber-500/40' : 'bg-emerald-500/40'} animate-ping`}></span>
-              <span className={`relative w-1.5 h-1.5 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-400' : currentSegment === 'b2b' ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+          {/* Minimalistic AI Status Indicator & Plan Badge */}
+          <div className="flex items-center justify-between mb-8 px-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center justify-center w-3 h-3">
+                <span className={`absolute inset-0 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-500/40' : currentSegment === 'b2b' ? 'bg-amber-500/40' : 'bg-emerald-500/40'} animate-ping`}></span>
+                <span className={`relative w-1.5 h-1.5 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-400' : currentSegment === 'b2b' ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+              </div>
+              <span className="text-[10px] font-mono font-medium tracking-wider text-steel-400 uppercase">
+                {currentSegment ? (currentSegment === 'b2c' ? 'C2C Mode' : 'B2B Mode') : 'AI System Active'}
+              </span>
             </div>
-            <span className="text-xs font-mono font-medium tracking-wider text-steel-400 uppercase">
-              {currentSegment ? (currentSegment === 'b2c' ? 'C2C Mode' : 'B2B Mode') : 'AI System Active'}
-            </span>
+            
+            {/* Plan Badge */}
+            {user?.plan && (
+              <div className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/[0.03] flex items-center gap-1.5 shadow-sm">
+                <Crown size={10} className={user.plan === 'business' ? 'text-amber-400' : user.plan === 'ip' ? 'text-chrome-300' : 'text-chrome-500'} />
+                <span className="text-[9px] font-bold text-white uppercase tracking-widest">{user.plan}</span>
+              </div>
+            )}
           </div>
           
           {/* New Chat Button */}

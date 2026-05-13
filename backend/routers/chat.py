@@ -12,6 +12,8 @@ from schemas import CreateSessionRequest, SendMessageRequest, MessageResponse, S
 from auth import get_current_user
 from services.gemini_service import gemini_service
 from services.agent_orchestrator import orchestrator
+from datetime import datetime, time, timezone
+from sqlalchemy import func as sqla_func
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -72,6 +74,19 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    # ── Check Plan Limits ──
+    total_msgs = db.query(ChatMessage).join(ChatSession).filter(ChatSession.user_id == user.id, ChatMessage.role == "user").count()
+    
+    if user.plan == "go":
+        today_start = datetime.combine(datetime.now().date(), time.min).replace(tzinfo=timezone.utc)
+        daily_msgs = db.query(ChatMessage).join(ChatSession).filter(
+            ChatSession.user_id == user.id, 
+            ChatMessage.role == "user",
+            ChatMessage.created_at >= today_start
+        ).count()
+        if daily_msgs >= 50:
+            raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
+
     user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
     db.add(user_msg)
     db.commit()
@@ -79,7 +94,7 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
     prev_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at).all()
     history = [{"role": m.role, "content": m.content} for m in prev_messages]
 
-    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role)
+    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs)
 
     if ai_response.get("segment"):
         session.segment = ai_response["segment"]
@@ -104,6 +119,19 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    # ── Check Plan Limits (Streaming) ──
+    total_msgs = db.query(ChatMessage).join(ChatSession).filter(ChatSession.user_id == user.id, ChatMessage.role == "user").count()
+    
+    if user.plan == "go":
+        today_start = datetime.combine(datetime.now().date(), time.min).replace(tzinfo=timezone.utc)
+        daily_msgs = db.query(ChatMessage).join(ChatSession).filter(
+            ChatSession.user_id == user.id, 
+            ChatMessage.role == "user",
+            ChatMessage.created_at >= today_start
+        ).count()
+        if daily_msgs >= 50:
+            raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
+
     user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
     db.add(user_msg)
     db.commit()
@@ -117,11 +145,12 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
         db.commit()
 
     user_role = user.role
+    user_plan = user.plan
 
     async def generate():
         full_content = ""
         try:
-            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role):
+            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs):
                 if not chunk:
                     continue
                 full_content += chunk

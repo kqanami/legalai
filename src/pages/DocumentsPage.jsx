@@ -196,7 +196,7 @@ export default function DocumentsPage() {
                   <label className="block text-xs font-semibold text-steel-400 uppercase tracking-widest mb-2">Тип документа</label>
                   <CustomSelect 
                     value={docType} 
-                    onChange={(val) => setDocType(val)}
+                    onChange={(e) => setDocType(e.target.value)}
                     options={[
                       { value: 'contract', label: 'Договор (услуг, аренды и т.д.)' },
                       { value: 'claim', label: 'Исковое заявление в суд' },

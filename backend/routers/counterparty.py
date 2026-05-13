@@ -19,6 +19,12 @@ async def check_counterparty(req: CounterpartyCheckRequest, user: User = Depends
     if len(req.bin) != 12 or not req.bin.isdigit():
         raise HTTPException(status_code=400, detail="БИН должен содержать 12 цифр")
 
+    # ── Check Plan Limits ──
+    if user.plan == "freemium":
+        total_checks = db.query(CounterpartyCheck).filter(CounterpartyCheck.user_id == user.id).count()
+        if total_checks >= 1:
+            raise HTTPException(status_code=403, detail="Лимит Freemium исчерпан (1 проверка БИН). Перейдите на тариф GO для расширенного доступа.")
+
     cache_cutoff = datetime.now(timezone.utc) - timedelta(hours=CACHE_HOURS)
     cached = db.query(CounterpartyCheck).filter(CounterpartyCheck.bin_number == req.bin, CounterpartyCheck.created_at >= cache_cutoff).order_by(CounterpartyCheck.created_at.desc()).first()
 

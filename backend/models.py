@@ -20,6 +20,7 @@ class User(Base):
     phone = Column(String(20), unique=True, nullable=False, index=True)
     email = Column(String(255), nullable=True)
     role = Column(String(20), default="citizen")
+    plan = Column(String(20), default="freemium")  # freemium, go, ip, business
     city = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

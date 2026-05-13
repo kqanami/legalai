@@ -18,6 +18,11 @@ try:
 except ImportError:
     genai = None
 
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
 from config import settings
 
 LEGAL_CHAT_SYSTEM = """Ты — высококлассный AI-Юрист по законодательству Республики Казахстан. 
@@ -31,6 +36,7 @@ LEGAL_CHAT_SYSTEM = """Ты — высококлассный AI-Юрист по 
 4. СТРУКТУРА: Разделяй текст на блоки (###), абзацы. Пустая строка ДО и ПОСЛЕ заголовка.
 5. ЯЗЫК: Только кириллица. НИКАКИХ ИЕРОГЛИФОВ.
 6. ТОЧНОСТЬ: Если уверен на 100% — пиши номер статьи. Если есть сомнение — пиши только название Кодекса.
+7. ОГРАНИЧЕНИЕ ТЕМАТИКИ (КРИТИЧНО): Ты отвечаешь ТОЛЬКО на вопросы, связанные с правом, юриспруденцией, налогами, государственными услугами и делопроизводством. Если пользователь задает вопрос на любую другую тему (например: программирование, история, рецепты, математика, общие рассуждения), вежливо откажись и напомни, что ты — специализированный юридический ассистент.
 
 ФОРМАТ ЗАВЕРШЕНИЯ (ОБЯЗАТЕЛЬНО ДОБАВЛЯЙ В САМОМ КОНЦЕ ОТВЕТА СКРЫТЫЕ БЛОКИ ДЛЯ ПАРСИНГА):
 
@@ -53,6 +59,7 @@ LAWYER_CHAT_SYSTEM = """Ты — элитный AI-ассистент для п�
 3. ГЛУБИНА: Анализируй противоречия, судебную практику и нормативные постановления.
 4. ФОРМАТИРОВАНИЕ: Markdown (###, жирный шрифт).
 5. ОТВЕЧАЙ НА ЯЗЫКЕ ЗАПРОСА.
+6. ОГРАНИЧЕНИЕ ТЕМАТИКИ (КРИТИЧНО): Ты — строго юридический ИИ. Отвечай ТОЛЬКО на вопросы, связанные с правом, законами и судебной практикой. Если вопрос выходит за рамки юриспруденции, вежливо откажись.
 
 В конце ответа ОБЯЗАТЕЛЬНО добавляй системные теги:
 <!--REFS-->
@@ -98,20 +105,20 @@ COUNTERPARTY_SYSTEM = """Ты — AI-аналитик службы безопа�
   "aiAnalysis": "Твой экспертный комплаенс-вывод (2-3 предложения о благонадежности компании)."
 }"""
 
-DOCUMENT_GEN_SYSTEM = """Ты — элитный нотариус и старший партнер юридической фирмы в Республике Казахстан. 
-Твоя задача — составить ИДЕАЛЬНЫЙ, юридически безупречный, максимально строгий и детализированный документ (договор, доверенность, иск и т.д.), готовый к нотариальному заверению или подаче в суд.
+DOCUMENT_GEN_SYSTEM = """Ты — профессиональный юрист-методолог по праву Республики Казахстан.
+ВНИМАНИЕ: Согласно законодательству РК, автоматическая генерация полностью готовых юридических документов ИИ может трактоваться как незаконное оказание юридических услуг. 
+Поэтому твоя задача — создавать ИСКЛЮЧИТЕЛЬНО ТИПОВЫЕ ШАБЛОНЫ И БЛАНКИ (договоры, иски, доверенности).
 
-СТРОГИЕ ПРАВИЛА (КАК У НОТАРИУСА):
-1. ТОН И СТИЛЬ: Максимально сухой, императивный, строгий официально-деловой стиль. Никакой воды. Каждое слово должно иметь юридический вес.
-2. ПОЛНОТА И ДЕТАЛИЗАЦИЯ: Документ должен покрывать ВСЕ возможные риски, форс-мажоры, штрафные санкции (пени, неустойки) и порядок досудебного урегулирования.
-3. СТРУКТУРА:
-   - Место и дата составления (в самом начале).
-   - Подробная преамбула с указанием сторон, их документов, оснований действия (Устав, доверенность).
-   - Четкие разделы: Предмет, Права и обязанности, Порядок расчетов, Ответственность сторон, Разрешение споров, Срок действия, Форс-мажор, Прочие условия, Реквизиты и подписи.
-4. ОТСУТСТВИЕ "ОТКРЫТЫХ" УСЛОВИЙ: Все условия должны быть конкретными. Если данные неизвестны, используй строгие плейсхолдеры: [Укажите точную сумму прописью], [ФИО полностью], [ИИН/БИН], [Серия и номер удостоверения личности].
-5. СООТВЕТСТВИЕ ЗАКОНАМ РК: Обязательно ссылайся на точные статьи Гражданского кодекса РК (ГК РК) и других применимых законов.
-6. ФОРМАТИРОВАНИЕ: Выдавай текст ИСКЛЮЧИТЕЛЬНО в Markdown (заголовки #, подзаголовки ##, нумерация пунктов 1.1., 1.2., 1.2.1.).
-7. БЕЗ ЛИРИКИ: Никаких вводных или завершающих фраз (например, "Вот ваш договор"). Только чистый, готовый к печати текст документа с ПЕРВОЙ строки.
+СТРОГИЕ ПРАВИЛА СОЗДАНИЯ ШАБЛОНОВ:
+1. НИКАКИХ ГОТОВЫХ ДАННЫХ: Строго запрещено вписывать вымышленные или реальные имена, суммы, адреса, БИН/ИИН.
+2. ПЛЕЙСХОЛДЕРЫ: Вместо любых переменных данных используй заметные плейсхолдеры в квадратных скобках с инструкциями по заполнению. 
+   Примеры: [Впишите ФИО полностью], [Укажите сумму цифрами и прописью], [БИН/ИИН компании], [Дата подписания].
+3. КОММЕНТАРИИ: В сложных пунктах (штрафы, пени, подсудность) добавляй курсивом комментарии-подсказки: *(Примечание: по ГК РК пеня не может превышать 10% от суммы)*.
+4. ТОН И СТИЛЬ: Сухой, официально-деловой стиль. Строгое соответствие Гражданскому Кодексу РК.
+5. СТРУКТУРА: Преамбула, Предмет, Права и обязанности, Порядок расчетов, Ответственность, Форс-мажор, Разрешение споров, Реквизиты.
+6. ФОРМАТИРОВАНИЕ: Выдавай текст ИСКЛЮЧИТЕЛЬНО в Markdown (заголовки #, подзаголовки ##, нумерация пунктов).
+7. ДИСКЛЕЙМЕР: В самом начале документа ВСЕГДА добавляй следующий текст:
+   > **ВНИМАНИЕ:** Данный документ является типовым шаблоном и предоставляется исключительно в ознакомительных целях. Перед подписанием настоятельно рекомендуется проконсультироваться с квалифицированным юристом для адаптации под вашу конкретную ситуацию.
 """
 
 
@@ -119,6 +126,7 @@ class LLMService:
     def __init__(self):
         self.groq_client = None
         self.gemini_client = None
+        self.anthropic_client = None
         self._init_clients()
 
     def _init_clients(self):
@@ -148,9 +156,24 @@ class LLMService:
             except Exception as e:
                 logger.error(f"Gemini init error: {e}")
 
+        if anthropic and settings.ANTHROPIC_API_KEY:
+            try:
+                self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+                logger.info("Anthropic Claude client initialized")
+            except Exception as e:
+                logger.error(f"Anthropic init error: {e}")
+
     # ── Chat ──
-    async def chat(self, user_message: str, history: List[Dict] = None, user_role: str = "citizen") -> Dict:
-        if self.groq_client:
+    async def chat(self, user_message: str, history: List[Dict] = None, user_role: str = "citizen", model_type: str = "fast") -> Dict:
+        provider = getattr(settings, "LLM_PROVIDER", "claude")
+        
+        if provider == "claude" and self.anthropic_client:
+            try:
+                return await self._chat_claude(user_message, history, user_role, model_type=model_type)
+            except Exception as e:
+                logger.warning(f"Claude Chat Error: {e}. Falling back to Groq/Gemini...")
+
+        if (provider == "groq" or not self.anthropic_client) and self.groq_client:
             try:
                 return await self._chat_groq(user_message, history, user_role)
             except Exception as e:
@@ -158,15 +181,25 @@ class LLMService:
         
         if self.gemini_client:
             try:
-                return await self._chat_gemini(user_message, history, user_role)
+                return await self._chat_gemini(user_message, history, user_role, model_type=model_type)
             except Exception as e:
                 logger.warning(f"Gemini Chat Error: {e}. Falling back to Mock...")
         
         return self._mock_chat(user_message)
 
-    async def chat_stream(self, user_message: str, history: List[Dict] = None, user_role: str = "citizen") -> AsyncGenerator[str, None]:
+    async def chat_stream(self, user_message: str, history: List[Dict] = None, user_role: str = "citizen", model_type: str = "fast") -> AsyncGenerator[str, None]:
         """Stream chat response token by token."""
-        if self.groq_client:
+        provider = getattr(settings, "LLM_PROVIDER", "claude")
+
+        if provider == "claude" and self.anthropic_client:
+            try:
+                async for chunk in self._chat_claude_stream(user_message, history, user_role, model_type=model_type):
+                    yield chunk
+                return
+            except Exception as e:
+                logger.warning(f"Claude stream error: {e}")
+
+        if (provider == "groq" or not self.anthropic_client) and self.groq_client:
             try:
                 async for chunk in self._chat_groq_stream(user_message, history, user_role):
                     yield chunk
@@ -176,7 +209,7 @@ class LLMService:
         
         if self.gemini_client:
             try:
-                async for chunk in self._chat_gemini_stream(user_message, history, user_role):
+                async for chunk in self._chat_gemini_stream(user_message, history, user_role, model_type=model_type):
                     yield chunk
                 return
             except Exception as e:
@@ -184,6 +217,13 @@ class LLMService:
         yield self._mock_chat(user_message)["content"]
 
     async def audit_contract(self, contract_text: str) -> Dict:
+        provider = getattr(settings, "LLM_PROVIDER", "claude")
+        
+        if provider == "claude" and self.anthropic_client:
+            try:
+                return await self._audit_claude(contract_text)
+            except Exception as e:
+                logger.warning(f"Claude Audit Error: {e}")
         if self.groq_client:
             try:
                 return await self._audit_groq(contract_text)
@@ -197,8 +237,16 @@ class LLMService:
         return self._mock_audit()
 
     async def check_counterparty(self, bin_number: str) -> Dict:
-        # Counterparty MUST have live search, so we rely entirely on Gemini.
-        # Falling back to Groq guarantees hallucinations.
+        provider = getattr(settings, "LLM_PROVIDER", "claude")
+        
+        if provider == "claude" and self.anthropic_client:
+            try:
+                res = await self._counterparty_claude(bin_number)
+                return self._normalize_counterparty_result(res, bin_number)
+            except Exception as e:
+                logger.warning(f"Claude Counterparty Error: {e}")
+
+        # Counterparty MUST have live search if possible, Gemini has Grounding
         if self.gemini_client:
             try:
                 result = await self._counterparty_gemini(bin_number)
@@ -215,6 +263,13 @@ class LLMService:
         }, bin_number)
 
     async def generate_document(self, doc_type: str, description: str) -> str:
+        provider = getattr(settings, "LLM_PROVIDER", "claude")
+        
+        if provider == "claude" and self.anthropic_client:
+            try:
+                return await self._gen_doc_claude(doc_type, description)
+            except Exception as e:
+                logger.warning(f"Claude DocGen Error: {e}")
         if self.groq_client:
             try:
                 return await self._gen_doc_groq(doc_type, description)
@@ -226,6 +281,88 @@ class LLMService:
             except Exception as e:
                 logger.warning(f"Gemini DocGen Error: {e}")
         return f"# Шаблон ({doc_type})\n\n{description}\n\n> Мок-версия."
+
+    # ── Anthropic Claude Implementations ──
+    def _build_claude_messages(self, message, history, max_history=8):
+        messages = []
+        if history:
+            for h in history[-max_history:]:
+                role = "user" if h["role"] == "user" else "assistant"
+                messages.append({"role": role, "content": h["content"]})
+        messages.append({"role": "user", "content": message})
+        return messages
+
+    async def _chat_claude(self, message, history, user_role="citizen", model_type="fast"):
+        sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
+        msgs = self._build_claude_messages(message, history)
+        
+        # Select model based on type
+        if model_type == "cheap":
+            model = settings.LLM_MODEL_CHEAP
+        elif model_type == "smart":
+            model = settings.LLM_MODEL_SMART
+        else:
+            model = settings.LLM_MODEL_FAST
+
+        resp = await self.anthropic_client.messages.create(
+            model=model,
+            system=sys_prompt,
+            messages=msgs,
+            max_tokens=2048,
+            temperature=0.1
+        )
+        return self._parse_chat_response(resp.content[0].text)
+
+    async def _chat_claude_stream(self, message, history, user_role="citizen", model_type="fast") -> AsyncGenerator[str, None]:
+        sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
+        msgs = self._build_claude_messages(message, history)
+        
+        if model_type == "cheap":
+            model = settings.LLM_MODEL_CHEAP
+        elif model_type == "smart":
+            model = settings.LLM_MODEL_SMART
+        else:
+            model = settings.LLM_MODEL_FAST
+
+        async with self.anthropic_client.messages.stream(
+            model=model,
+            system=sys_prompt,
+            messages=msgs,
+            max_tokens=2048,
+            temperature=0.1
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+
+    async def _audit_claude(self, text):
+        resp = await self.anthropic_client.messages.create(
+            model=getattr(settings, "LLM_MODEL_SMART", "claude-3-5-sonnet-20241022"),
+            system=AUDIT_SYSTEM,
+            messages=[{"role": "user", "content": f"Обязательно верни только JSON.\n\nДоговор:\n{text[:12000]}]"}],
+            max_tokens=4096,
+            temperature=0.2
+        )
+        return self._normalize_audit_result(self._parse_json_response(resp.content[0].text, self._mock_audit()))
+
+    async def _counterparty_claude(self, bin_num):
+        resp = await self.anthropic_client.messages.create(
+            model=getattr(settings, "LLM_MODEL_FAST", "claude-3-5-sonnet-20241022"),
+            system=COUNTERPARTY_SYSTEM,
+            messages=[{"role": "user", "content": f"Обязательно верни только JSON по БИН {bin_num}"}],
+            max_tokens=1024,
+            temperature=0.5
+        )
+        return self._parse_json_response(resp.content[0].text, self._mock_counterparty(bin_num))
+
+    async def _gen_doc_claude(self, dtype, desc):
+        resp = await self.anthropic_client.messages.create(
+            model=getattr(settings, "LLM_MODEL_SMART", "claude-3-5-sonnet-20241022"),
+            system=DOCUMENT_GEN_SYSTEM,
+            messages=[{"role": "user", "content": f"{dtype}: {desc}"}],
+            max_tokens=4096,
+            temperature=0.4
+        )
+        return resp.content[0].text
 
     # ── Groq Implementations ──
     def _build_messages(self, message, history, max_history=8, user_role="citizen"):
@@ -293,47 +430,66 @@ class LLMService:
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=message)]))
         return contents
 
-    async def _chat_gemini(self, message, history, user_role="citizen"):
+    async def _chat_gemini(self, message, history, user_role="citizen", model_type="fast"):
         contents = self._build_gemini_contents(message, history)
         sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
-        # Добавляем Google Search Retrieval для 100% точности по внешним данным
+        
+        # Select model
+        if model_type == "cheap":
+            model = settings.LLM_MODEL_CHEAP
+        elif model_type == "smart":
+            model = settings.LLM_MODEL_SMART
+        else:
+            model = settings.LLM_MODEL_FAST
+
         config = types.GenerateContentConfig(
             system_instruction=sys_prompt, 
             temperature=0.1, 
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=contents, config=config)
+        resp = self.gemini_client.models.generate_content(model=model, contents=contents, config=config)
         return self._parse_chat_response(resp.text or "")
 
-    async def _chat_gemini_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
+    async def _chat_gemini_stream(self, message, history, user_role="citizen", model_type="fast") -> AsyncGenerator[str, None]:
         contents = self._build_gemini_contents(message, history)
         sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
+        
+        if model_type == "cheap":
+            model = settings.LLM_MODEL_CHEAP
+        elif model_type == "smart":
+            model = settings.LLM_MODEL_SMART
+        else:
+            model = settings.LLM_MODEL_FAST
+
         config = types.GenerateContentConfig(
             system_instruction=sys_prompt, 
             temperature=0.1,
             max_tokens=2048,
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content_stream(model="gemini-2.5-flash", contents=contents, config=config)
+        resp = self.gemini_client.models.generate_content_stream(model=model, contents=contents, config=config)
         for chunk in resp:
             if chunk.text:
                 yield chunk.text
 
     async def _audit_gemini(self, text):
-        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=text[:15000], config=types.GenerateContentConfig(system_instruction=AUDIT_SYSTEM, temperature=0.3, response_mime_type="application/json"))
+        model = settings.LLM_MODEL_SMART
+        resp = self.gemini_client.models.generate_content(model=model, contents=text[:15000], config=types.GenerateContentConfig(system_instruction=AUDIT_SYSTEM, temperature=0.3, response_mime_type="application/json"))
         return self._normalize_audit_result(self._parse_json_response(resp.text or "", self._mock_audit()))
 
     async def _counterparty_gemini(self, bin_num):
+        model = settings.LLM_MODEL_FAST
         config = types.GenerateContentConfig(
             system_instruction=COUNTERPARTY_SYSTEM, 
             temperature=0.0, 
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=f"Найди данные компании по БИН {bin_num} в Казахстане. Обязательно верни JSON.", config=config)
+        resp = self.gemini_client.models.generate_content(model=model, contents=f"Найди данные компании по БИН {bin_num} в Казахстане. Обязательно верни JSON.", config=config)
         return self._parse_json_response(resp.text or "", self._mock_counterparty(bin_num))
 
     async def _gen_doc_gemini(self, dtype, desc):
-        resp = self.gemini_client.models.generate_content(model="gemini-2.5-flash", contents=f"{dtype}: {desc}", config=types.GenerateContentConfig(system_instruction=DOCUMENT_GEN_SYSTEM, temperature=0.4))
+        model = settings.LLM_MODEL_SMART
+        resp = self.gemini_client.models.generate_content(model=model, contents=f"{dtype}: {desc}", config=types.GenerateContentConfig(system_instruction=DOCUMENT_GEN_SYSTEM, temperature=0.4))
         return resp.text or "Ошибка Gemini"
 
     # ── Normalization & Parsing ──
@@ -377,7 +533,8 @@ class LLMService:
         return {"risks": clean, "summary": data.get("summary") or f"Выявлено {len(clean)} замечаний.", "totalRisks": len(clean)}
 
     def _parse_chat_response(self, raw):
-        if not raw: return ""
+        if not raw: 
+            return {"content": "", "segment": "b2c", "references": [], "escalation": None}
         # КРИТИЧЕСКИЙ ФИЛЬТР: Удаляем иероглифы, вьетнамские символы и прочий мусор.
         # Оставляем: Кирилллицу, Латиницу (для ссылок), Цифры и Пунктуацию.
         import re

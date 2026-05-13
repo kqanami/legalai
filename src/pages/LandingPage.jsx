@@ -6,7 +6,46 @@ import { useAuth } from '../contexts/AuthContext';
 import LanguageToggle from '../components/LanguageToggle';
 import KineticBackground from '../components/KineticBackground';
 import MagneticButton from '../components/MagneticButton';
-import { Scale, FileText, Globe, ArrowRight, Sparkles, Bot, Search, FileSearch, Building2 } from 'lucide-react';
+import { Scale, FileText, Globe, ArrowRight, Sparkles, Bot, Search, FileSearch, Building2, Zap, Users, Briefcase, Crown, Check } from 'lucide-react';
+
+const pricingPlans = [
+  {
+    name: 'FREEMIUM',
+    price: '0',
+    desc: 'Для быстрого знакомства с системой',
+    features: ['3 премиум-ответа (Sonnet 3.5)', 'Безлимитный чат на базовой модели', '1 проверка контрагента по БИН', 'Доступ к базе кодексов РК'],
+    cta: 'Попробовать бесплатно',
+    popular: false,
+    icon: <Sparkles className="text-emerald-400" size={24} />
+  },
+  {
+    name: 'GO',
+    price: '5,000',
+    desc: 'Идеально для частных лиц и самозанятых',
+    features: ['Безлимитный чат по всем НПА', 'Лимит 50 запросов в день', 'Claude 3.5 Sonnet интеллект', 'Двуязычная поддержка'],
+    cta: 'Начать сейчас',
+    popular: true,
+    icon: <Zap className="text-chrome-300" size={24} />
+  },
+  {
+    name: 'ИП',
+    price: '19,990',
+    desc: 'Для малого бизнеса и юристов',
+    features: ['Доступ для команды (до 5 чел)', 'Базовый аудит договоров', 'Генерация исков и заявлений', 'История всех консультаций'],
+    cta: 'Выбрать ИП',
+    popular: false,
+    icon: <Users className="text-chrome-200" size={24} />
+  },
+  {
+    name: 'БИЗНЕС',
+    price: '50,000',
+    desc: 'Корпоративное решение',
+    features: ['Глубокий Smart Audit (Opus)', 'Проверка по всем госреестрам', 'Персональный менеджер', 'API интеграция'],
+    cta: 'Связаться с нами',
+    popular: false,
+    icon: <Briefcase className="text-chrome-100" size={24} />
+  }
+];
 
 /* ─── Animated Counter ─── */
 function CountUp({ target, suffix = '', duration = 2 }) {
@@ -249,6 +288,65 @@ export default function LandingPage() {
                       <p className="text-sm text-steel-400 leading-relaxed">{c.desc}</p>
                     </div>
                     <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-white/[0.02] rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                  </div>
+                </TiltCard>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════ PRICING ══════ */}
+      <section id="pricing" className="relative z-10 py-28 bg-obsidian-900/30">
+        <div className="max-w-7xl mx-auto px-6">
+          <Reveal className="text-center mb-16">
+            <span className="text-xs text-chrome-400 uppercase tracking-[0.3em] font-bold mb-4 block">Тарифные планы</span>
+            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+              <span className="text-white">Выберите свой уровень </span><span className="metal-text">поддержки</span>
+            </h2>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {pricingPlans.map((plan, i) => (
+              <Reveal key={i} delay={i * 0.1}>
+                <TiltCard className="h-full">
+                  <div className={`glass-card h-full p-8 flex flex-col border transition-all duration-500 relative ${plan.popular ? 'border-white/20 bg-white/[0.04] shadow-[0_0_40px_rgba(255,255,255,0.05)]' : 'border-white/[0.06] hover:border-white/10'}`}>
+                    {plan.popular && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full chrome-gradient text-[10px] font-bold text-obsidian-950 uppercase tracking-widest shadow-lg">
+                        Популярный
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="w-12 h-12 rounded-xl bg-obsidian-800 border border-white/[0.08] flex items-center justify-center">
+                        {plan.icon}
+                      </div>
+                      <span className="text-xs font-bold text-steel-500 tracking-widest">{plan.name}</span>
+                    </div>
+
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-extrabold text-white">{plan.price}</span>
+                        <span className="text-lg font-bold text-steel-400">₸</span>
+                        {plan.price !== '0' && <span className="text-xs text-steel-500 ml-1">/ мес</span>}
+                      </div>
+                      <p className="text-xs text-steel-400 mt-2">{plan.desc}</p>
+                    </div>
+
+                    <div className="space-y-4 mb-8 flex-1">
+                      {plan.features.map((feat, idx) => (
+                        <div key={idx} className="flex items-start gap-3">
+                          <Check size={14} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-xs text-steel-300 leading-relaxed">{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <MagneticButton as={Link} to={user ? '/dashboard' : '/auth'}
+                      className={`w-full py-4 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${plan.popular ? 'btn-primary' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'}`}>
+                      {plan.cta}
+                      <ArrowRight size={14} />
+                    </MagneticButton>
                   </div>
                 </TiltCard>
               </Reveal>

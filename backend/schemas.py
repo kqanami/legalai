@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
     phone: str
     email: Optional[str] = None
     role: str
+    plan: str
     city: Optional[str] = None
 
     class Config:

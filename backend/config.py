@@ -14,6 +14,17 @@ APP_VERSION = "3.1.0"
 class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+
+    # ── LLM Provider Switching ──
+    # Options: "claude", "gemini", "groq"
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")
+    # Fast model (Gemini 1.5 Flash)
+    LLM_MODEL_FAST: str = os.getenv("LLM_MODEL_FAST", "gemini-1.5-flash")
+    # Smart model (Gemini 1.5 Pro)
+    LLM_MODEL_SMART: str = os.getenv("LLM_MODEL_SMART", "gemini-1.5-pro")
+    # Cheap model (Gemini 1.5 Flash)
+    LLM_MODEL_CHEAP: str = os.getenv("LLM_MODEL_CHEAP", "gemini-1.5-flash")
 
     JWT_SECRET: str = os.getenv("JWT_SECRET", "")
     JWT_ALGORITHM: str = "HS256"
@@ -38,8 +49,26 @@ class Settings:
                 print("[FATAL] JWT_SECRET is not configured. Set it in .env file. Exiting.")
                 sys.exit(1)
 
-        if not self.GEMINI_API_KEY and not self.GROQ_API_KEY:
-            print("[WARN] No AI API keys configured (GEMINI_API_KEY, GROQ_API_KEY). AI features will use mock mode.")
+        # ── LLM Provider Validation ──
+        valid_providers = ("claude", "gemini", "groq")
+        if self.LLM_PROVIDER not in valid_providers:
+            print(f"[WARN] Unknown LLM_PROVIDER='{self.LLM_PROVIDER}'. Falling back to 'claude'. Valid: {valid_providers}")
+            self.LLM_PROVIDER = "claude"
+
+        if self.LLM_PROVIDER == "claude" and not self.ANTHROPIC_API_KEY:
+            print("[FATAL] LLM_PROVIDER=claude but ANTHROPIC_API_KEY is not set. Set it in .env!")
+            sys.exit(1)
+        elif self.LLM_PROVIDER == "gemini" and not self.GEMINI_API_KEY:
+            print("[FATAL] LLM_PROVIDER=gemini but GEMINI_API_KEY is not set.")
+            sys.exit(1)
+        elif self.LLM_PROVIDER == "groq" and not self.GROQ_API_KEY:
+            print("[FATAL] LLM_PROVIDER=groq but GROQ_API_KEY is not set.")
+            sys.exit(1)
+        else:
+            print(f"[INFO] LLM Provider: {self.LLM_PROVIDER.upper()} | Fast: {self.LLM_MODEL_FAST} | Smart: {self.LLM_MODEL_SMART}")
+
+        if not self.GEMINI_API_KEY and not self.GROQ_API_KEY and not self.ANTHROPIC_API_KEY:
+            print("[WARN] No AI API keys configured. AI features will use mock mode.")
 
         if self.DEBUG_MODE:
             print("[WARN] DEBUG_MODE is ON. Test OTP code 111111 is active. Disable in production!")

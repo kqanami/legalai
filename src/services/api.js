@@ -58,7 +58,11 @@ async function request(path, options = {}) {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Ошибка сервера' }));
-    throw new Error(error.detail || `HTTP ${res.status}`);
+    let errorMsg = error.detail;
+    if (Array.isArray(errorMsg)) {
+      errorMsg = errorMsg.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+    }
+    throw new Error(errorMsg || `HTTP ${res.status}`);
   }
 
   return res.json();
