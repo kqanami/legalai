@@ -5,7 +5,6 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
 import AIWaveform from '../components/AIWaveform';
 import MagneticButton from '../components/MagneticButton';
-import AnimatedText from '../components/AnimatedText';
 import { chatApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Scale, Settings2, Home, Building2, Link2, Download, ChevronRight } from 'lucide-react';
@@ -65,7 +64,67 @@ function EscalationBanner({ escalation }) {
   );
 }
 
-const MarkdownRenderer = memo(({ content, animate = false }) => {
+const AnimateWords = memo(({ text }) => {
+  const segments = text.split(/(\s+)/);
+  return (
+    <>
+      {segments.map((segment, index) => {
+        if (segment === '') return null;
+        if (/^\s+$/.test(segment)) {
+          return <span key={`${index}-space`} className="white-space-segment">{segment}</span>;
+        }
+        return (
+          <span key={`${index}-${segment}`} className="word-fade-in">
+            {segment}
+          </span>
+        );
+      })}
+    </>
+  );
+});
+
+const WordTypewriter = memo(({ children, animate }) => {
+  if (!animate || typeof children !== 'string') {
+    return <span>{children}</span>;
+  }
+
+  // If the text is short, animate the whole thing
+  if (children.length <= 60) {
+    return <AnimateWords text={children} />;
+  }
+
+  // Otherwise, split it: render stable part statically, and animate only the tail!
+  const stableLimit = children.length - 50;
+  // Find the last space before the stable limit to avoid splitting a word in half
+  const lastSpace = children.lastIndexOf(' ', stableLimit);
+  
+  if (lastSpace === -1 || lastSpace < 15) {
+    return <AnimateWords text={children} />;
+  }
+
+  const stableText = children.slice(0, lastSpace);
+  const tailText = children.slice(lastSpace);
+
+  return (
+    <>
+      <span>{stableText}</span>
+      <AnimateWords text={tailText} />
+    </>
+  );
+});
+
+function WordTypewriterWrapper({ children, animate }) {
+  if (!animate) return children;
+  
+  return Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      return <WordTypewriter animate={animate}>{child}</WordTypewriter>;
+    }
+    return child;
+  });
+}
+
+const MarkdownRenderer = memo(({ content, isStreaming = false }) => {
   const normalizeMarkdown = (text) => {
     if (!text) return '';
     return text
@@ -89,32 +148,27 @@ const MarkdownRenderer = memo(({ content, animate = false }) => {
   };
 
   const components = {
-    p: ({ children }) => <p><TypewriterWrapper animate={animate}>{children}</TypewriterWrapper></p>,
-    li: ({ children }) => <li><TypewriterWrapper animate={animate}>{children}</TypewriterWrapper></li>,
-    h1: ({ children }) => <h1><TypewriterWrapper animate={animate}>{children}</TypewriterWrapper></h1>,
-    h2: ({ children }) => <h2><TypewriterWrapper animate={animate}>{children}</TypewriterWrapper></h2>,
-    h3: ({ children }) => <h3><TypewriterWrapper animate={animate}>{children}</TypewriterWrapper></h3>,
+    p: ({ children }) => <p><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></p>,
+    li: ({ children }) => <li><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></li>,
+    h1: ({ children }) => <h1><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></h1>,
+    h2: ({ children }) => <h2><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></h2>,
+    h3: ({ children }) => <h3><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></h3>,
   };
 
   return (
-    <div className="markdown-content">
-      <ReactMarkdown components={components}>{cleanText(content)}</ReactMarkdown>
+    <div className={`markdown-content ${isStreaming ? 'streaming-message' : ''}`}>
+      {isStreaming ? (
+        <ReactMarkdown components={components}>{cleanText(content)}</ReactMarkdown>
+      ) : (
+        <ReactMarkdown>{cleanText(content)}</ReactMarkdown>
+      )}
     </div>
   );
 });
 
-function TypewriterWrapper({ children, animate }) {
-  return Children.map(children, (child) => {
-    if (typeof child === 'string') {
-      return <AnimatedText animate={animate}>{child}</AnimatedText>;
-    }
-    return child;
-  });
-}
-
 export default function ChatPage() {
   const { t } = useLanguage();
-  const { messages, isTyping, currentSegment, sendMessage, sessionId } = useChat();
+  const { messages, isTyping, isStreaming, currentSegment, sendMessage, sessionId } = useChat();
   const { user } = useAuth();
   const [input, setInput] = useState('');
   const scrollRef = useRef(null);
@@ -171,7 +225,7 @@ export default function ChatPage() {
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-8 space-y-8 custom-scrollbar scroll-smooth"
+        className="flex-1 overflow-y-auto px-4 py-8 space-y-8 custom-scrollbar"
       >
         <AnimatePresence mode="popLayout">
           {messages.length === 0 ? (
@@ -254,7 +308,7 @@ export default function ChatPage() {
                     ) : (
                       <MarkdownRenderer 
                         content={msg.content} 
-                        animate={index === messages.length - 1} 
+                        isStreaming={isStreaming && index === messages.length - 1} 
                       />
                     )}
 

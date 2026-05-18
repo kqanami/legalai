@@ -32,11 +32,12 @@ def reset_and_reingest():
     rag_service.add_documents(narc_docs, [{"source": "Уголовный кодекс РК", "article": "296"}, {"source": "Уголовный кодекс РК", "article": "297"}], ["uk_rk_296_pri", "uk_rk_297_pri"])
 
     # Paths to the fetched files
+    base_dir = os.path.join(os.path.dirname(__file__), "..", "db", "legislation_md")
     files = [
-        (r"C:\Users\Yura\.gemini\antigravity\brain\4bbe363b-bc11-49ea-8f10-a72ff01a10c5\.system_generated\steps\315\content.md", "Трудовой кодекс РК", "labor"),
-        (r"C:\Users\Yura\.gemini\antigravity\brain\4bbe363b-bc11-49ea-8f10-a72ff01a10c5\.system_generated\steps\333\content.md", "Уголовный кодекс РК", "criminal"),
-        (r"C:\Users\Yura\.gemini\antigravity\brain\4bbe363b-bc11-49ea-8f10-a72ff01a10c5\.system_generated\steps\345\content.md", "Гражданский кодекс РК (Общая часть)", "civil"),
-        (r"C:\Users\Yura\.gemini\antigravity\brain\4bbe363b-bc11-49ea-8f10-a72ff01a10c5\.system_generated\steps\357\content.md", "Налоговый кодекс РК", "tax"),
+        (os.path.join(base_dir, "labor.md"), "Трудовой кодекс РК", "labor"),
+        (os.path.join(base_dir, "criminal.md"), "Уголовный кодекс РК", "criminal"),
+        (os.path.join(base_dir, "civil.md"), "Гражданский кодекс РК (Общая часть)", "civil"),
+        (os.path.join(base_dir, "tax.md"), "Налоговый кодекс РК", "tax"),
     ]
     
     pattern = r"(?:https?://[^\s]+)?(Статья\s+\d+[\.\s][^.\n]+)"
@@ -66,9 +67,14 @@ def reset_and_reingest():
             ids.append(doc_id)
             
         # Batch add
-        batch_size = 100
+        import time
+        batch_size = 20
+        total_batches = (len(docs) - 1) // batch_size + 1
         for j in range(0, len(docs), batch_size):
+            print(f"Adding batch {j//batch_size + 1}/{total_batches} ({len(docs[j:j+batch_size])} docs)...")
             rag_service.add_documents(docs[j:j+batch_size], metas[j:j+batch_size], ids[j:j+batch_size])
+            print("Sleeping 20 seconds to respect Gemini API rate limits...")
+            time.sleep(20)
             
     print("RAG Reset & Re-ingest COMPLETE.")
 

@@ -133,6 +133,7 @@ class AuditResponse(BaseModel):
     risks: List[AuditRisk]
     summary: str
     totalRisks: int
+    original_text: Optional[str] = None
 
 class AuditHistoryItem(BaseModel):
     id: int
@@ -143,6 +144,16 @@ class AuditHistoryItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ReanalyzeRequest(BaseModel):
+    text: str
+    filename: Optional[str] = "Редактированный документ.docx"
+    audit_id: Optional[int] = None
+
+
+class SaveTextRequest(BaseModel):
+    text: str
 
 
 # ── Dashboard Stats ──

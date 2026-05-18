@@ -302,6 +302,32 @@ export const auditApi = {
   async getDetail(auditId) {
     return request(`/audit/history/${auditId}`);
   },
+
+  async deleteItem(auditId) {
+    return request(`/audit/history/${auditId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async clearHistory() {
+    return request('/audit/history', {
+      method: 'DELETE',
+    });
+  },
+
+  async reanalyze(text, filename = 'Редактированный документ.docx', auditId = null) {
+    return request('/audit/reanalyze', {
+      method: 'POST',
+      body: JSON.stringify({ text, filename, audit_id: auditId }),
+    });
+  },
+
+  async saveText(auditId, text) {
+    return request(`/audit/history/${auditId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ text }),
+    });
+  },
 };
 
 // ── Stats API ──
@@ -487,5 +513,17 @@ export const adminApi = {
   },
   async seedDatabase() {
     return request('/admin/seed', { method: 'POST' });
+  },
+  async getScraperStatus() {
+    return request('/admin/scraper/status');
+  },
+  async startScraper(key = 'all') {
+    return request('/admin/scraper/start', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+    });
+  },
+  async stopScraper() {
+    return request('/admin/scraper/stop', { method: 'POST' });
   }
 };

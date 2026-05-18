@@ -14,11 +14,37 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [scraperStatus, setScraperStatus] = useState({ is_running: false, current_key: null, logs: [] });
+  const [selectedKey, setSelectedKey] = useState('all');
+  const [scraperLoading, setScraperLoading] = useState(false);
   const navigate = useNavigate();
   const { addToast } = useToast();
 
   useEffect(() => {
     loadData();
+  }, [activeTab]);
+
+  // Poll scraper status in real-time when the scraper tab is active
+  useEffect(() => {
+    let interval = null;
+    
+    const fetchStatus = async () => {
+      try {
+        const data = await adminApi.getScraperStatus();
+        setScraperStatus(data);
+      } catch (e) {
+        console.error('Failed to fetch scraper status', e);
+      }
+    };
+
+    if (activeTab === 'scraper') {
+      fetchStatus();
+      interval = setInterval(fetchStatus, 1500);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [activeTab]);
 
   const loadData = async () => {
@@ -89,11 +115,40 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleStartScraper = async () => {
+    setScraperLoading(true);
+    try {
+      const res = await adminApi.startScraper(selectedKey);
+      addToast(res.detail, 'success');
+      const data = await adminApi.getScraperStatus();
+      setScraperStatus(data);
+    } catch (e) {
+      addToast('Ошибка запуска: ' + e.message, 'error');
+    } finally {
+      setScraperLoading(false);
+    }
+  };
+
+  const handleStopScraper = async () => {
+    setScraperLoading(true);
+    try {
+      const res = await adminApi.stopScraper();
+      addToast(res.detail, 'success');
+      const data = await adminApi.getScraperStatus();
+      setScraperStatus(data);
+    } catch (e) {
+      addToast('Ошибка остановки: ' + e.message, 'error');
+    } finally {
+      setScraperLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'ОБЗОР', icon: <Server size={14} /> },
     { id: 'users', label: 'ПОЛЬЗОВАТЕЛИ', icon: <Users size={14} /> },
     { id: 'lawyers', label: 'ВЕРИФИКАЦИЯ', icon: <Shield size={14} /> },
     { id: 'escalations', label: 'ЭКСКАЛАЦИИ', icon: <RefreshCw size={14} /> },
+    { id: 'scraper', label: 'ПАРСИНГ RAG', icon: <Database size={14} /> },
   ];
 
   return (
@@ -285,6 +340,141 @@ export default function AdminDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* TAB: LEGISLATION SCRAPER & TERMINAL LOGS */}
+              {activeTab === 'scraper' && (
+                <div className="space-y-6">
+                  <div className="glass-card p-6 border border-white/[0.05] bg-obsidian-900/50">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                      <div>
+                        <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                          <Database size={18} className="text-indigo-400" />
+                          Фоновый импорт и парсинг законодательства РК (RAG)
+                        </h2>
+                        <p className="text-xs text-steel-400 max-w-xl leading-relaxed">
+                          Скрипт подключается к официальному порталу adilet.zan.kz, скачивает нормативно-правовые акты РК, парсит их на отдельные статьи и загружает в векторную базу знаний ChromaDB с лимитом Gemini API.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 shrink-0">
+                        <div className="relative">
+                          <select
+                            value={selectedKey}
+                            onChange={(e) => setSelectedKey(e.target.value)}
+                            disabled={scraperStatus.is_running}
+                            className="appearance-none bg-obsidian-950 border border-obsidian-850 rounded px-4 py-2.5 pr-10 font-mono text-xs text-white focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+                          >
+                            <option value="all">Импортировать ВСЁ по очереди</option>
+                            <option value="civil_general">Гражданский кодекс (Общая)</option>
+                            <option value="civil_special">Гражданский кодекс (Особая)</option>
+                            <option value="labor">Трудовой кодекс</option>
+                            <option value="tax">Налоговый кодекс</option>
+                            <option value="entrepreneurial">Предпринимательский кодекс</option>
+                            <option value="administrative">Кодекс об адм. правонарушениях</option>
+                            <option value="criminal">Уголовный кодекс</option>
+                            <option value="law_too">Закон о ТОО</option>
+                            <option value="law_procurement">Закон о госзакупках</option>
+                            <option value="constitution">Конституция РК</option>
+                          </select>
+                          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-steel-500 text-[10px]">▼</div>
+                        </div>
+
+                        {!scraperStatus.is_running ? (
+                          <button
+                            onClick={handleStartScraper}
+                            disabled={scraperLoading}
+                            className="px-5 py-2.5 rounded bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(99,102,241,0.15)] flex items-center gap-2 disabled:opacity-50"
+                          >
+                            Запустить
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleStopScraper}
+                            disabled={scraperLoading}
+                            className="px-5 py-2.5 rounded bg-red-500 hover:bg-red-400 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(239,68,68,0.25)] flex items-center gap-2 animate-pulse disabled:opacity-50"
+                          >
+                            Остановить
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Scraper Status Panel */}
+                    <div className="mt-6 flex items-center gap-4 p-4 rounded-xl border border-white/[0.04] bg-obsidian-950/60">
+                      <div className="relative flex h-3 w-3 shrink-0">
+                        {scraperStatus.is_running ? (
+                          <>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                          </>
+                        ) : (
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500/50"></span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold text-white block">
+                          {scraperStatus.is_running 
+                            ? `АКТИВНЫЙ ИМПОРТ: ${scraperStatus.current_key === 'all' ? 'Все кодексы' : scraperStatus.current_key}` 
+                            : 'СТАТУС: ПРОЦЕСС ОСТАНОВЛЕН / ЗАВЕРШЕН'}
+                        </span>
+                        <span className="text-[10px] text-steel-500 mt-0.5 block leading-normal">
+                          {scraperStatus.is_running 
+                            ? 'Gemini Embeddings V3 + ChromaDB (пауза 20 сек между батчами для избежания лимитов)' 
+                            : 'Для добавления/обновления законодательства в базе знаний выберите кодекс и нажмите "Запустить".'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Monospace Terminal console */}
+                  <div className="glass-card border border-white/[0.05] bg-[#030305] rounded-2xl overflow-hidden flex flex-col h-[52vh]">
+                    {/* Console Header */}
+                    <div className="bg-[#0b0c10] border-b border-white/[0.03] px-4 py-3 flex items-center justify-between text-xs text-steel-400 select-none">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 mr-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
+                        </div>
+                        <span className="font-bold tracking-wider text-[10px] text-steel-500">TERMINAL OUTPUT — RAG SCRAPER</span>
+                      </div>
+                      <span className="font-mono text-[9px] text-indigo-400 bg-indigo-950/30 border border-indigo-900/40 px-2 py-0.5 rounded">
+                        {scraperStatus.is_running ? 'STREAMING...' : 'IDLE'}
+                      </span>
+                    </div>
+
+                    {/* Terminal logs container */}
+                    <div className="flex-1 overflow-y-auto p-5 font-mono text-[11px] leading-relaxed text-chrome-400 custom-scrollbar space-y-1.5 scroll-smooth">
+                      {scraperStatus.logs && scraperStatus.logs.length > 0 ? (
+                        scraperStatus.logs.map((log, idx) => {
+                          let textClass = 'text-chrome-300';
+                          if (log.includes('Error') || log.includes('❌') || log.includes('Failed')) {
+                            textClass = 'text-red-400 font-bold';
+                          } else if (log.includes('✅') || log.includes('complete') || log.includes('Ingested') || log.includes('complete')) {
+                            textClass = 'text-emerald-400 font-semibold';
+                          } else if (log.includes('🚀') || log.includes('===')) {
+                            textClass = 'text-indigo-400 font-bold';
+                          } else if (log.includes('💤') || log.includes('Sleeping')) {
+                            textClass = 'text-amber-500 opacity-90';
+                          } else if (log.startsWith('[SYSTEM]')) {
+                            textClass = 'text-indigo-300/85 italic';
+                          }
+                          return (
+                            <div key={idx} className={textClass}>
+                              {log}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-steel-600 italic flex items-center justify-center h-full select-none text-xs">
+                          Логи консоли пусты. Запустите парсинг для начала вывода.
+                        </div>
+                      )}
+                      <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                    </div>
+                  </div>
                 </div>
               )}
 

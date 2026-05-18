@@ -1,5 +1,9 @@
 import logging
 import random
+import sys
+import os
+import subprocess
+import threading
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -10,6 +14,102 @@ from auth import create_token, require_role
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+class ScraperManager:
+    def __init__(self):
+        self.process = None
+        self.current_key = None
+        self.logs = []
+        self.lock = threading.Lock()
+        self._reader_thread = None
+
+    def _read_stdout(self, process):
+        try:
+            for line in iter(process.stdout.readline, ''):
+                if not line:
+                    break
+                with self.lock:
+                    self.logs.append(line.strip())
+                    if len(self.logs) > 500:
+                        self.logs = self.logs[-500:]
+            process.stdout.close()
+        except Exception as e:
+            with self.lock:
+                self.logs.append(f"[SYSTEM] Log reader error: {str(e)}")
+
+    def start(self, key: str = "all") -> tuple:
+        with self.lock:
+            if self.process and self.process.poll() is None:
+                return False, "Скрапер уже запущен"
+            
+            self.current_key = key
+            self.logs = ["[SYSTEM] Запуск процесса парсинга..."]
+            
+            # Find python executable
+            python_exe = sys.executable or "python"
+            
+            # Build command
+            cmd = [python_exe, "scripts/legislation_scraper.py"]
+            if key == "all":
+                cmd.append("--all")
+            else:
+                cmd.extend(["--key", key])
+
+            try:
+                # Start subprocess
+                self.process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    cwd=os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+                )
+                
+                # Start background thread to read logs safely without blocking
+                self._reader_thread = threading.Thread(
+                    target=self._read_stdout,
+                    args=(self.process,),
+                    daemon=True
+                )
+                self._reader_thread.start()
+                
+                return True, "Скрапер успешно запущен"
+            except Exception as e:
+                return False, f"Ошибка запуска: {str(e)}"
+
+    def stop(self) -> tuple:
+        with self.lock:
+            if not self.process or self.process.poll() is not None:
+                return False, "Скрапер не запущен"
+            
+            try:
+                self.process.terminate()
+                self.logs.append("[SYSTEM] Запрос на остановку отправлен (SIGTERM)...")
+                
+                # Wait briefly to let it clean up, then kill if still alive
+                try:
+                    self.process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+                    self.logs.append("[SYSTEM] Процесс принудительно убит (SIGKILL).")
+                
+                self.logs.append("[SYSTEM] Парсинг остановлен.")
+                return True, "Скрапер остановлен"
+            except Exception as e:
+                return False, f"Ошибка при остановке: {str(e)}"
+
+    def get_status(self) -> dict:
+        with self.lock:
+            is_running = self.process is not None and self.process.poll() is None
+            return {
+                "is_running": is_running,
+                "current_key": self.current_key,
+                "logs": list(self.logs)
+            }
+
+# Global singleton
+scraper_manager = ScraperManager()
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 # ── Schemas ──
@@ -235,3 +335,29 @@ def seed_database(user: User = require_role("admin"), db: Session = Depends(get_
 
     db.commit()
     return {"success": True, "message": f"Добавлено {len(new_lawyers)} тестовых юристов и отзывы."}
+
+# ── Scraper Management Endpoints ──
+
+class StartScraperRequest(BaseModel):
+    key: str = "all"
+
+@router.get("/scraper/status")
+def get_scraper_status(user: User = require_role("admin")):
+    """Get the current background legislation scraper status and logs."""
+    return scraper_manager.get_status()
+
+@router.post("/scraper/start")
+def start_scraper(req: StartScraperRequest, user: User = require_role("admin")):
+    """Start the legislation scraper in the background."""
+    success, message = scraper_manager.start(req.key)
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    return {"success": True, "detail": message}
+
+@router.post("/scraper/stop")
+def stop_scraper(user: User = require_role("admin")):
+    """Stop the background legislation scraper immediately."""
+    success, message = scraper_manager.stop()
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    return {"success": True, "detail": message}

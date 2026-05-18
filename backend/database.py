@@ -53,6 +53,10 @@ def init_db():
             try: conn.exec_driver_sql("ALTER TABLE chat_messages ADD COLUMN escalation_json TEXT;")
             except Exception: pass
             
+            # AuditResult updates
+            try: conn.exec_driver_sql("ALTER TABLE audit_results ADD COLUMN original_text TEXT;")
+            except Exception: pass
+            
             # Client updates
             try: conn.exec_driver_sql("ALTER TABLE clients ADD COLUMN user_id INTEGER;")
             except Exception: pass

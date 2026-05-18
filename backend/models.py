@@ -99,6 +99,7 @@ class AuditResult(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     filename = Column(String(500), nullable=False)
+    original_text = Column(Text, nullable=True)  # Store original analyzed document text
     risks_json = Column(Text, nullable=False)  # JSON array of risks
     summary = Column(Text, nullable=True)
     total_risks = Column(Integer, default=0)

@@ -6,6 +6,7 @@ const ChatContext = createContext();
 export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [currentSegment, setCurrentSegment] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
@@ -61,6 +62,7 @@ export function ChatProvider({ children }) {
     };
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
+    setIsStreaming(true);
 
     try {
       // Create session if needed
@@ -191,6 +193,7 @@ export function ChatProvider({ children }) {
       });
     } finally {
       setIsTyping(false);
+      setIsStreaming(false);
     }
   }, [sessionId, currentSegment]);
 
@@ -218,7 +221,7 @@ export function ChatProvider({ children }) {
 
   return (
     <ChatContext.Provider value={{
-      messages, isTyping, currentSegment, chatHistory, sessionId,
+      messages, isTyping, isStreaming, currentSegment, chatHistory, sessionId,
       sendMessage, clearMessages, loadHistory, loadSession, deleteSession
     }}>
       {children}

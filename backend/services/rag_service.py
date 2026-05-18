@@ -12,17 +12,38 @@ from google import genai
 import numpy as np
 
 class CustomGeminiEmbeddingFunction(embedding_functions.EmbeddingFunction):
-    """Custom embedding function using the new google-genai SDK."""
+    """Custom embedding function using the new google-genai SDK with fail-fast daily quota handling."""
     def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
         self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
 
     def __call__(self, input: chromadb.api.types.Documents) -> chromadb.api.types.Embeddings:
-        response = self.client.models.embed_content(
-            model=self.model_name,
-            contents=input
-        )
-        return [e.values for e in response.embeddings]
+        import time
+        max_retries = 6
+        backoff = 2
+        for attempt in range(max_retries):
+            try:
+                response = self.client.models.embed_content(
+                    model=self.model_name,
+                    contents=input
+                )
+                return [e.values for e in response.embeddings]
+            except Exception as e:
+                err_str = str(e)
+                # Check for daily/overall quota exhaustion limits (which sleeping won't fix)
+                is_quota_limit = any(x in err_str.lower() for x in ["quota", "limit", "exceeded", "requestsperday"])
+                
+                if ("429" in err_str or "RESOURCE_EXHAUSTED" in err_str) and not is_quota_limit and attempt < max_retries - 1:
+                    sleep_time = (backoff ** attempt) + 3
+                    logger.warning(f"Gemini Embedding Rate Limit (429) encountered. Sleeping for {sleep_time}s before retry... (Attempt {attempt+1}/{max_retries})")
+                    time.sleep(sleep_time)
+                else:
+                    if is_quota_limit:
+                        logger.error(f"Gemini Embedding Daily Quota Exceeded. Failing fast to prevent backend lag: {e}")
+                    else:
+                        logger.error(f"Failed embedding content after {attempt+1} attempts: {e}")
+                    raise e
+
 
 
 class LRUCache:
@@ -90,7 +111,7 @@ class LegalRAGService:
             return False
             
         try:
-            self.collection.add(
+            self.collection.upsert(
                 documents=documents,
                 metadatas=metadatas,
                 ids=ids
