@@ -3,7 +3,7 @@ import os
 import uuid
 import logging
 import re
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, File, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from database import get_db
@@ -92,7 +92,7 @@ def list_sessions(
 
 
 @router.post("/sessions/{session_id}/messages", response_model=MessageResponse)
-async def send_message(session_id: int, req: SendMessageRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def send_message(session_id: int, req: SendMessageRequest, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Send a message and get AI response."""
     session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == user.id).first()
     if not session:
@@ -121,7 +121,8 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
     ).order_by(ChatMessage.created_at).all()
     history = [{"role": m.role, "content": m.content} for m in prev_messages]
 
-    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs, db=db, user_id=user.id)
+    lang_header = request.headers.get("x-app-language")
+    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header)
 
     # Server-side escalation safety net: force escalation for explicit lawyer requests
     forced_esc = _detect_lawyer_request(req.content)
@@ -163,7 +164,7 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
 
 
 @router.post("/sessions/{session_id}/messages/stream")
-async def stream_message(session_id: int, req: SendMessageRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def stream_message(session_id: int, req: SendMessageRequest, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Send a message and stream AI response via SSE."""
     session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == user.id).first()
     if not session:
@@ -203,7 +204,8 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
     async def generate():
         full_content = ""
         try:
-            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs, db=db, user_id=user.id):
+            lang_header = request.headers.get("x-app-language")
+            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header):
                 if not chunk:
                     continue
                 full_content += chunk
@@ -334,3 +336,37 @@ def export_session(session_id: int, user: User = Depends(get_current_user), db: 
     document_builder.build_docx("\n".join(lines), filepath)
 
     return FileResponse(path=filepath, filename=f"Консультация_{session.title[:30]}.docx", media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.post("/transcribe")
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user)
+):
+    """Transcribe uploaded audio recording (WebM/WAV) using Groq Whisper."""
+    try:
+        from config import settings
+        # Generate temporary file path
+        ext = os.path.splitext(file.filename)[1] if file.filename else ".webm"
+        if not ext:
+            ext = ".webm"
+        filename = f"transcribe_{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(settings.UPLOAD_DIR, filename)
+        
+        # Ensure upload dir exists
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        
+        with open(filepath, "wb") as f:
+            content = await file.read()
+            f.write(content)
+            
+        try:
+            text = gemini_service.transcribe_audio(filepath)
+            return {"text": text}
+        finally:
+            # Clean up temp file
+            if os.path.exists(filepath):
+                os.remove(filepath)
+    except Exception as e:
+        logger.error(f"Audio transcription failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

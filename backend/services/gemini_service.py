@@ -1,7 +1,7 @@
 """
 AI Legal Assistant Service — Groq (Primary) + Gemini (Fallback).
 """
-import json, logging, traceback, asyncio
+import json, logging, traceback, asyncio, re
 from typing import List, Dict, AsyncGenerator
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ LEGAL_CHAT_SYSTEM = """Ты — высококлассный AI-Юрист по 
 ФОРМАТ ЗАВЕРШЕНИЯ (ОБЯЗАТЕЛЬНО ДОБАВЛЯЙ В САМОМ КОНЦЕ ОТВЕТА СКРЫТЫЕ БЛОКИ ДЛЯ ПАРСИНГА):
 
 [REFS]
-[{"title": "Название закона/Кодекса", "url": "https://adilet.zan.kz/...", "articles": "Ст. XX-YY"}]
+[{"title": "Название закона/Кодекса", "url": "https://adilet.zan.kz/...", "articles": "Ст. XX-YY", "snippet": "Краткая суть ИМЕННО ЭТОЙ статьи, о чем она говорит (1-2 предложения, не пиши про закон в целом)"}]
 
 [SEGMENT]
 b2c (если вопрос от физлица) ИЛИ b2b (если вопрос от бизнеса)
@@ -86,7 +86,7 @@ LAWYER_CHAT_SYSTEM = """Ты — элитный AI-ассистент для п�
 
 В конце ответа ОБЯЗАТЕЛЬНО добавляй системные теги:
 <!--REFS-->
-[{"title": "Название закона/НПА", "url": "https://adilet.zan.kz/...", "articles": "Ст. XX-YY"}]
+[{"title": "Название закона/НПА", "url": "https://adilet.zan.kz/...", "articles": "Ст. XX-YY", "snippet": "Краткая суть ИМЕННО ЭТОЙ статьи (о чем она говорит)"}]
 <!--SEGMENT-->b2b
 <!--SUGGESTIONS-->
 ["Какие документы нужны?", "Как долго идет регистрация?", "Какая стоимость услуги?"]
@@ -794,21 +794,33 @@ class LLMService:
         sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
         messages = [{"role": "system", "content": sys_prompt}]
         if history:
+            last_role = None
             for h in history[-max_history:]:
                 role = "user" if h["role"] == "user" else "assistant"
                 clean_text = h["content"] if role == "user" else self._clean_history_content(h["content"])
                 if clean_text:
-                    messages.append({"role": role, "content": clean_text})
-        messages.append({"role": "user", "content": message})
+                    if role == last_role:
+                        if messages and messages[-1]["role"] == role:
+                            messages[-1]["content"] += "\n" + clean_text
+                    else:
+                        messages.append({"role": role, "content": clean_text})
+                        last_role = role
+        if messages and messages[-1]["role"] == "user":
+            messages[-1]["content"] += "\n" + message
+        else:
+            messages.append({"role": "user", "content": message})
         return messages
 
     async def _chat_groq(self, message, history, user_role="citizen"):
         msgs = self._build_messages(message, history, user_role=user_role)
         model = getattr(settings, "GROQ_MODEL_FAST", "llama-3.1-8b-instant")
+        temp = getattr(settings, "LLM_TEMPERATURE", 0.1)
+        if "llama" in model.lower():
+            temp = max(0.5, temp)
         if hasattr(self, 'async_groq_client') and self.async_groq_client:
             try:
                 resp = await self.async_groq_client.chat.completions.create(
-                    model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1)
+                    model=model, messages=msgs, temperature=temp, frequency_penalty=0.5
                 )
                 if hasattr(resp, 'usage') and resp.usage:
                     logger.info(f"[TOKEN USAGE - GROQ CHAT] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
@@ -818,7 +830,7 @@ class LLMService:
 
         resp = await asyncio.to_thread(
             self.groq_client.chat.completions.create,
-            model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1)
+            model=model, messages=msgs, temperature=temp, frequency_penalty=0.5
         )
         if hasattr(resp, 'usage') and resp.usage:
             logger.info(f"[TOKEN USAGE - GROQ CHAT] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
@@ -827,11 +839,14 @@ class LLMService:
     async def _chat_groq_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
         msgs = self._build_messages(message, history, user_role=user_role)
         model = getattr(settings, "GROQ_MODEL_FAST", "llama-3.1-8b-instant")
+        temp = getattr(settings, "LLM_TEMPERATURE", 0.1)
+        if "llama" in model.lower():
+            temp = max(0.5, temp)
         
         if hasattr(self, 'async_groq_client') and self.async_groq_client:
             try:
                 stream = await self.async_groq_client.chat.completions.create(
-                    model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1), stream=True
+                    model=model, messages=msgs, temperature=temp, frequency_penalty=0.5, stream=True
                 )
                 async for chunk in stream:
                     if hasattr(chunk, 'x_groq') and chunk.x_groq and hasattr(chunk.x_groq, 'usage'):
@@ -847,7 +862,7 @@ class LLMService:
 
         stream = await asyncio.to_thread(
             self.groq_client.chat.completions.create,
-            model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1), stream=True
+            model=model, messages=msgs, temperature=temp, frequency_penalty=0.5, stream=True
         )
         while True:
             try:
@@ -905,12 +920,25 @@ class LLMService:
     def _build_gemini_contents(self, message, history, max_history=6):
         contents = []
         if history:
+            last_role = None
             for m in history[-max_history:]:
                 role = "user" if m["role"] == "user" else "model"
                 clean_text = m["content"] if role == "user" else self._clean_history_content(m["content"])
                 if clean_text:
-                    contents.append(types.Content(role=role, parts=[types.Part.from_text(text=clean_text)]))
-        contents.append(types.Content(role="user", parts=[types.Part.from_text(text=message)]))
+                    if role == last_role:
+                        if contents and contents[-1].role == role:
+                            prev_parts = contents[-1].parts or []
+                            prev_text = "".join([p.text or "" for p in prev_parts])
+                            contents[-1].parts = [types.Part.from_text(text=prev_text + "\n" + clean_text)]
+                    else:
+                        contents.append(types.Content(role=role, parts=[types.Part.from_text(text=clean_text)]))
+                        last_role = role
+        if contents and contents[-1].role == "user":
+            prev_parts = contents[-1].parts or []
+            prev_text = "".join([p.text or "" for p in prev_parts])
+            contents[-1].parts = [types.Part.from_text(text=prev_text + "\n" + message)]
+        else:
+            contents.append(types.Content(role="user", parts=[types.Part.from_text(text=message)]))
         return contents
 
     async def _chat_gemini(self, message, history, user_role="citizen", model_type="fast"):
@@ -956,7 +984,7 @@ class LLMService:
         config = types.GenerateContentConfig(
             system_instruction=sys_prompt, 
             temperature=getattr(settings, "LLM_TEMPERATURE", 0.1),
-            max_tokens=2048,
+            max_output_tokens=2048,
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
         resp = await self.gemini_client.aio.models.generate_content_stream(model=model, contents=contents, config=config)
@@ -1203,6 +1231,8 @@ class LLMService:
                         articles = ref.get("articles", "").strip()
                         url = ref.get("url", "").strip()
                         
+                        snippet = ref.get("snippet", "").strip()
+                        
                         # Clean placeholder url if it exists, or generate search URL
                         if not url or "..." in url or url == "https://adilet.zan.kz" or url.endswith("/..."):
                             # Construct real working Adilet search URL
@@ -1215,7 +1245,8 @@ class LLMService:
                         refs.append({
                             "title": title,
                             "url": url,
-                            "articles": articles
+                            "articles": articles,
+                            "snippet": snippet
                         })
             except Exception as e:
                 logger.warning(f"Failed to parse refs: {e}")
@@ -1258,6 +1289,48 @@ class LLMService:
             except (json.JSONDecodeError, ValueError):
                 logger.warning("Failed to parse AI JSON response")
                 return fallback
+
+    def transcribe_audio(self, file_path: str) -> str:
+        """Transcribes audio file using Groq Whisper API (whisper-large-v3)."""
+        if not hasattr(self, 'groq_client') or not self.groq_client:
+            raise Exception("Интеграция Groq не настроена на сервере.")
+        
+        # Whisper model is optimized for bilingual and mixed speech transcription.
+        # We use a two-pass logic:
+        # 1. First run with auto-detection (so Russian is not translated).
+        # 2. If the output is transcribed in Latin (e.g. Whisper misdetects short Kazakh as Romanian or Latin),
+        #    we re-run forcing language='kk' to guarantee Cyrillic script output.
+        try:
+            with open(file_path, "rb") as file:
+                transcription = self.groq_client.audio.transcriptions.create(
+                    file=file,
+                    model="whisper-large-v3",
+                    response_format="json",
+                    prompt="Сәлеметсіз бе! Маған заңгерлік көмек керек. Еңбек кодексінің 52-бабында не жазылған? Договорды қалай тексеруге болады? Статья және заңдар.",
+                )
+                text = transcription.get("text", "") if isinstance(transcription, dict) else getattr(transcription, 'text', '')
+                
+            # Count Latin vs Cyrillic characters to check script
+            latin_chars = len(re.findall(r'[a-zA-Zăâîşţșțßöäü]', text))
+            cyrillic_chars = len(re.findall(r'[а-яА-ЯёЁәғқңөұүһіӘҒҚҢӨҰҮҺІ]', text))
+            
+            # If transcription is mostly Latin, re-run with forced Kazakh to get Cyrillic
+            if latin_chars > 0 and (cyrillic_chars == 0 or (latin_chars / (latin_chars + cyrillic_chars)) > 0.2):
+                logger.info(f"Whisper auto-detect produced Latin/Romanian script: '{text}'. Re-running with forced language='kk' for Cyrillic.")
+                with open(file_path, "rb") as file:
+                    transcription = self.groq_client.audio.transcriptions.create(
+                        file=file,
+                        model="whisper-large-v3",
+                        response_format="json",
+                        language="kk",
+                        prompt="Сәлеметсіз бе! Маған заңгерлік көмек керек. Еңбек кодексінің 52-бабында не жазылған? Договорды қалай тексеруге болады? Статья және заңдар.",
+                    )
+                    text = transcription.get("text", "") if isinstance(transcription, dict) else getattr(transcription, 'text', '')
+            
+            return text
+        except Exception as e:
+            logger.error(f"Whisper transcription failed: {e}")
+            raise Exception(f"Ошибка распознавания речи: {str(e)}")
 
     def _mock_chat(self, msg):
         return {"content": "Демо-режим. Подключите API.", "segment": "b2c", "references": []}

@@ -4,7 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, ChevronRight, Plus, Trash2, Crown } from 'lucide-react';
+import { MessageSquare, ChevronRight, Plus, Trash2, Crown, Scale } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
 import { useToast } from './Toast';
 
@@ -63,7 +63,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* Sidebar */}
       <motion.aside
-        className="fixed top-16 left-0 bottom-0 w-72 z-40 bg-obsidian-950/95 backdrop-blur-2xl border-r border-obsidian-700/60 lg:translate-x-0"
+        className="fixed top-16 lg:top-0 left-0 bottom-0 w-72 z-40 bg-obsidian-950/95 backdrop-blur-2xl border-r border-obsidian-700/60 lg:translate-x-0"
         variants={sidebarVariants}
         initial="hidden"
         animate={isOpen ? 'visible' : 'hidden'}
@@ -77,6 +77,17 @@ export default function Sidebar({ isOpen, onClose }) {
         `}</style>
 
         <div className="flex flex-col h-full p-5">
+          {/* Logo at the top on desktop */}
+          <div className="hidden lg:flex items-center gap-3 mb-6 pb-6 border-b border-obsidian-850/80">
+            <div className="w-10 h-10 rounded-xl chrome-gradient flex items-center justify-center shadow-lg shadow-white/5 border border-white/20">
+              <Scale className="text-obsidian-950" size={20} strokeWidth={2.5} />
+            </div>
+            <div>
+              <span className="text-white font-bold text-base tracking-wide">AI-<span className="metal-text">{t('landing_title_accent')}</span></span>
+              <div className="text-[9px] tracking-widest text-steel-500 font-bold mt-0.5 uppercase">Legal Engine</div>
+            </div>
+          </div>
+
           {/* Minimalistic AI Status Indicator & Plan Badge */}
           <div className="flex items-center justify-between mb-8 px-2">
             <div className="flex items-center gap-2">
@@ -103,7 +114,7 @@ export default function Sidebar({ isOpen, onClose }) {
             onClick={() => { clearMessages(); navigate('/dashboard'); onClose(); }}
             className="mb-6 w-full py-4 rounded-xl chrome-gradient text-obsidian-950 font-bold text-xs uppercase tracking-widest shadow-[0_4px_20px_rgba(255,255,255,0.1)] hover:shadow-[0_8px_30px_rgba(255,255,255,0.2)] transition-all group flex items-center justify-center gap-2"
           >
-            <Plus size={16} /> Новая консультация
+            <Plus size={16} /> {t('new_chat')}
           </button>
 
           {/* Navigation */}

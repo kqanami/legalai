@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/Toast';
 import { ChatProvider } from './contexts/ChatContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import CommandPalette from './components/CommandPalette';
 import { Scale } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -79,6 +80,13 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+// Command palette wrapper — only renders when authenticated
+const AuthenticatedCommandPalette = () => {
+  const { user } = useAuth();
+  if (!user) return null;
+  return <CommandPalette />;
+};
+
 // Lazy loaded placeholders for unfinished routes (Fallback)
 const Placeholder = ({ title }) => (
   <div className="flex items-center justify-center h-full text-steel-400 text-lg font-light tracking-wide">
@@ -142,6 +150,7 @@ function App() {
             <AuthProvider>
               <ToastProvider>
                 <div className="min-h-screen font-inter bg-obsidian-950 text-white selection:bg-chrome-500/30 selection:text-white">
+                  <AuthenticatedCommandPalette />
                   <AppRoutes />
                 </div>
               </ToastProvider>

@@ -5,7 +5,7 @@ import {
   Database, Users, Server, Zap, RefreshCw, LogIn, Shield, Trash2, 
   CheckCircle, XCircle, AlertCircle, AlertTriangle, Search, Filter, 
   Settings, Award, TrendingUp, BarChart2, Cpu, Edit, Clock, Globe, Save, 
-  Trash, FileText, ChevronRight
+  Trash, FileText, ChevronRight, Terminal, Code, Download, DollarSign, Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
@@ -65,6 +65,13 @@ export default function AdminDashboard() {
     llmTemperature: 0.1
   });
 
+  const [llmTestProvider, setLlmTestProvider] = useState('gemini');
+  const [llmTestPrompt, setLlmTestPrompt] = useState('');
+  const [llmTestResult, setLlmTestResult] = useState(null);
+  const [llmTestLoading, setLlmTestLoading] = useState(false);
+  const [systemLogs, setSystemLogs] = useState([]);
+  const [tokenAnalytics, setTokenAnalytics] = useState(null);
+
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -116,6 +123,12 @@ export default function AdminDashboard() {
       } else if (activeTab === 'settings') {
         const data = await adminApi.getSettings();
         setSettings(data);
+      } else if (activeTab === 'system_logs') {
+        const data = await adminApi.getSystemLogs(200);
+        setSystemLogs(data.logs);
+      } else if (activeTab === 'billing') {
+        const data = await adminApi.getTokenAnalytics();
+        setTokenAnalytics(data);
       }
     } catch (e) {
       console.error('Failed to load admin data', e);
@@ -288,8 +301,27 @@ export default function AdminDashboard() {
     { id: 'escalations', label: 'ЭКСКАЛАЦИИ', icon: <RefreshCw size={14} /> },
     { id: 'scraper', label: 'ПАРСИНГ RAG', icon: <Database size={14} /> },
     { id: 'audit_logs', label: 'АКТИВНОСТЬ', icon: <Clock size={14} /> },
+    { id: 'playground', label: 'ПЕСОЧНИЦА ИИ', icon: <Terminal size={14} /> },
+    { id: 'system_logs', label: 'ЛОГИ СЕРВЕРА', icon: <Code size={14} /> },
+    { id: 'billing', label: 'БИЛЛИНГ API', icon: <DollarSign size={14} /> },
+    { id: 'export', label: 'ЭКСПОРТ БД', icon: <Download size={14} /> },
     { id: 'settings', label: 'НАСТРОЙКИ', icon: <Settings size={14} /> },
   ];
+
+  const runLlmTest = async () => {
+    if (!llmTestPrompt.trim()) return;
+    setLlmTestLoading(true);
+    setLlmTestResult(null);
+    try {
+      const res = await adminApi.testLlmProvider(llmTestProvider, llmTestPrompt);
+      setLlmTestResult(res);
+      addToast(`Ответ получен за ${res.latency_ms}мс`, 'success');
+    } catch (e) {
+      addToast('Ошибка тестирования LLM: ' + e.message, 'error');
+    } finally {
+      setLlmTestLoading(false);
+    }
+  };
 
   // Custom CSS Bar Chart Data
   const hourlyData = [12, 28, 45, 12, 8, 3, 14, 25, 48, 65, 82, 95, 70, 85, 90, 110, 125, 105, 95, 78, 60, 52, 38, 20];
@@ -1054,6 +1086,181 @@ export default function AdminDashboard() {
                       >
                         Удалить тестовых юристов
                       </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: PLAYGROUND */}
+              {activeTab === 'playground' && (
+                <div className="space-y-6">
+                  <div className="glass-card p-6 border border-white/[0.05] space-y-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                        <Terminal size={18} className="text-indigo-400" />
+                        Песочница ИИ (LLM Testing)
+                      </h2>
+                      <p className="text-xs text-steel-400">Тестируйте сырые запросы к моделям в обход RAG, чтобы замерять пинг и качество ответов.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-white/[0.04]">
+                      <div className="flex gap-4">
+                        <div className="flex-1 space-y-2">
+                          <label className="text-xs font-bold text-steel-300">Провайдер</label>
+                          <select
+                            value={llmTestProvider}
+                            onChange={(e) => setLlmTestProvider(e.target.value)}
+                            className="w-full bg-obsidian-950 border border-white/[0.06] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                          >
+                            <option value="gemini">Google Gemini</option>
+                            <option value="claude">Anthropic Claude</option>
+                            <option value="groq">Groq LLaMA</option>
+                          </select>
+                        </div>
+                        <div className="flex-[3] space-y-2">
+                          <label className="text-xs font-bold text-steel-300">Сырой промпт</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={llmTestPrompt}
+                              onChange={(e) => setLlmTestPrompt(e.target.value)}
+                              placeholder="Задайте вопрос нейросети напрямую..."
+                              className="w-full bg-obsidian-950 border border-white/[0.06] rounded-xl px-4 py-3 font-mono text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                              onKeyDown={(e) => e.key === 'Enter' && runLlmTest()}
+                            />
+                            <button
+                              onClick={runLlmTest}
+                              disabled={llmTestLoading}
+                              className="px-6 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs disabled:opacity-50 transition-all flex items-center justify-center min-w-[120px]"
+                            >
+                              {llmTestLoading ? <RefreshCw size={14} className="animate-spin" /> : 'Отправить'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {llmTestResult && (
+                        <div className="bg-obsidian-950 p-4 rounded-xl border border-white/[0.04]">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] uppercase font-bold text-indigo-400">Ответ модели ({llmTestResult.provider})</span>
+                            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Latency: {llmTestResult.latency_ms} ms</span>
+                          </div>
+                          <div className="text-xs text-white font-mono whitespace-pre-wrap leading-relaxed">
+                            {llmTestResult.success ? llmTestResult.response : <span className="text-red-400">Ошибка: {llmTestResult.error}</span>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: SYSTEM LOGS */}
+              {activeTab === 'system_logs' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Code size={18} className="text-emerald-400" />
+                        Живые логи сервера (FastAPI)
+                      </h2>
+                    </div>
+                    <button onClick={loadData} className="px-4 py-2 bg-obsidian-900 border border-white/[0.06] hover:bg-white/5 rounded-lg text-xs font-bold text-steel-300 flex items-center gap-2">
+                      <RefreshCw size={14} /> Обновить
+                    </button>
+                  </div>
+                  <div className="bg-[#0c0c0c] border border-white/[0.06] rounded-xl p-4 h-[60vh] overflow-y-auto custom-scrollbar font-mono text-[10px] leading-relaxed shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
+                    {systemLogs.length > 0 ? (
+                      systemLogs.map((log, i) => (
+                        <div key={i} className={`py-0.5 ${log.includes('ERROR') ? 'text-red-400 font-bold' : log.includes('WARNING') ? 'text-amber-400' : 'text-emerald-500/80'}`}>
+                          {log}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-steel-600 italic">Логи пусты или недоступны...</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: EXPORT */}
+              {activeTab === 'export' && (
+                <div className="glass-card p-6 border border-white/[0.05] space-y-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                      <Download size={18} className="text-blue-400" />
+                      Экспорт данных (Бэкап)
+                    </h2>
+                    <p className="text-xs text-steel-400">Скачивание массивов данных в формате CSV для Excel, финансового учета и аналитики.</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-white/[0.04]">
+                    <div className="bg-obsidian-950 p-5 rounded-xl border border-white/[0.04] flex flex-col items-start gap-4">
+                      <div>
+                        <h4 className="text-white font-bold mb-1">Пользователи и Лиды</h4>
+                        <p className="text-[10px] text-steel-500">Полный список юзеров, контакты и тарифы.</p>
+                      </div>
+                      <a href={adminApi.getExportUrl('users')} target="_blank" rel="noreferrer" className="px-5 py-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white rounded-lg text-xs font-bold transition-colors">
+                        Скачать CSV
+                      </a>
+                    </div>
+                    <div className="bg-obsidian-950 p-5 rounded-xl border border-white/[0.04] flex flex-col items-start gap-4">
+                      <div>
+                        <h4 className="text-white font-bold mb-1">База Юристов</h4>
+                        <p className="text-[10px] text-steel-500">Анкеты, рейтинги, статусы верификации.</p>
+                      </div>
+                      <a href={adminApi.getExportUrl('lawyers')} target="_blank" rel="noreferrer" className="px-5 py-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg text-xs font-bold transition-colors">
+                        Скачать CSV
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: BILLING */}
+              {activeTab === 'billing' && tokenAnalytics && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                      <DollarSign size={18} className="text-emerald-400" />
+                      Биллинг и Расход Токенов
+                    </h2>
+                    <p className="text-xs text-steel-400">Аналитика затрат на API нейросетей. Помогает оценивать Unit-экономику платформы.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="glass-card p-5 border border-emerald-500/20 bg-emerald-500/5">
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block mb-1">Затраты API (USD)</span>
+                      <span className="text-3xl font-black text-white">${tokenAnalytics.estimated_cost_usd}</span>
+                    </div>
+                    <div className="glass-card p-5 border border-white/[0.05]">
+                      <span className="text-[10px] text-steel-400 font-bold uppercase tracking-wider block mb-1">Потрачено B2C</span>
+                      <span className="text-2xl font-bold text-white">{tokenAnalytics.b2c_tokens.toLocaleString()} <span className="text-xs text-steel-500">ток.</span></span>
+                    </div>
+                    <div className="glass-card p-5 border border-white/[0.05]">
+                      <span className="text-[10px] text-steel-400 font-bold uppercase tracking-wider block mb-1">Потрачено B2B</span>
+                      <span className="text-2xl font-bold text-indigo-400">{tokenAnalytics.b2b_tokens.toLocaleString()} <span className="text-xs text-steel-500">ток.</span></span>
+                    </div>
+                  </div>
+
+                  {/* Token Chart Simulation */}
+                  <div className="glass-card p-6 border border-white/[0.05]">
+                    <h3 className="text-sm font-bold text-white mb-6">Сжигание токенов за неделю</h3>
+                    <div className="flex items-end justify-between h-40 gap-2">
+                      {tokenAnalytics.daily_burn.map((day, idx) => {
+                        const maxTokens = Math.max(...tokenAnalytics.daily_burn.map(d => d.tokens));
+                        const heightPct = (day.tokens / maxTokens) * 100;
+                        return (
+                          <div key={idx} className="flex-1 flex flex-col items-center gap-2 group relative">
+                            <div className="w-full bg-obsidian-950 rounded-t-md relative flex items-end justify-center" style={{ height: '100%' }}>
+                              <div className="w-full bg-emerald-500/40 group-hover:bg-emerald-400 transition-all rounded-t-sm" style={{ height: `${heightPct}%` }}></div>
+                              <div className="absolute bottom-full mb-2 bg-obsidian-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">
+                                {day.tokens.toLocaleString()} ток.
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-steel-400 font-bold uppercase">{day.day}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>

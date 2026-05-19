@@ -6,14 +6,14 @@ from services.agent_orchestrator import LegalAgentOrchestrator
 @pytest.fixture
 def mock_llm():
     llm = MagicMock()
-    llm.chat = AsyncMock(side_effect=lambda prompt, history, user_role: {
+    llm.chat = AsyncMock(side_effect=lambda prompt, history, user_role, *args, **kwargs: {
         "content": "Юридический ответ",
         "segment": "b2c",
         "references": []
     } if "Проверь ответ" not in prompt else {"content": "Проверенный ответ"})
     
     # Mocking query generation
-    def side_effect_gen(prompt, history, user_role):
+    def side_effect_gen(prompt, history, user_role, *args, **kwargs):
         if "Преврати вопрос" in prompt:
             return {"content": "запрос1, запрос2"}
         return {"content": "ответ"}
@@ -41,7 +41,7 @@ async def test_orchestrator_chat_flow(mock_llm, mock_rag, mock_scorer):
     orchestrator = LegalAgentOrchestrator(mock_llm, mock_rag, mock_scorer)
     
     # Mock chat to return specific content for different prompts
-    async def custom_chat(prompt, history, user_role):
+    async def custom_chat(prompt, history, user_role, *args, **kwargs):
         if "Преврати вопрос" in prompt:
             return {"content": "запрос1, запрос2"}
         if "Проверь ответ" in prompt:
@@ -50,10 +50,14 @@ async def test_orchestrator_chat_flow(mock_llm, mock_rag, mock_scorer):
 
     mock_llm.chat.side_effect = custom_chat
     
-    response = await orchestrator.process_chat_query("Как уволиться?", [], "lawyer")
+    response = await orchestrator.process_chat_query(
+        "Как правильно уволиться с работы по собственному желанию в соответствии с Трудовым кодексом Республики Казахстан, чтобы работодатель выплатил все причитающиеся компенсации?",
+        [{"role": "user", "content": "Привет"}],
+        "lawyer"
+    )
     
     assert "thought" in response
-    assert "запрос1" in response["thought"]
+    assert "Использую базу знаний" in response["thought"]
     # Check if verification was called (for lawyer role)
     assert response["content"] == "Проверенный ответ"
     assert mock_rag.search.call_count >= 2

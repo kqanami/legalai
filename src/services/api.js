@@ -29,7 +29,9 @@ function clearToken() {
 // ── Base Fetch Wrapper ──
 async function request(path, options = {}) {
   const token = getToken();
+  const appLang = localStorage.getItem('app_lang') || 'ru';
   const headers = {
+    'X-App-Language': appLang,
     ...(options.headers || {}),
   };
 
@@ -160,11 +162,13 @@ export const chatApi = {
 
   async streamMessage(sessionId, content, onChunk) {
     const token = getToken();
+    const appLang = localStorage.getItem('app_lang') || 'ru';
     const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'X-App-Language': appLang,
       },
       body: JSON.stringify({ content }),
     });
@@ -215,6 +219,15 @@ export const chatApi = {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  },
+
+  async transcribeAudio(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request('/chat/transcribe', {
+      method: 'POST',
+      body: formData,
+    });
   },
 };
 
@@ -575,5 +588,20 @@ export const adminApi = {
   },
   async testRagSearch(query) {
     return request(`/admin/rag/search-test?query=${encodeURIComponent(query)}`);
+  },
+  async testLlmProvider(provider, prompt) {
+    return request('/admin/llm-test', {
+      method: 'POST',
+      body: JSON.stringify({ provider, prompt }),
+    });
+  },
+  async getSystemLogs(lines = 100) {
+    return request(`/admin/system-logs?lines=${lines}`);
+  },
+  async getTokenAnalytics() {
+    return request('/admin/token-analytics');
+  },
+  getExportUrl(type) {
+    return `${API_BASE}/admin/export?type=${type}`;
   }
 };

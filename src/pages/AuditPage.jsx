@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { diffLines } from 'diff';
-import { ShieldAlert, FileSearch, CheckCircle2, AlertTriangle, FileText, Download, SlidersHorizontal, UploadCloud, Link as LinkIcon, Building2, Clock, ChevronRight, Trash2, EyeOff } from 'lucide-react';
+import { ShieldAlert, FileSearch, CheckCircle2, AlertTriangle, FileText, Download, SlidersHorizontal, UploadCloud, Link as LinkIcon, Building2, Clock, ChevronRight, Trash2, EyeOff, Columns2, Map, Sparkles } from 'lucide-react';
 import MagneticButton from '../components/MagneticButton';
 import { auditApi, docsApi } from '../services/api';
 
@@ -39,6 +39,9 @@ export default function AuditPage() {
   const [reanalyzing, setReanalyzing] = useState(false);
   const [fixingRiskIndex, setFixingRiskIndex] = useState(null);
   const [diffResult, setDiffResult] = useState(null);
+  const [originalTextBeforeFix, setOriginalTextBeforeFix] = useState('');
+  const [showSideBySide, setShowSideBySide] = useState(true);
+  const docScrollRef = useRef(null);
 
   useEffect(() => { loadHistory(); }, []);
 
@@ -54,6 +57,7 @@ export default function AuditPage() {
   const handleQuickFix = async (risk, index) => {
     if (!activeAuditId) return;
     setFixingRiskIndex(index);
+    setOriginalTextBeforeFix(contractText);
     try {
       const data = await auditApi.quickFix(
         activeAuditId,
@@ -65,11 +69,12 @@ export default function AuditPage() {
       const newText = data.original_text || '';
       const diffArr = diffLines(contractText, newText);
       setDiffResult(diffArr);
+      setShowSideBySide(true);
       
       setTimeout(() => {
-        const highlightElement = document.getElementById('diff-highlight');
-        if (highlightElement) {
-          highlightElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const highlightElements = document.querySelectorAll('.diff-highlight');
+        if (highlightElements.length > 0) {
+          highlightElements[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 300);
       
@@ -155,6 +160,7 @@ export default function AuditPage() {
       setFile(null);
       setSummary('');
       setContractText('');
+      setOriginalTextBeforeFix('');
       setActiveRiskIndex(null);
       setActiveAuditId(null);
       setIsEditing(false);
@@ -215,9 +221,40 @@ export default function AuditPage() {
   };
 
   const levelColors = {
-    high: { bg: 'bg-red-500/10', border: 'border-red-500/40', text: 'text-red-400', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', icon: <AlertTriangle size={14} className="text-red-400"/>, label: 'ВЫСОКИЙ РИСК' },
-    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/40', text: 'text-amber-400', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.3)]', icon: <SlidersHorizontal size={14} className="text-amber-400"/>, label: 'СРЕДНИЙ РИСК' },
-    low: { bg: 'bg-sky-500/10', border: 'border-sky-500/40', text: 'text-sky-400', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.3)]', icon: <CheckCircle2 size={14} className="text-sky-400"/>, label: 'РЕКОМЕНДАЦИЯ' },
+    high: { bg: 'bg-red-500/10', border: 'border-red-500/40', text: 'text-red-400', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', icon: <AlertTriangle size={14} className="text-red-400"/>, label: 'ВЫСОКИЙ РИСК', marker: 'bg-red-500' },
+    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/40', text: 'text-amber-400', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.3)]', icon: <SlidersHorizontal size={14} className="text-amber-400"/>, label: 'СРЕДНИЙ РИСК', marker: 'bg-amber-500' },
+    low: { bg: 'bg-sky-500/10', border: 'border-sky-500/40', text: 'text-sky-400', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.3)]', icon: <CheckCircle2 size={14} className="text-sky-400"/>, label: 'РЕКОМЕНДАЦИЯ', marker: 'bg-sky-500' },
+  };
+
+  // Minimap logic
+  const renderMinimap = () => {
+    if (!contractText || results?.length === 0 || isEditing || diffResult) return null;
+    
+    // Estimate total document length to map positions
+    const totalLines = contractText.split('\n').length || 1;
+    
+    return (
+      <div className="absolute right-1 top-2 bottom-2 w-3 bg-obsidian-950/40 rounded-full border border-white/5 overflow-hidden z-20 pointer-events-none flex flex-col">
+        {results.map((risk, i) => {
+          if (!risk.location) return null;
+          // Rough position estimation
+          const lines = contractText.split('\n');
+          const lineIndex = lines.findIndex(l => l.includes(risk.location));
+          if (lineIndex === -1) return null;
+          
+          const percentPos = Math.max(2, Math.min(98, (lineIndex / totalLines) * 100));
+          const colors = levelColors[risk.level] || levelColors.low;
+          
+          return (
+            <div 
+              key={i}
+              className={`absolute left-0 right-0 h-1.5 ${colors.marker} rounded-full shadow-[0_0_5px_currentColor] opacity-80`}
+              style={{ top: `${percentPos}%` }}
+            />
+          );
+        })}
+      </div>
+    );
   };
 
   const renderHighlightedText = () => {
@@ -257,29 +294,114 @@ export default function AuditPage() {
     }
     
     if (diffResult) {
+      if (showSideBySide) {
+        return (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex bg-obsidian-950 rounded-full p-1 border border-white/[0.05] shadow-lg">
+                <button 
+                  onClick={() => setShowSideBySide(true)}
+                  className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  <Columns2 size={14} /> Side-by-Side
+                </button>
+                <button 
+                  onClick={() => setShowSideBySide(false)}
+                  className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${!showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  <FileText size={14} /> Inline
+                </button>
+              </div>
+              <button 
+                onClick={() => setDiffResult(null)} 
+                className="text-[11px] font-bold uppercase tracking-widest bg-obsidian-900 hover:bg-obsidian-800 px-4 py-2 rounded-xl border border-white/[0.05] text-steel-300 transition-all flex items-center gap-2"
+              >
+                <EyeOff size={14} /> Закрыть Diff
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 relative">
+              {/* Original Column */}
+              <div className="bg-[#0b0c0f] rounded-2xl border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col">
+                <div className="bg-obsidian-950/80 backdrop-blur-md px-5 py-4 border-b border-white/[0.03] flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-steel-400">Оригинал (Было)</span>
+                </div>
+                <div className="p-6 font-mono text-[13px] leading-[1.8] text-steel-400 overflow-y-auto max-h-[55vh] custom-scrollbar">
+                  {diffResult.map((part, i) => {
+                    if (part.added) return null;
+                    if (part.removed) {
+                      return <div key={i} className="bg-red-500/[0.08] border-l-[3px] border-red-500/40 text-red-300/90 px-4 py-2 my-2 rounded-r-lg line-through decoration-red-500/30 whitespace-pre-wrap diff-highlight">{part.value}</div>;
+                    }
+                    return <div key={i} className="px-4 whitespace-pre-wrap opacity-50 font-sans">{part.value}</div>;
+                  })}
+                </div>
+              </div>
+              
+              {/* Fixed Column */}
+              <div className="bg-[#0b0c0f] rounded-2xl border border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.05)] overflow-hidden flex flex-col relative">
+                <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
+                <div className="bg-obsidian-950/80 backdrop-blur-md px-5 py-4 border-b border-emerald-500/10 flex items-center gap-3 relative z-10">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">Безопасная версия (Стало)</span>
+                  <Sparkles size={14} className="text-emerald-400/50 ml-auto" />
+                </div>
+                <div className="p-6 font-mono text-[13px] leading-[1.8] text-steel-300 overflow-y-auto max-h-[55vh] custom-scrollbar relative z-10">
+                  {diffResult.map((part, i) => {
+                    if (part.removed) return null;
+                    if (part.added) {
+                      return <div key={i} className="bg-emerald-500/[0.12] border-l-[3px] border-emerald-400 text-emerald-200 px-4 py-2 my-2 rounded-r-lg whitespace-pre-wrap diff-highlight shadow-[0_0_15px_rgba(52,211,153,0.05)] font-medium">{part.value}</div>;
+                    }
+                    return <div key={i} className="px-4 whitespace-pre-wrap font-sans">{part.value}</div>;
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Fallback to inline view
       return (
-        <div className="whitespace-pre-wrap font-serif text-steel-200 leading-relaxed text-sm bg-obsidian-950/30 p-5 sm:p-6 rounded-2xl border border-obsidian-800 shadow-inner max-h-[58vh] overflow-y-auto custom-scrollbar">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-chrome-400 flex items-center gap-2">
-              <SlidersHorizontal size={12} /> Изменения от ИИ
-            </span>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex bg-obsidian-950 rounded-full p-1 border border-white/[0.05] shadow-lg">
+                <button 
+                  onClick={() => setShowSideBySide(true)}
+                  className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  <Columns2 size={14} /> Side-by-Side
+                </button>
+                <button 
+                  onClick={() => setShowSideBySide(false)}
+                  className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${!showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  <FileText size={14} /> Inline
+                </button>
+            </div>
             <button 
               onClick={() => setDiffResult(null)} 
-              className="text-[10px] bg-obsidian-800 hover:bg-obsidian-700 px-3 py-1.5 rounded-lg border border-obsidian-600 text-steel-300 transition-colors flex items-center gap-1.5"
+              className="text-[11px] font-bold uppercase tracking-widest bg-obsidian-900 hover:bg-obsidian-800 px-4 py-2 rounded-xl border border-white/[0.05] text-steel-300 transition-all flex items-center gap-2"
             >
-              <EyeOff size={12} /> Скрыть выделение
+              <EyeOff size={14} /> Закрыть Diff
             </button>
           </div>
-          <div className="font-sans">
-            {diffResult.map((part, i) => {
-              if (part.added) {
-                return <span key={i} id={i === diffResult.findIndex(p => p.added || p.removed) ? 'diff-highlight' : undefined} className="bg-emerald-500/20 text-emerald-300 px-1 rounded shadow-[0_0_10px_rgba(16,185,129,0.1)] inline-block w-full">{part.value}</span>;
-              } else if (part.removed) {
-                return <span key={i} id={i === diffResult.findIndex(p => p.added || p.removed) ? 'diff-highlight' : undefined} className="bg-red-500/20 text-red-400/80 line-through px-1 rounded mx-1 inline-block w-full">{part.value}</span>;
-              } else {
-                return <span key={i}>{part.value}</span>;
-              }
-            })}
+          <div className="bg-[#0b0c0f] rounded-2xl border border-emerald-500/10 shadow-[0_0_40px_rgba(16,185,129,0.03)] overflow-hidden flex flex-col relative">
+            <div className="bg-obsidian-950/80 backdrop-blur-md px-5 py-4 border-b border-white/[0.05] flex items-center gap-3">
+              <SlidersHorizontal size={16} className="text-chrome-400" />
+              <span className="text-xs font-bold uppercase tracking-widest text-chrome-400">Изменения от ИИ (Inline)</span>
+            </div>
+            <div className="p-6 font-mono text-[13px] leading-[1.8] text-steel-300 max-h-[55vh] overflow-y-auto custom-scrollbar">
+              {diffResult.map((part, i) => {
+                if (part.added) {
+                  return <span key={i} className="bg-emerald-500/[0.12] text-emerald-300 px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(16,185,129,0.1)] mx-0.5 font-medium diff-highlight whitespace-pre-wrap">{part.value}</span>;
+                } else if (part.removed) {
+                  return <span key={i} className="bg-red-500/[0.08] text-red-400/80 line-through px-1.5 py-0.5 rounded mx-0.5 diff-highlight whitespace-pre-wrap">{part.value}</span>;
+                } else {
+                  return <span key={i} className="font-sans whitespace-pre-wrap">{part.value}</span>;
+                }
+              })}
+            </div>
           </div>
         </div>
       );
@@ -290,30 +412,37 @@ export default function AuditPage() {
     const sortedRisks = [...results].sort((a, b) => (b.location?.length || 0) - (a.location?.length || 0));
 
     return (
-      <div className="whitespace-pre-wrap font-serif text-steel-200 leading-relaxed text-sm bg-obsidian-950/30 p-5 sm:p-6 rounded-2xl border border-obsidian-800 shadow-inner max-h-[58vh] overflow-y-auto custom-scrollbar">
-        {contractText.split('\n').map((line, li) => {
-            let lineContent = line;
-            results.forEach((risk, ri) => {
-                if (risk.location && line.includes(risk.location)) {
-                    const colors = levelColors[risk.level];
-                    const isActive = activeRiskIndex === ri;
-                    lineContent = line.split(risk.location).map((part, i, arr) => (
-                        <span key={i}>
-                            {part}
-                            {i < arr.length - 1 && (
-                                <span 
-                                    className={`cursor-pointer px-1 rounded-sm transition-all duration-300 ${colors.bg} ${colors.text} ${isActive ? 'ring-2 ring-white/50 bg-white/10' : 'border-b border-dashed border-current'}`}
-                                    onClick={() => setActiveRiskIndex(ri)}
-                                >
-                                    {risk.location}
-                                </span>
-                            )}
-                        </span>
-                    ));
-                }
-            });
-            return <p key={li} className="mb-4">{lineContent}</p>;
-        })}
+      <div className="relative">
+        <div 
+          ref={docScrollRef}
+          className="whitespace-pre-wrap font-serif text-steel-200 leading-relaxed text-sm bg-obsidian-950/30 p-5 sm:p-6 pr-8 rounded-2xl border border-obsidian-800 shadow-inner max-h-[58vh] overflow-y-auto custom-scrollbar scroll-smooth"
+        >
+          {contractText.split('\n').map((line, li) => {
+              let lineContent = line;
+              results.forEach((risk, ri) => {
+                  if (risk.location && line.includes(risk.location)) {
+                      const colors = levelColors[risk.level];
+                      const isActive = activeRiskIndex === ri;
+                      lineContent = line.split(risk.location).map((part, i, arr) => (
+                          <span key={i}>
+                              {part}
+                              {i < arr.length - 1 && (
+                                  <span 
+                                      id={`risk-${ri}`}
+                                      className={`cursor-pointer px-1 rounded-sm transition-all duration-300 ${colors.bg} ${colors.text} ${isActive ? 'ring-2 ring-white/50 bg-white/10 shadow-[0_0_15px_rgba(255,255,255,0.15)] scale-[1.02] inline-block z-10 relative' : 'border-b border-dashed border-current'}`}
+                                      onClick={() => setActiveRiskIndex(ri)}
+                                  >
+                                      {risk.location}
+                                  </span>
+                              )}
+                          </span>
+                      ));
+                  }
+              });
+              return <p key={li} className="mb-4">{lineContent}</p>;
+          })}
+        </div>
+        {renderMinimap()}
       </div>
     );
   };
@@ -472,7 +601,22 @@ export default function AuditPage() {
                         const isActive = activeRiskIndex === i;
                         return (
                           <motion.div key={i} 
-                            onClick={() => setActiveRiskIndex(i)}
+                            onClick={() => {
+                              setActiveRiskIndex(i);
+                              const el = document.getElementById(`risk-${i}`);
+                              if (el && docScrollRef.current) {
+                                // Calculate position relative to scroll container
+                                const containerRect = docScrollRef.current.getBoundingClientRect();
+                                const elRect = el.getBoundingClientRect();
+                                const scrollTop = docScrollRef.current.scrollTop;
+                                const targetPos = scrollTop + (elRect.top - containerRect.top) - (containerRect.height / 2) + (elRect.height / 2);
+                                
+                                docScrollRef.current.scrollTo({
+                                  top: targetPos,
+                                  behavior: 'smooth'
+                                });
+                              }
+                            }}
                             className={`glass-card p-3.5 sm:p-4 border-l-[3px] transition-all duration-300 cursor-pointer 
                                 ${isActive ? `${colors.border} ${colors.bg} scale-[1.01] ${colors.glow}` : 'border-obsidian-700/50 hover:border-obsidian-600 bg-obsidian-900/40'}`}
                             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>

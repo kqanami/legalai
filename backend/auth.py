@@ -50,9 +50,9 @@ def generate_otp(phone: str) -> str:
     """Generate and store a 6-digit OTP for a phone number with TTL."""
     _cleanup_expired()
 
-    # Rate limit: check cooldown
+    # Rate limit: check cooldown (skipped in DEBUG_MODE)
     existing = _otp_store.get(phone)
-    if existing and existing["expires"] > time.time():
+    if existing and not settings.DEBUG_MODE and existing["expires"] > time.time():
         time_since_created = OTP_TTL_SECONDS - (existing["expires"] - time.time())
         if time_since_created < OTP_COOLDOWN_SECONDS:
             remaining = int(OTP_COOLDOWN_SECONDS - time_since_created)

@@ -7,9 +7,75 @@ import AIWaveform from '../components/AIWaveform';
 import MagneticButton from '../components/MagneticButton';
 import { chatApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Scale, Settings2, Home, Building2, Link2, Download, ChevronRight, Search, Phone, UserCheck, Shield, Star } from 'lucide-react';
+import { Scale, Settings2, Home, Building2, Link2, Download, ChevronRight, Search, Phone, UserCheck, Shield, Star, Mic, MicOff, ExternalLink, BookOpen, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Users, ShoppingBag, Building, FileText, Book, PenTool, GitCompare } from 'lucide-react';
+
+/* ── Interactive Citation Tooltip ── */
+function CitationTooltip({ text, reference }) {
+  const [show, setShow] = useState(false);
+  const timeoutRef = useRef(null);
+
+  const handleEnter = () => {
+    clearTimeout(timeoutRef.current);
+    setShow(true);
+  };
+  const handleLeave = () => {
+    timeoutRef.current = setTimeout(() => setShow(false), 200);
+  };
+
+  return (
+    <span className="relative inline-block" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+      <span
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md text-xs font-semibold cursor-pointer transition-all duration-200 bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 hover:bg-indigo-500/25 hover:border-indigo-400/40 hover:shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+        onClick={() => reference?.url && window.open(reference.url, '_blank')}
+      >
+        <BookOpen size={10} className="flex-shrink-0" />
+        {text}
+      </span>
+      <AnimatePresence>
+        {show && reference && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-72 pointer-events-auto"
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
+          >
+            <div className="bg-obsidian-900/95 backdrop-blur-xl border border-white/[0.1] rounded-xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_20px_rgba(99,102,241,0.1)]">
+              <div className="flex items-start gap-2.5 mb-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <BookOpen size={13} className="text-indigo-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-white leading-snug mb-0.5">{reference.title}</p>
+                  {reference.snippet && (
+                    <p className="text-[10px] text-steel-400 leading-relaxed line-clamp-3">{reference.snippet}</p>
+                  )}
+                </div>
+              </div>
+              {reference.url && (
+                <a
+                  href={reference.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors pt-2 border-t border-white/[0.06]"
+                >
+                  <ExternalLink size={10} />
+                  Открыть на adilet.zan.kz
+                </a>
+              )}
+            </div>
+            {/* Arrow */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-3 h-3 bg-obsidian-900/95 border-r border-b border-white/[0.1] rotate-45" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </span>
+  );
+}
 
 const msgVariants = {
   hidden: { opacity: 0, filter: 'blur(8px)', y: 12, scale: 0.98 },
@@ -183,67 +249,7 @@ function LawyerSearchChip({ category }) {
   );
 }
 
-const AnimateWords = memo(({ text }) => {
-  const segments = text.split(/(\s+)/);
-  return (
-    <>
-      {segments.map((segment, index) => {
-        if (segment === '') return null;
-        if (/^\s+$/.test(segment)) {
-          return <span key={`${index}-space`} className="white-space-segment">{segment}</span>;
-        }
-        return (
-          <span key={`${index}-${segment}`} className="word-fade-in">
-            {segment}
-          </span>
-        );
-      })}
-    </>
-  );
-});
-
-const WordTypewriter = memo(({ children, animate }) => {
-  if (!animate || typeof children !== 'string') {
-    return <span>{children}</span>;
-  }
-
-  // If the text is short, animate the whole thing
-  if (children.length <= 60) {
-    return <AnimateWords text={children} />;
-  }
-
-  // Otherwise, split it: render stable part statically, and animate only the tail!
-  const stableLimit = children.length - 50;
-  // Find the last space before the stable limit to avoid splitting a word in half
-  const lastSpace = children.lastIndexOf(' ', stableLimit);
-  
-  if (lastSpace === -1 || lastSpace < 15) {
-    return <AnimateWords text={children} />;
-  }
-
-  const stableText = children.slice(0, lastSpace);
-  const tailText = children.slice(lastSpace);
-
-  return (
-    <>
-      <span>{stableText}</span>
-      <AnimateWords text={tailText} />
-    </>
-  );
-});
-
-function WordTypewriterWrapper({ children, animate }) {
-  if (!animate) return children;
-  
-  return Children.map(children, (child) => {
-    if (typeof child === 'string') {
-      return <WordTypewriter animate={animate}>{child}</WordTypewriter>;
-    }
-    return child;
-  });
-}
-
-const MarkdownRenderer = memo(({ content, isStreaming = false }) => {
+const MarkdownRenderer = memo(({ content, isStreaming = false, references = [] }) => {
   const normalizeMarkdown = (text) => {
     if (!text) return '';
     return text
@@ -268,33 +274,230 @@ const MarkdownRenderer = memo(({ content, isStreaming = false }) => {
     return normalizeMarkdown(raw);
   };
 
+  const autoCloseMarkdown = (text) => {
+    if (!isStreaming) return text;
+    
+    let closed = text;
+    
+    // Auto-close code blocks: ```
+    const codeBlockCount = (closed.match(/```/g) || []).length;
+    if (codeBlockCount % 2 !== 0) {
+      closed += '\n```';
+    }
+    
+    // Auto-close inline code: `
+    const cleanForInlineCode = closed.replace(/```[\s\S]*?```/g, '');
+    const inlineCodeCount = (cleanForInlineCode.match(/`/g) || []).length;
+    if (inlineCodeCount % 2 !== 0) {
+      closed += '`';
+    }
+    
+    // Auto-close bold: **
+    const cleanForBold = cleanForInlineCode.replace(/`[\s\S]*?`/g, '');
+    const boldCount = (cleanForBold.match(/\*\*/g) || []).length;
+    if (boldCount % 2 !== 0) {
+      closed += '**';
+    }
+    
+    // Auto-close italic: *
+    const cleanForItalic = cleanForBold.replace(/\*\*/g, '');
+    const italicCount = (cleanForItalic.match(/\*/g) || []).length;
+    if (italicCount % 2 !== 0) {
+      closed += '*';
+    }
+    
+    return closed;
+  };
+
+  // Parse inline law article references and inject CitationTooltip components
+  const injectCitations = (textNode) => {
+    if (typeof textNode !== 'string') return textNode;
+    // Match patterns like: ст. 49, статья 152, п. 3 ст. 24, ст.ст. 115-120
+    // Followed by optional law name: ТК РК, ГК РК, УК РК, КоАП РК, НК РК, ЗРК, Закона РК, etc.
+    const citationRegex = /((?:[пч]\.\s*\d+\s+)?(?:ст\.(?:ст\.)?|стать[ияюейях]+)\s*\d+(?:[\s,.-]*\d+)*(?:\s+(?:ТК|ГК|УК|КоАП|НК|ГПК|УПК|ЗРК|Закона|Конституци[ияюей]+)(?:\s+РК)?)?)/gi;
+    
+    const parts = textNode.split(citationRegex);
+    if (parts.length <= 1) return textNode;
+
+    return parts.map((part, idx) => {
+      if (citationRegex.test(part)) {
+        // Reset regex lastIndex
+        citationRegex.lastIndex = 0;
+        // Try to find a matching reference
+        const matchedRef = references.find(r =>
+          r.title && (part.toLowerCase().includes(r.title.toLowerCase().slice(0, 10)) ||
+          r.title.toLowerCase().includes(part.toLowerCase().slice(0, 10)))
+        ) || (references.length > 0 ? references[0] : null);
+
+        return (
+          <CitationTooltip
+            key={idx}
+            text={part}
+            reference={matchedRef || { title: part, snippet: 'Нажмите для поиска в базе законов РК', url: `https://adilet.zan.kz/rus/search?q=${encodeURIComponent(part)}` }}
+          />
+        );
+      }
+      // Reset lastIndex again to avoid issues in the next iteration
+      citationRegex.lastIndex = 0;
+      return part;
+    });
+  };
+
+  const WithCitations = ({ children }) => {
+    if (isStreaming) {
+      return <>{children}</>;
+    }
+    return <>{Children.map(children, child => {
+      if (typeof child === 'string') return injectCitations(child);
+      return child;
+    })}</>;
+  };
+
   const components = {
-    p: ({ children }) => <p><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></p>,
-    li: ({ children }) => <li><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></li>,
-    h1: ({ children }) => <h1><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></h1>,
-    h2: ({ children }) => <h2><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></h2>,
-    h3: ({ children }) => <h3><WordTypewriterWrapper animate={isStreaming}>{children}</WordTypewriterWrapper></h3>,
+    p: ({ children }) => <p><WithCitations>{children}</WithCitations></p>,
+    li: ({ children }) => <li><WithCitations>{children}</WithCitations></li>,
+    strong: ({ children }) => <strong><WithCitations>{children}</WithCitations></strong>,
+    em: ({ children }) => <em><WithCitations>{children}</WithCitations></em>,
+    h1: ({ children }) => <h1>{children}</h1>,
+    h2: ({ children }) => <h2>{children}</h2>,
+    h3: ({ children }) => <h3>{children}</h3>,
   };
 
   return (
     <div className={`markdown-content ${isStreaming ? 'streaming-message' : ''}`}>
-      {isStreaming ? (
-        <ReactMarkdown components={components}>{cleanText(content)}</ReactMarkdown>
-      ) : (
-        <ReactMarkdown>{cleanText(content)}</ReactMarkdown>
-      )}
+      <ReactMarkdown components={components}>
+        {isStreaming ? autoCloseMarkdown(cleanText(content)) : cleanText(content)}
+      </ReactMarkdown>
     </div>
   );
 });
 
+const detectLanguage = (text) => {
+  const queryLower = text.toLowerCase();
+  
+  // 1. Check for Kazakh-specific Cyrillic letters
+  const kazakhSpecific = /[әғқңөұүһі]/;
+  if (kazakhSpecific.test(queryLower)) {
+    return 'kz';
+  }
+  
+  // 2. Check for common Kazakh keywords
+  const kzKeywords = [
+    'мен', 'сен', 'біз', 'сіз', 'олар', 'және', 'үшін', 'бар', 'жоқ', 
+    'болады', 'керек', 'қандай', 'қалай', 'неге', 'қашан', 'рахмет',
+    'биз', 'сиз', 'жане', 'ушин', 'жок', 'кандай', 'калай', 'кашан',
+    'салем', 'кайырлы', 'кун', 'кеш', 'таң', 'жаксы', 'жаман', 'калайсын',
+    'маган', 'саган', 'бизге', 'сизге', 'оларга', 'барма', 'жокпа'
+  ];
+  
+  const words = queryLower.match(/[а-яёәғқңөұүһі]+/g) || [];
+  const kzWordMatch = words.filter(word => kzKeywords.includes(word)).length;
+  
+  if (kzWordMatch >= 1) {
+    return 'kz';
+  }
+  
+  return 'ru';
+};
+
 export default function ChatPage() {
-  const { t } = useLanguage();
-  const { messages, isTyping, isStreaming, currentSegment, sendMessage, sessionId } = useChat();
+  const { t, lang, switchLanguage } = useLanguage();
+  const { messages, isTyping, isStreaming, currentSegment, sendMessage: sendChatMessage, sessionId } = useChat();
   const { user } = useAuth();
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const scrollRef = useRef(null);
   const isAutoScrollActive = useRef(true);
   const lastMsgCount = useRef(0);
+
+  const sendMessage = useCallback((text) => {
+    if (messages.length === 0) {
+      const detectedLang = detectLanguage(text);
+      switchLanguage(detectedLang);
+    }
+    sendChatMessage(text);
+  }, [messages.length, sendChatMessage, switchLanguage]);
+  
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  // ── Voice Input (Speech-to-Text) via Groq Whisper API ──
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Select best supported MIME type for the browser
+      let options = {};
+      if (MediaRecorder.isTypeSupported('audio/webm')) {
+        options = { mimeType: 'audio/webm' };
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        options = { mimeType: 'audio/mp4' };
+      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+        options = { mimeType: 'audio/ogg' };
+      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+        options = { mimeType: 'audio/wav' };
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const fileExt = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : 'webm';
+        const audioFile = new File([audioBlob], `recording.${fileExt}`, { type: mimeType });
+        
+        setIsTranscribing(true);
+        try {
+          const res = await chatApi.transcribeAudio(audioFile);
+          if (res && res.text) {
+            setInput(prev => {
+              const currentInput = prev.trim();
+              return currentInput ? `${currentInput} ${res.text}` : res.text;
+            });
+          }
+        } catch (e) {
+          console.error('Transcription error:', e);
+          alert('Ошибка распознавания: ' + e.message);
+        } finally {
+          setIsTranscribing(false);
+        }
+        
+        // Stop and release microhpone tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsListening(true);
+    } catch (e) {
+      console.error('Microphone access error:', e);
+      alert('Не удалось получить доступ к микрофону. Пожалуйста, разрешите его использование в настройках браузера.');
+      setIsListening(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  };
+
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }, [isListening]);
 
   // Advanced smooth scroll logic (Grok-style)
   const scrollToBottom = useCallback((instant = false) => {
@@ -466,7 +669,8 @@ export default function ChatPage() {
                     ) : (
                       <MarkdownRenderer 
                         content={msg.content} 
-                        isStreaming={isStreaming && index === messages.length - 1} 
+                        isStreaming={isStreaming && index === messages.length - 1}
+                        references={msg.references || []} 
                       />
                     )}
 
@@ -548,40 +752,131 @@ export default function ChatPage() {
         >
           <div className="absolute -inset-0.5 bg-gradient-to-r from-chrome-500/20 to-chrome-300/20 rounded-2xl blur opacity-30 group-focus-within:opacity-60 transition duration-500" />
           
-          <div className="relative flex items-end gap-3 bg-obsidian-900 border border-obsidian-700 rounded-2xl p-2 pl-4 shadow-2xl">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-              placeholder="Спросите о законах РК или загрузите договор..."
-              rows={1}
-              className="flex-1 bg-transparent border-none text-white placeholder-steel-600 text-sm py-3 outline-none resize-none max-h-32"
-            />
-            
-            <div className="flex items-center gap-2 pr-1 pb-1">
-              {sessionId && messages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => chatApi.exportSession(sessionId)}
-                  className="p-2.5 rounded-xl text-steel-500 hover:text-chrome-300 hover:bg-white/5 transition-all"
-                >
-                  <Download size={18} />
-                </button>
-              )}
-              
-              <button
-                type="submit"
-                disabled={!input.trim() || isTyping}
-                className="p-2.5 rounded-xl bg-white text-obsidian-950 hover:bg-chrome-100 disabled:opacity-20 disabled:grayscale transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+          <div className="relative flex items-center justify-between bg-obsidian-900 border border-obsidian-700 rounded-2xl p-2.5 shadow-2xl min-h-[56px] overflow-hidden">
+            {isListening ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="flex items-center justify-between w-full px-3 py-2 bg-rose-500/10 border border-rose-500/30 rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.15),_inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
               >
-                <ArrowUpIcon />
-              </button>
-            </div>
+                <div className="flex items-center gap-3">
+                  {/* Glowing recording indicator */}
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 shadow-[0_0_10px_#f43f5e]"></span>
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white tracking-wide animate-pulse">{t('mic_listening')}</p>
+                    <p className="text-[10px] text-rose-300/80 tracking-wide">{t('mic_instructions')}</p>
+                  </div>
+                </div>
+
+                {/* Animated waves */}
+                <div className="hidden sm:flex items-center gap-1.5 h-6 px-4">
+                  {[...Array(6)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-1 bg-rose-400 rounded-full shadow-[0_0_6px_rgba(244,63,94,0.5)]"
+                      animate={{
+                        height: [6, 20, 6]
+                      }}
+                      transition={{
+                        duration: 0.5 + i * 0.1,
+                        repeat: Infinity,
+                        repeatType: "reverse",
+                        ease: "easeInOut"
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Cancel recording button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                        mediaRecorderRef.current.onstop = null; // remove callback to prevent transcribing
+                        mediaRecorderRef.current.stop();
+                        if (mediaRecorderRef.current.stream) {
+                          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+                        }
+                      }
+                      setIsListening(false);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-steel-400 hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    {t('mic_cancel')}
+                  </button>
+
+                  {/* Stop and transpile button */}
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-bold text-xs rounded-xl shadow-[0_4px_12px_rgba(244,63,94,0.3)] transition-all transform active:scale-95"
+                  >
+                    <MicOff size={13} />
+                    {t('mic_done')}
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <>
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                  placeholder="Спросите о законах РК или загрузите договор..."
+                  rows={1}
+                  className="flex-1 bg-transparent border-none text-white placeholder-steel-600 text-sm py-2 pl-2.5 outline-none resize-none max-h-32"
+                />
+                
+                <div className="flex items-center gap-2 pr-1 pb-1">
+                  {sessionId && messages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => chatApi.exportSession(sessionId)}
+                      className="p-2.5 rounded-xl text-steel-500 hover:text-chrome-300 hover:bg-white/5 transition-all"
+                    >
+                      <Download size={18} />
+                    </button>
+                  )}
+                  
+                  {/* Voice Input Button */}
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    disabled={isTranscribing}
+                    className={`relative p-2.5 rounded-xl transition-all ${
+                      isTranscribing
+                        ? 'text-indigo-400 cursor-not-allowed'
+                        : 'text-steel-500 hover:text-chrome-300 hover:bg-white/5'
+                    }`}
+                    title={isTranscribing ? t('mic_loading') : t('mic_title')}
+                  >
+                    {isTranscribing ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Mic size={18} />
+                    )}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || isTyping}
+                    className="p-2.5 rounded-xl bg-white text-obsidian-950 hover:bg-chrome-100 disabled:opacity-20 disabled:grayscale transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                  >
+                    <ArrowUpIcon />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </form>
       </div>

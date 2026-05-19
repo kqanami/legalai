@@ -4,6 +4,10 @@ import sys
 import os
 import subprocess
 import threading
+import time
+import io
+import csv
+from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -583,3 +587,87 @@ def update_admin_settings(req: UpdateAdminSettingsRequest, user: User = require_
         "llmTemperature": settings.LLM_TEMPERATURE
     }
 
+class LLMTestRequest(BaseModel):
+    provider: str
+    prompt: str
+
+@router.post("/llm-test")
+async def test_llm_provider(req: LLMTestRequest, user: User = require_role("admin")):
+    """Bypass RAG and test raw LLM latency and response."""
+    from services.gemini_service import gemini_service
+    start_time = time.time()
+    try:
+        response = await gemini_service.generate_text(req.prompt, model_type="smart", provider_override=req.provider)
+        latency = round((time.time() - start_time) * 1000)
+        return {"success": True, "response": response, "latency_ms": latency, "provider": req.provider}
+    except Exception as e:
+        return {"success": False, "error": str(e), "provider": req.provider}
+
+@router.get("/system-logs")
+def get_system_logs(lines: int = 100, user: User = require_role("admin")):
+    """Read the tail of the backend system log file."""
+    log_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ai-legal.log"))
+    if not os.path.exists(log_path):
+        return {"logs": ["[SYSTEM] Файл логов ai-legal.log не найден. Приложение пишет только в консоль."]}
+    
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            all_lines = f.readlines()
+            tail = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            return {"logs": [line.strip() for line in tail]}
+    except Exception as e:
+        return {"logs": [f"[SYSTEM] Ошибка чтения логов: {str(e)}"]}
+
+@router.get("/export")
+def export_data(type: str = "users", user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Export platform data to CSV."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    if type == "users":
+        users = db.query(User).all()
+        writer.writerow(["ID", "Name", "Phone", "Role", "Plan", "City", "Created At"])
+        for u in users:
+            writer.writerow([u.id, u.name, u.phone, u.role, u.plan, u.city, u.created_at])
+        filename = "users_export.csv"
+    elif type == "lawyers":
+        lawyers = db.query(LawyerProfile).all()
+        writer.writerow(["ID", "User ID", "IIN", "License", "Verified", "Rating", "Win Rate"])
+        for l in lawyers:
+            writer.writerow([l.id, l.user_id, l.iin, l.license_number, l.verified, l.rating, l.win_rate])
+        filename = "lawyers_export.csv"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid export type")
+        
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@router.get("/token-analytics")
+def get_token_analytics(user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Mock/Calculation of token burn and API costs."""
+    total_messages = db.query(ChatMessage).count()
+    b2b_messages = db.query(ChatMessage).filter(ChatMessage.segment == "b2b").count()
+    b2c_messages = total_messages - b2b_messages
+    
+    b2c_tokens = b2c_messages * 800
+    b2b_tokens = b2b_messages * 2500
+    
+    return {
+        "total_tokens_burned": b2c_tokens + b2b_tokens,
+        "b2c_tokens": b2c_tokens,
+        "b2b_tokens": b2b_tokens,
+        "estimated_cost_usd": round(((b2c_tokens + b2b_tokens) / 1_000_000) * 0.15, 2),
+        "daily_burn": [
+            {"day": "Пн", "tokens": random.randint(10000, 50000)},
+            {"day": "Вт", "tokens": random.randint(10000, 50000)},
+            {"day": "Ср", "tokens": random.randint(10000, 50000)},
+            {"day": "Чт", "tokens": random.randint(10000, 50000)},
+            {"day": "Пт", "tokens": random.randint(10000, 50000)},
+            {"day": "Сб", "tokens": random.randint(5000, 20000)},
+            {"day": "Вс", "tokens": random.randint(5000, 20000)},
+        ]
+    }

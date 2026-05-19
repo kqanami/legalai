@@ -278,8 +278,8 @@ export default function LandingPage() {
             {capabilities.map((c, i) => (
               <Reveal key={i} delay={i * 0.08}>
                 <TiltCard className="h-full">
-                  <div className="glass-card h-full p-7 group cursor-default relative overflow-hidden border border-white/[0.06] hover:border-white/[0.12] transition-all duration-500">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="glass-card-hover h-full p-7 group relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     <div className="relative z-10">
                       <div className="w-12 h-12 rounded-xl bg-obsidian-800 border border-white/[0.08] flex items-center justify-center mb-5 text-chrome-300 group-hover:text-white group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)] transition-all duration-500">
                         {c.icon}
@@ -287,7 +287,7 @@ export default function LandingPage() {
                       <h3 className="text-lg font-bold text-white mb-2 tracking-wide">{c.title}</h3>
                       <p className="text-sm text-steel-400 leading-relaxed">{c.desc}</p>
                     </div>
-                    <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-white/[0.02] rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-white/[0.02] rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   </div>
                 </TiltCard>
               </Reveal>
@@ -310,21 +310,21 @@ export default function LandingPage() {
             {pricingPlans.map((plan, i) => (
               <Reveal key={i} delay={i * 0.1}>
                 <TiltCard className="h-full">
-                  <div className={`glass-card h-full p-8 flex flex-col border transition-all duration-500 relative ${plan.popular ? 'border-white/20 bg-white/[0.04] shadow-[0_0_40px_rgba(255,255,255,0.05)]' : 'border-white/[0.06] hover:border-white/10'}`}>
+                  <div className={`h-full p-8 flex flex-col relative ${plan.popular ? 'glass-premium border-chrome-500/25 shadow-[0_0_40px_rgba(255,255,255,0.05)]' : 'glass-card-hover'}`}>
                     {plan.popular && (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full chrome-gradient text-[10px] font-bold text-obsidian-950 uppercase tracking-widest shadow-lg">
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full chrome-gradient text-[10px] font-bold text-obsidian-950 uppercase tracking-widest shadow-lg z-10">
                         Популярный
                       </div>
                     )}
                     
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between mb-6 relative z-10">
                       <div className="w-12 h-12 rounded-xl bg-obsidian-800 border border-white/[0.08] flex items-center justify-center">
                         {plan.icon}
                       </div>
                       <span className="text-xs font-bold text-steel-500 tracking-widest">{plan.name}</span>
                     </div>
 
-                    <div className="mb-6">
+                    <div className="mb-6 relative z-10">
                       <div className="flex items-baseline gap-1">
                         <span className="text-4xl font-extrabold text-white">{plan.price}</span>
                         <span className="text-lg font-bold text-steel-400">₸</span>
@@ -333,7 +333,7 @@ export default function LandingPage() {
                       <p className="text-xs text-steel-400 mt-2">{plan.desc}</p>
                     </div>
 
-                    <div className="space-y-4 mb-8 flex-1">
+                    <div className="space-y-4 mb-8 flex-1 relative z-10">
                       {plan.features.map((feat, idx) => (
                         <div key={idx} className="flex items-start gap-3">
                           <Check size={14} className="text-emerald-400 mt-0.5 flex-shrink-0" />
@@ -342,11 +342,13 @@ export default function LandingPage() {
                       ))}
                     </div>
 
-                    <MagneticButton as={Link} to={user ? '/dashboard' : '/auth'}
-                      className={`w-full py-4 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${plan.popular ? 'btn-primary' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'}`}>
-                      {plan.cta}
-                      <ArrowRight size={14} />
-                    </MagneticButton>
+                    <div className="relative z-10">
+                      <MagneticButton as={Link} to={user ? '/dashboard' : '/auth'}
+                        className={`w-full py-4 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${plan.popular ? 'btn-primary' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'}`}>
+                        {plan.cta}
+                        <ArrowRight size={14} />
+                      </MagneticButton>
+                    </div>
                   </div>
                 </TiltCard>
               </Reveal>

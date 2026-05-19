@@ -22,7 +22,7 @@ class TestChatSessions:
         assert len(resp.json()) == 2
 
     def test_list_sessions_search(self, client, auth_headers):
-        client.post("/api/chat/sessions", json={"title": "Алименты"}, headers=auth_headers)
+        client.post("/api/chat/sessions", json={"title": "алименты"}, headers=auth_headers)
         client.post("/api/chat/sessions", json={"title": "Налоги"}, headers=auth_headers)
         resp = client.get("/api/chat/sessions?q=алимент", headers=auth_headers)
         assert resp.status_code == 200

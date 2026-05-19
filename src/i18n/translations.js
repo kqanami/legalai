@@ -11,6 +11,7 @@ const translations = {
     nav_profile: 'Мой профиль',
     nav_settings: 'Настройки',
     nav_logout: 'Выйти',
+    new_chat: 'Новая консультация',
 
     // Landing
     landing_title: 'ИИ-Юрист',
@@ -48,6 +49,12 @@ const translations = {
     chat_suggestion_2: 'Права потребителя при возврате товара',
     chat_suggestion_3: 'Какой налог платит ТОО в 2026?',
     chat_suggestion_4: 'Проверить контрагента по БИН',
+    mic_listening: 'Говорите...',
+    mic_instructions: 'Нажмите «Готово» для отправки',
+    mic_done: 'Готово',
+    mic_cancel: 'Отмена',
+    mic_loading: 'Распознавание речи...',
+    mic_title: 'Голосовой ввод',
 
     // Segments
     segment_personal: 'Личный вопрос',
@@ -120,6 +127,7 @@ const translations = {
     nav_profile: 'Менің профилім',
     nav_settings: 'Баптаулар',
     nav_logout: 'Шығу',
+    new_chat: 'Жаңа кеңес',
 
     // Landing
     landing_title: 'AI-Заңгер',
@@ -157,6 +165,12 @@ const translations = {
     chat_suggestion_2: 'Тауарды қайтару кезіндегі тұтынушы құқықтары',
     chat_suggestion_3: 'ЖШС 2026 жылы қандай салық төлейді?',
     chat_suggestion_4: 'Контрагентті БИН арқылы тексеру',
+    mic_listening: 'Сөйлеңіз...',
+    mic_instructions: 'Жіберу үшін «Дайын» түймесін басыңыз',
+    mic_done: 'Дайын',
+    mic_cancel: 'Бас тарту',
+    mic_loading: 'Сөзді тану...',
+    mic_title: 'Дауыстық енгізу',
 
     // Segments
     segment_personal: 'Жеке сұрақ',

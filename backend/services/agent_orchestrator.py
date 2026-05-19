@@ -101,7 +101,8 @@ class LegalAgentOrchestrator:
         legal_keywords = [
             "закон", "статья", "кодекс", "гк", "ук", "тк", "коап", "ип", "тоо", 
             "налог", "суд", "право", "договор", "контракт", "штраф", "пеня", 
-            "иск", "аренда", "развод", "алименты", "наследство", "жалоба", "заявление"
+            "иск", "аренда", "развод", "алименты", "наследство", "жалоба", "заявление",
+            "увольн", "уволит", "уволи"
         ]
         
         # If very short and no legal keywords, skip RAG
@@ -286,9 +287,12 @@ class LegalAgentOrchestrator:
                     if "заявлен" in doc_name or doc_type in ["claim", "statement"]:
                         return doc
 
-        # 3. If there is only one document, and the user asks to analyze/inspect "my document/contract"
-        if len(user_docs) == 1 and any(t in query_lower for t in ["документ", "файл", "договор", "заявление", "претензию", "иск"]):
-            return user_docs[0]
+        # 3. Explicit reference to user's file or single file explicit mention
+        explicit_triggers = ["мой документ", "мой файл", "мой договор", "загруженный", "этот документ", "этот договор", "в моем файле"]
+        if any(t in query_lower for t in explicit_triggers):
+            if len(user_docs) == 1:
+                return user_docs[0]
+            # If multiple docs exist, rely on Step 1 (exact name match) or just don't inject randomly
             
         return None
 
@@ -333,7 +337,7 @@ class LegalAgentOrchestrator:
                 return ""
         return ""
 
-    async def process_chat_query(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None) -> Dict[str, Any]:
+    async def process_chat_query(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None, forced_lang: str = None) -> Dict[str, Any]:
         """Orchestrated chat query processing."""
         
         # 1. Smart Routing: Skip RAG for simple conversational queries to save tokens
@@ -391,10 +395,15 @@ class LegalAgentOrchestrator:
             full_context = full_context + "\n---\n" + matched_doc_text
 
         model_type = self._determine_model(query, history, user_role, user_plan, total_messages)
-        lang = self._detect_language(query)
+        # Robust language check: detect query language first, fallback to forced_lang for short queries
+        detected_lang = self._detect_language(query)
+        if len(query.strip()) < 15 and forced_lang:
+            lang = "kazakh" if forced_lang.lower() in ["kk", "kz", "kazakh"] else "russian"
+        else:
+            lang = detected_lang
         logger.info(f"Routing query to model: {model_type} (Lang: {lang})")
         
-        lang_instruction = "ОТВЕЧАЙ СТРОГО НА КАЗАХСКОМ ЯЗЫКЕ." if lang == "kazakh" else "ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ."
+        lang_instruction = "ОТВЕЧАЙ СТРОГО НА КАЗАХСКОМ ЯЗЫКЕ (ИСПОЛЬЗУЙ ИСКЛЮЧИТЕЛЬНО КИРИЛЛИЦУ, ЛАТИНИЦА И АРАБСКАЯ ВЯЗЬ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНЫ)." if lang == "kazakh" else "ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ."
         
         ecosystem_instruction = """
 ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:
@@ -420,7 +429,7 @@ class LegalAgentOrchestrator:
         response["thought"] = thought_process
         return response
 
-    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None) -> AsyncGenerator[str, None]:
+    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None, forced_lang: str = None) -> AsyncGenerator[str, None]:
         """Stream version with orchestrated retrieval."""
         
         # 1. Smart Routing: Skip RAG for simple conversational queries
@@ -481,10 +490,15 @@ class LegalAgentOrchestrator:
         logger.info(f"Streaming with queries: {search_queries}")
         
         model_type = self._determine_model(query, history, user_role, user_plan, total_messages)
-        lang = self._detect_language(query)
+        # Robust language check: detect query language first, fallback to forced_lang for short queries
+        detected_lang = self._detect_language(query)
+        if len(query.strip()) < 15 and forced_lang:
+            lang = "kazakh" if forced_lang.lower() in ["kk", "kz", "kazakh"] else "russian"
+        else:
+            lang = detected_lang
         logger.info(f"Streaming query (Lang: {lang}) with model: {model_type}")
             
-        lang_instruction = "ОТВЕЧАЙ СТРОГО НА КАЗАХСКОМ ЯЗЫКЕ." if lang == "kazakh" else "ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ."
+        lang_instruction = "ОТВЕЧАЙ СТРОГО НА КАЗАХСКОМ ЯЗЫКЕ (ИСПОЛЬЗУЙ ИСКЛЮЧИТЕЛЬНО КИРИЛЛИЦУ, ЛАТИНИЦА И АРАБСКАЯ ВЯЗЬ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНЫ)." if lang == "kazakh" else "ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ."
         
         ecosystem_instruction = """
 ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:
