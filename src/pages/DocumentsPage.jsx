@@ -45,6 +45,22 @@ export default function DocumentsPage() {
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const generateType = params.get('generate');
+    const descParam = params.get('desc');
+    if (generateType) {
+      const validTypes = ['contract', 'claim', 'complaint', 'statement'];
+      if (validTypes.includes(generateType)) {
+        setDocType(generateType);
+        setIsModalOpen(true);
+        if (descParam) {
+          setDocDesc(decodeURIComponent(descParam));
+        }
+      }
+    }
+  }, []);
+
   const handleUpload = async (files) => {
     if (!files?.length) return;
     setUploading(true);

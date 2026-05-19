@@ -10,6 +10,11 @@ from schemas import DocumentResponse, GenerateDocRequest
 from auth import get_current_user
 from config import settings
 from services.gemini_service import gemini_service
+from pydantic import BaseModel
+
+class SaveDocRequest(BaseModel):
+    name: str
+    content: str
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -103,3 +108,28 @@ async def generate_document(req: GenerateDocRequest, user: User = Depends(get_cu
     db.refresh(doc)
 
     return {"id": doc.id, "name": doc.name, "content": doc_content, "doc_type": "generated"}
+
+
+@router.post("/save-fixed")
+async def save_fixed_document(req: SaveDocRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Save a fixed contract markdown as a DOCX file directly, without using LLM."""
+    unique_name = f"fixed_{uuid.uuid4().hex[:8]}.docx"
+    file_path = os.path.join(settings.UPLOAD_DIR, unique_name)
+
+    from services.document_builder import document_builder
+    document_builder.build_docx(req.content, file_path)
+
+    doc = Document(
+        user_id=user.id,
+        name=req.name,
+        original_filename=unique_name,
+        file_path=file_path,
+        file_size=os.path.getsize(file_path),
+        doc_type="generated",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    return {"id": doc.id, "name": doc.name}

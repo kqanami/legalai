@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DB_DOCS = [
@@ -16,11 +16,12 @@ const DB_DOCS = [
   'НК РК — статья 687 (Упрощенная декларация)'
 ];
 
-export default function AIWaveform({ label = 'Анализ правовой базы...' }) {
+export default memo(function AIWaveform({ label = 'Анализ правовой базы...' }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [activeLaw, setActiveLaw] = useState(DB_DOCS[0]);
+  const lawIndexRef = useRef(0);
 
   // Lightning-fast and snappy RAG progress timeline
   useEffect(() => {
@@ -35,11 +36,12 @@ export default function AIWaveform({ label = 'Анализ правовой ба
     };
   }, []);
 
-  // High-speed database crawler simulation
+  // Sequential database crawler simulation (avoids random jank from repeated identical picks)
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveLaw(DB_DOCS[Math.floor(Math.random() * DB_DOCS.length)]);
-    }, 380);
+      lawIndexRef.current = (lawIndexRef.current + 1) % DB_DOCS.length;
+      setActiveLaw(DB_DOCS[lawIndexRef.current]);
+    }, 500);
     return () => clearInterval(interval);
   }, []);
 
@@ -59,6 +61,8 @@ export default function AIWaveform({ label = 'Анализ правовой ба
     ctx.scale(dpr, dpr);
 
     let time = 0;
+    let lastTime = performance.now();
+    let isActive = true;
     
     // Glowing database particles
     const particles = Array.from({ length: 12 }, () => ({
@@ -70,9 +74,16 @@ export default function AIWaveform({ label = 'Анализ правовой ба
       wiggleFreq: 0.02 + Math.random() * 0.025
     }));
 
-    const draw = () => {
+    const draw = (now) => {
+      if (!isActive) return;
+      
       ctx.clearRect(0, 0, width, height);
-      time += 1.8; // Snappy, rapid waves
+      
+      const dt = Math.min((now - lastTime) / 1000, 0.05); // Clamp dt to 50ms max to prevent jumps
+      lastTime = now;
+      
+      const fpsScale = dt * 60;
+      time += dt * 110;
 
       // 1. Solid dark background space
       ctx.fillStyle = '#050508';
@@ -88,8 +99,8 @@ export default function AIWaveform({ label = 'Анализ правовой ба
 
       // 2. Draw Floating Data Particles
       particles.forEach((p) => {
-        p.y -= p.speedY;
-        p.x += Math.sin(p.y * p.wiggleFreq) * 0.3;
+        p.y -= p.speedY * fpsScale;
+        p.x += Math.sin(p.y * p.wiggleFreq) * 0.3 * fpsScale;
         
         if (p.y < 0) {
           p.y = height + Math.random() * 15;
@@ -156,8 +167,11 @@ export default function AIWaveform({ label = 'Анализ правовой ба
       animRef.current = requestAnimationFrame(draw);
     };
 
-    draw();
-    return () => cancelAnimationFrame(animRef.current);
+    animRef.current = requestAnimationFrame(draw);
+    return () => {
+      isActive = false;
+      cancelAnimationFrame(animRef.current);
+    };
   }, []);
 
   const steps = [
@@ -169,16 +183,22 @@ export default function AIWaveform({ label = 'Анализ правовой ба
 
   return (
     <motion.div
-      className="glass-card p-5 border border-chrome-500/10 rounded-2xl w-full max-w-md shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden bg-obsidian-950/75 backdrop-blur-xl relative"
+      className="glass-card p-5 border border-chrome-500/10 rounded-2xl w-full max-w-md overflow-hidden bg-obsidian-950/75 backdrop-blur-xl relative"
+      style={{ 
+        boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+        willChange: 'transform, opacity',
+        contain: 'layout style paint',
+      }}
       initial={{ opacity: 0, scale: 0.96, y: 8 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96, y: 8 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      layout={false}
     >
       {/* Header Accent */}
       <div className="flex items-center justify-between mb-4 border-b border-obsidian-800/60 pb-3">
         <span className="text-[10px] font-extrabold tracking-[0.16em] text-chrome-400 uppercase flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-chrome-400 animate-ping shrink-0" />
+          <span className="w-1.5 h-1.5 rounded-full bg-chrome-400 shrink-0" style={{ animation: 'ai-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
           {label}
         </span>
         <span className="text-[9px] font-mono text-steel-500 bg-obsidian-900 border border-obsidian-800 px-2 py-0.5 rounded">
@@ -200,13 +220,14 @@ export default function AIWaveform({ label = 'Анализ правовой ба
         {/* Legal Progress Stepper Checklist */}
         <div className="flex-1 min-w-0 relative flex flex-col gap-3.5 pl-5">
           
-          {/* 100% mathematically perfect vertical stepper line */}
+          {/* Vertical stepper line */}
           <div className="absolute left-[7px] top-[7px] bottom-[7px] w-[1.5px] bg-obsidian-800 rounded-full overflow-hidden">
             <motion.div 
-              className="w-full bg-gradient-to-b from-emerald-500 via-emerald-400 to-chrome-400 origin-top h-full"
+              className="w-full bg-gradient-to-b from-emerald-500 via-emerald-400 to-chrome-400 h-full"
+              style={{ transformOrigin: 'top' }}
               initial={{ scaleY: 0 }}
               animate={{ scaleY: (currentStep - 1) / 3 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             />
           </div>
 
@@ -219,12 +240,13 @@ export default function AIWaveform({ label = 'Анализ правовой ба
                 key={step.id} 
                 className="flex items-center gap-3 relative z-10"
               >
-                {/* Stepper Bullet circle centered on the line */}
+                {/* Stepper Bullet */}
                 <div className="shrink-0 flex items-center justify-center w-4 h-4 bg-obsidian-950 rounded-full">
                   {isCompleted ? (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                       className="w-4 h-4 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
                     >
                       <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3.5">
@@ -232,30 +254,28 @@ export default function AIWaveform({ label = 'Анализ правовой ба
                       </svg>
                     </motion.div>
                   ) : isActive ? (
-                    <motion.div
-                      className="w-3.5 h-3.5 rounded-full border border-chrome-400 border-t-transparent animate-spin"
-                      style={{ borderTopColor: 'transparent' }}
-                      layoutId="active-spin"
+                    <div
+                      className="w-3.5 h-3.5 rounded-full border border-chrome-400"
+                      style={{ borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }}
                     />
                   ) : (
                     <div className="w-2.5 h-2.5 rounded-full border border-obsidian-700 bg-obsidian-900/50" />
                   )}
                 </div>
 
-                {/* Step text with smooth spring translation and glow */}
-                <motion.span 
-                  animate={isActive ? { scale: 1.01, x: 2, filter: 'brightness(1.15)' } : { scale: 1, x: 0, filter: 'brightness(1)' }}
-                  transition={{ duration: 0.25 }}
-                  className={`text-[11px] font-medium tracking-wide truncate ${
+                {/* Step text */}
+                <span 
+                  className={`text-[11px] font-medium tracking-wide truncate transition-all duration-300 ${
                     isActive 
-                      ? 'text-white font-semibold filter drop-shadow-[0_0_8px_rgba(255,255,255,0.25)]' 
+                      ? 'text-white font-semibold' 
                       : isCompleted 
                       ? 'text-steel-400 opacity-60 line-through decoration-steel-600/20' 
                       : 'text-steel-600'
                   }`}
+                  style={isActive ? { filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.25))' } : undefined}
                 >
                   {step.label}
-                </motion.span>
+                </span>
               </div>
             );
           })}
@@ -265,18 +285,19 @@ export default function AIWaveform({ label = 'Анализ правовой ба
       {/* Database Crawler Log with smooth transition */}
       <div className="mt-4 pt-3 border-t border-obsidian-800/80 flex items-center justify-between text-[10px] font-mono">
         <span className="text-chrome-300 flex items-center gap-2 truncate max-w-[280px]">
-          <span className="text-chrome-500 animate-pulse font-bold">▶</span>
+          <span className="text-chrome-500 font-bold" style={{ animation: 'ai-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>▶</span>
           <span className="inline-flex items-center min-w-0 truncate">
             <span className="text-steel-500 mr-1.5 shrink-0">База данных:</span>
             <span className="h-4 flex items-center overflow-hidden">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="popLayout">
                 <motion.span
                   key={activeLaw}
-                  initial={{ opacity: 0, y: 6, filter: 'blur(1.5px)' }}
+                  initial={{ opacity: 0, y: 8, filter: 'blur(2px)' }}
                   animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: -6, filter: 'blur(1.5px)' }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  exit={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
+                  transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
                   className="truncate text-chrome-400"
+                  style={{ position: 'absolute' }}
                 >
                   {activeLaw}
                 </motion.span>
@@ -290,4 +311,4 @@ export default function AIWaveform({ label = 'Анализ правовой ба
       </div>
     </motion.div>
   );
-}
+});

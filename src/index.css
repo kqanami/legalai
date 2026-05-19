@@ -425,3 +425,45 @@
 .white-space-segment {
   white-space: pre-wrap;
 }
+
+/* ======= Smooth AI Analysis Pulse ======= */
+@keyframes ai-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ======= Clickable AI Suggestion Chips ======= */
+.ai-suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: rgba(11, 13, 20, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  color: rgba(203, 213, 225, 0.85);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  backdrop-filter: blur(8px);
+}
+
+.ai-suggestion-chip:hover {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 12px rgba(148, 163, 184, 0.06);
+}
+
+.ai-suggestion-chip:active {
+  transform: scale(0.97) translateY(0);
+  transition-duration: 0.1s;
+}

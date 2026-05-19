@@ -12,6 +12,7 @@ from database import get_db
 from models import User, LawyerProfile, Case, ClientReview, EscalationRequest, SpecializationCategory, ChatMessage
 from auth import create_token, require_role
 from pydantic import BaseModel
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,7 @@ def get_all_users(role: Optional[str] = None, user: User = require_role("admin")
             "name": u.name,
             "phone": u.phone,
             "role": u.role,
+            "plan": u.plan,
             "city": u.city,
             "created_at": u.created_at.isoformat() if u.created_at else None,
             "is_lawyer": lp is not None,
@@ -231,6 +233,40 @@ def delete_user(user_id: int, user: User = require_role("admin"), db: Session = 
     db.delete(u)
     db.commit()
     return {"success": True}
+
+class UpdateUserRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+    plan: Optional[str] = None
+
+@router.patch("/users/{user_id}")
+def update_user(user_id: int, req: UpdateUserRequest, user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Update a user's details, plan, or role."""
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    
+    if req.name is not None:
+        u.name = req.name
+    if req.phone is not None:
+        # Check uniqueness
+        exist = db.query(User).filter(User.phone == req.phone, User.id != user_id).first()
+        if exist:
+            raise HTTPException(status_code=400, detail="Номер телефона уже занят")
+        u.phone = req.phone
+    if req.role is not None:
+        if req.role not in ["citizen", "business", "lawyer", "admin"]:
+            raise HTTPException(status_code=400, detail="Неверная роль")
+        u.role = req.role
+    if req.plan is not None:
+        if req.plan not in ["freemium", "go", "ip", "business"]:
+            raise HTTPException(status_code=400, detail="Неверный тарифный план")
+        u.plan = req.plan
+        
+    db.commit()
+    db.refresh(u)
+    return {"success": True, "user": {"id": u.id, "name": u.name, "role": u.role, "plan": u.plan}}
 
 @router.post("/impersonate/{user_id}", response_model=ImpersonateResponse)
 def impersonate_user(user_id: int, user: User = require_role("admin"), db: Session = Depends(get_db)):
@@ -361,3 +397,189 @@ def stop_scraper(user: User = require_role("admin")):
     if not success:
         raise HTTPException(status_code=400, detail=message)
     return {"success": True, "detail": message}
+
+# ── Advanced System Control & Audit Endpoints ──
+
+@router.get("/audit-logs")
+def get_audit_logs(user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Fetch combined system activity logs for audit trails."""
+    logs = []
+    
+    # 1. Recent Users
+    users = db.query(User).order_by(User.created_at.desc()).limit(15).all()
+    for u in users:
+        logs.append({
+            "timestamp": u.created_at.isoformat() if u.created_at else None,
+            "category": "USER_AUTH",
+            "message": f"Пользователь {u.name} ({u.phone}) зарегистрирован. Роль: {u.role.upper()}, Тариф: {u.plan.upper() if u.plan else 'FREE'}.",
+            "user_id": u.id
+        })
+        
+    # 2. Recent Escalations
+    escalations = db.query(EscalationRequest).order_by(EscalationRequest.created_at.desc()).limit(15).all()
+    for e in escalations:
+        client = db.query(User).filter(User.id == e.user_id).first()
+        client_name = client.name if client else f"User #{e.user_id}"
+        logs.append({
+            "timestamp": e.created_at.isoformat() if e.created_at else None,
+            "category": "ESCALATION",
+            "message": f"Создана эскалация по категории '{e.category}' от {client_name}. Срочность: {e.urgency.upper()}.",
+            "user_id": e.user_id
+        })
+
+    # 3. Recent Cases
+    cases = db.query(Case).order_by(Case.created_at.desc()).limit(15).all()
+    for c in cases:
+        lawyer_prof = db.query(LawyerProfile).filter(LawyerProfile.id == c.lawyer_id).first()
+        lawyer_user = db.query(User).filter(User.id == lawyer_prof.user_id).first() if lawyer_prof else None
+        lawyer_name = lawyer_user.name if lawyer_user else "Неизвестный юрист"
+        logs.append({
+            "timestamp": c.created_at.isoformat() if c.created_at else None,
+            "category": "LEGAL_CASE",
+            "message": f"Юрист {lawyer_name} добавил новое судебное дело '{c.title}' (Статус: {c.status.upper()}).",
+            "user_id": lawyer_user.id if lawyer_user else None
+        })
+
+    # Sort all events chronologically (newest first)
+    logs = [log for log in logs if log["timestamp"]]
+    logs.sort(key=lambda x: x["timestamp"], reverse=True)
+    return logs[:20]
+
+@router.post("/maintenance/clear-chats")
+def clear_chat_sessions(user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Delete all chat messages and sessions from database."""
+    try:
+        db.query(ChatMessage).delete()
+        # Clear sessions relationship cascade will clean up, but delete directly to be safe
+        from models import ChatSession
+        db.query(ChatSession).delete()
+        db.commit()
+        return {"success": True, "message": "Все чат-сессии и сообщения очищены"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/maintenance/reset-verifications")
+def reset_verifications(user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Revoke verification flag for all lawyers."""
+    try:
+        db.query(LawyerProfile).update({LawyerProfile.verified: False})
+        db.commit()
+        return {"success": True, "message": "Верификация всех юристов отозвана"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/maintenance/delete-seeded")
+def delete_seeded_lawyers(user: User = require_role("admin"), db: Session = Depends(get_db)):
+    """Delete all lawyer profiles generated during seed."""
+    try:
+        seeded_users = db.query(User).filter(User.phone.like("+77770002%")).all()
+        count = len(seeded_users)
+        for u in seeded_users:
+            db.delete(u)
+        db.commit()
+        return {"success": True, "message": f"Успешно удалено {count} сгенерированных профилей юристов"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/rag/search-test")
+def test_rag_search(query: str, user: User = require_role("admin")):
+    """Test vector RAG search similarity matching."""
+    from services.rag_service import rag_service
+    if not rag_service or not rag_service.collection:
+        raise HTTPException(status_code=400, detail="ChromaDB не инициализирована")
+    try:
+        results = rag_service.collection.query(
+            query_texts=[query],
+            n_results=5
+        )
+        
+        formatted_results = []
+        if results and results.get('documents') and len(results['documents']) > 0:
+            docs = results['documents'][0]
+            metas = results['metadatas'][0] if results.get('metadatas') else [{} for _ in docs]
+            distances = results['distances'][0] if results.get('distances') else [0.0 for _ in docs]
+            ids = results['ids'][0] if results.get('ids') else [str(i) for i in range(len(docs))]
+            
+            for i in range(len(docs)):
+                # Chroma distance: cosine distance is 0.0 to 2.0 (smaller is more similar)
+                score = round(1.0 - distances[i], 3)
+                formatted_results.append({
+                    "id": ids[i],
+                    "text": docs[i],
+                    "metadata": metas[i],
+                    "score": score
+                })
+        return formatted_results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка поиска ChromaDB: {str(e)}")
+
+# ── Dynamic System Settings Endpoints ──
+
+class AdminSettingsResponse(BaseModel):
+    maintenanceMode: bool
+    activeRouting: str
+    ragMinSimilarity: float
+    llmTemperature: float
+
+class UpdateAdminSettingsRequest(BaseModel):
+    maintenanceMode: Optional[bool] = None
+    activeRouting: Optional[str] = None
+    ragMinSimilarity: Optional[float] = None
+    llmTemperature: Optional[float] = None
+
+@router.get("/settings", response_model=AdminSettingsResponse)
+def get_admin_settings(user: User = require_role("admin")):
+    """Get active system settings."""
+    return {
+        "maintenanceMode": getattr(settings, "MAINTENANCE_MODE", False),
+        "activeRouting": getattr(settings, "LLM_PROVIDER", "gemini"),
+        "ragMinSimilarity": getattr(settings, "RAG_MIN_SIMILARITY", 0.35),
+        "llmTemperature": getattr(settings, "LLM_TEMPERATURE", 0.1)
+    }
+
+@router.post("/settings", response_model=AdminSettingsResponse)
+def update_admin_settings(req: UpdateAdminSettingsRequest, user: User = require_role("admin")):
+    """Update active system settings and persist to JSON."""
+    if req.maintenanceMode is not None:
+        settings.MAINTENANCE_MODE = req.maintenanceMode
+    if req.activeRouting is not None:
+        valid_providers = ("claude", "gemini", "groq")
+        if req.activeRouting not in valid_providers:
+            raise HTTPException(status_code=400, detail=f"Неверный провайдер: {req.activeRouting}. Допустимы: {valid_providers}")
+        settings.LLM_PROVIDER = req.activeRouting
+    if req.ragMinSimilarity is not None:
+        if not (0.0 <= req.ragMinSimilarity <= 1.0):
+            raise HTTPException(status_code=400, detail="ragMinSimilarity должен быть между 0.0 и 1.0")
+        settings.RAG_MIN_SIMILARITY = req.ragMinSimilarity
+    if req.llmTemperature is not None:
+        if not (0.0 <= req.llmTemperature <= 1.0):
+            raise HTTPException(status_code=400, detail="llmTemperature должен быть между 0.0 и 1.0")
+        settings.LLM_TEMPERATURE = req.llmTemperature
+
+    # Persist overrides to database/settings JSON file
+    admin_settings_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "db")
+    os.makedirs(admin_settings_dir, exist_ok=True)
+    admin_settings_path = os.path.join(admin_settings_dir, "admin_settings.json")
+    try:
+        import json
+        with open(admin_settings_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                "maintenanceMode": settings.MAINTENANCE_MODE,
+                "activeRouting": settings.LLM_PROVIDER,
+                "ragMinSimilarity": settings.RAG_MIN_SIMILARITY,
+                "llmTemperature": settings.LLM_TEMPERATURE
+            }, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to persist admin settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения настроек: {str(e)}")
+
+    return {
+        "maintenanceMode": settings.MAINTENANCE_MODE,
+        "activeRouting": settings.LLM_PROVIDER,
+        "ragMinSimilarity": settings.RAG_MIN_SIMILARITY,
+        "llmTemperature": settings.LLM_TEMPERATURE
+    }
+

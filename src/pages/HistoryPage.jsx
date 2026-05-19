@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
 import { useNavigate } from 'react-router-dom';
-import { History, MessageSquare, Home, Building2, ChevronRight, Clock, Search, X } from 'lucide-react';
+import { useToast } from '../components/Toast';
+import { History, MessageSquare, Home, Building2, ChevronRight, Clock, Search, X, Trash2 } from 'lucide-react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -17,7 +18,8 @@ const itemVariants = {
 
 export default function HistoryPage() {
   const { t } = useLanguage();
-  const { chatHistory, loadSession } = useChat();
+  const { chatHistory, loadSession, deleteSession } = useChat();
+  const { addToast } = useToast();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -122,9 +124,22 @@ export default function HistoryPage() {
                       </span>
                     </div>
 
-                    {/* Arrow Next */}
-                    <div className="text-obsidian-600 group-hover:text-chrome-300 transition-colors transform group-hover:translate-x-1 duration-300">
-                      <ChevronRight size={20} />
+                    {/* Arrow Next & Delete */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSession(item.id);
+                          addToast('Чат удален', 'info');
+                        }}
+                        className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 text-steel-600 transition-all z-10"
+                        title="Удалить чат"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <div className="text-obsidian-600 group-hover:text-chrome-300 transition-colors transform group-hover:translate-x-1 duration-300">
+                        <ChevronRight size={20} />
+                      </div>
                     </div>
                   </div>
                 ))}

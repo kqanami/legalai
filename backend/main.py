@@ -68,6 +68,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def maintenance_middleware(request: Request, call_next):
+    # Only check if maintenance mode is enabled
+    if getattr(settings, "MAINTENANCE_MODE", False):
+        path = request.url.path
+        # Exclude status checks, static docs, and public auth endpoints
+        if path in ("/health", "/", "/api/auth/send-code", "/api/auth/verify", "/api/auth/register"):
+            return await call_next(request)
+            
+        # Check if the user is an administrator
+        auth_header = request.headers.get("Authorization")
+        is_admin = False
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                import jwt
+                from database import get_db
+                from models import User
+                
+                db_gen = get_db()
+                db = next(db_gen)
+                try:
+                    payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+                    user_id = int(payload.get("sub", 0))
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user and user.role == "admin":
+                        is_admin = True
+                finally:
+                    try:
+                        next(db_gen)
+                    except StopIteration:
+                        pass
+            except Exception:
+                pass
+                
+        if not is_admin:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": "MAINTENANCE_MODE",
+                    "message": "В системе проводятся технические работы. Пожалуйста, зайдите позже."
+                }
+            )
+            
+    return await call_next(request)
+
 # Register all routers
 app.include_router(auth.router)
 app.include_router(chat.router)

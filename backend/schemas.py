@@ -59,6 +59,7 @@ class MessageResponse(BaseModel):
     segment: Optional[str] = None
     references: Optional[List[ReferenceItem]] = None
     escalation: Optional[EscalationData] = None
+    suggestions: Optional[List[str]] = None
     timestamp: datetime
 
 class SessionResponse(BaseModel):
@@ -154,6 +155,14 @@ class ReanalyzeRequest(BaseModel):
 
 class SaveTextRequest(BaseModel):
     text: str
+
+
+class QuickFixRequest(BaseModel):
+    audit_id: int
+    risk_title: str
+    risk_description: str
+    risk_recommendation: str
+    location: Optional[str] = ""
 
 
 # ── Dashboard Stats ──

@@ -264,6 +264,13 @@ export const docsApi = {
       body: JSON.stringify({ doc_type: docType, description }),
     });
   },
+  
+  async saveFixed(name, content) {
+    return request('/documents/save-fixed', {
+      method: 'POST',
+      body: JSON.stringify({ name, content }),
+    });
+  },
 };
 
 // ── Counterparty API ──
@@ -326,6 +333,19 @@ export const auditApi = {
     return request(`/audit/history/${auditId}`, {
       method: 'PUT',
       body: JSON.stringify({ text }),
+    });
+  },
+
+  async quickFix(auditId, riskTitle, riskDescription, riskRecommendation, location) {
+    return request('/audit/quick-fix', {
+      method: 'POST',
+      body: JSON.stringify({
+        audit_id: auditId,
+        risk_title: riskTitle,
+        risk_description: riskDescription,
+        risk_recommendation: riskRecommendation,
+        location: location,
+      }),
     });
   },
 };
@@ -486,11 +506,26 @@ export const adminApi = {
   async getStats() {
     return request('/admin/stats');
   },
+  async getSettings() {
+    return request('/admin/settings');
+  },
+  async updateSettings(data) {
+    return request('/admin/settings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
   async getUsers(role = null) {
     return request(`/admin/users${role ? '?role=' + role : ''}`);
   },
   async deleteUser(userId) {
     return request(`/admin/users/${userId}`, { method: 'DELETE' });
+  },
+  async updateUser(userId, data) {
+    return request(`/admin/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   },
   async getLawyers(verified = null) {
     const qs = verified !== null ? `?verified=${verified}` : '';
@@ -525,5 +560,20 @@ export const adminApi = {
   },
   async stopScraper() {
     return request('/admin/scraper/stop', { method: 'POST' });
+  },
+  async getAuditLogs() {
+    return request('/admin/audit-logs');
+  },
+  async clearChats() {
+    return request('/admin/maintenance/clear-chats', { method: 'POST' });
+  },
+  async resetVerifications() {
+    return request('/admin/maintenance/reset-verifications', { method: 'POST' });
+  },
+  async deleteSeededLawyers() {
+    return request('/admin/maintenance/delete-seeded', { method: 'POST' });
+  },
+  async testRagSearch(query) {
+    return request(`/admin/rag/search-test?query=${encodeURIComponent(query)}`);
   }
 };

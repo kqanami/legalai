@@ -159,45 +159,7 @@ export default function Sidebar({ isOpen, onClose }) {
             })}
           </nav>
           
-          {/* Recent Chats - Persistence Proof */}
-          <div className="mt-8 flex-1 flex flex-col min-h-0">
-            <h3 className="text-[10px] font-bold text-steel-500 uppercase tracking-[0.2em] mb-4 px-2 flex items-center gap-2">
-              <MessageSquare size={12} className="text-chrome-500" /> {t('nav_history')}
-            </h3>
-            <div className="flex-1 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
-              {chatHistory.length === 0 ? (
-                <p className="text-[10px] text-obsidian-600 px-2 italic">История пуста</p>
-              ) : (
-                chatHistory.slice(0, 10).map((chat) => (
-                  <div key={chat.id} className="relative group">
-                    <button
-                      onClick={() => { loadSession(chat.id); navigate('/dashboard'); onClose(); }}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs transition-all duration-200 flex items-center gap-3 pr-12
-                        ${sessionId === chat.id 
-                          ? 'bg-chrome-500/10 text-chrome-200 border border-chrome-500/20 shadow-sm' 
-                          : 'text-steel-400 hover:bg-obsidian-900/60 hover:text-steel-200'}`}
-                    >
-                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${chat.segment === 'b2b' ? 'bg-amber-500' : 'bg-indigo-500'}`} />
-                      <span className="truncate flex-1">{chat.question}</span>
-                      <ChevronRight size={12} className={`opacity-0 group-hover:opacity-100 transition-opacity ${sessionId === chat.id ? 'text-chrome-400' : 'text-obsidian-600'}`} />
-                    </button>
-                    
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSession(chat.id);
-                        addToast('Чат удален', 'info');
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 text-steel-600 transition-all z-10"
-                      title="Удалить чат"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+
 
           {/* System version */}
           <div className="mt-4 flex items-center justify-center px-3 py-2 rounded-xl bg-obsidian-900/40 border border-obsidian-700/40">

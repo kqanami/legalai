@@ -1,5 +1,6 @@
 import logging
 import json
+import asyncio
 from typing import Dict, Any, List, AsyncGenerator
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,41 @@ class LegalAgentOrchestrator:
         # 4. Default baseline (Sonnet 3.5)
         return "fast"
 
+    def _needs_rag(self, query: str) -> bool:
+        """Determines if the query actually needs database search (RAG)."""
+        q_lower = query.lower().strip()
+        
+        # Check if the query is just a status declaration or simple reply to a clarification question
+        import re
+        status_words = {"тоо", "ип", "физлицо", "физическое", "юридическое", "лицо", "да", "нет", "есть", "нету", "договор", "договора"}
+        words_only = set(re.findall(r'[а-яёәғқңөұүһіa-z0-9]+', q_lower))
+        if len(query) < 40 and words_only and words_only.issubset(status_words.union({"я", "у", "меня", "мы", "вы", "он", "она", "оно", "они", "быть"})):
+            logger.info("Skipping RAG for status declaration / simple reply.")
+            return False
+            
+        legal_keywords = [
+            "закон", "статья", "кодекс", "гк", "ук", "тк", "коап", "ип", "тоо", 
+            "налог", "суд", "право", "договор", "контракт", "штраф", "пеня", 
+            "иск", "аренда", "развод", "алименты", "наследство", "жалоба", "заявление"
+        ]
+        
+        # If very short and no legal keywords, skip RAG
+        if len(query) < 40 and not any(k in q_lower for k in legal_keywords):
+            return False
+            
+        # Common conversational phrases to skip completely
+        skip_phrases = [
+            "привет", "здравствуй", "спасибо", "ок", "понял", "хорошо", "ясно", 
+            "дай адвоката", "найди юриста", "мне нужен адвокат", "свяжи с юристом",
+            "пока", "до свидания", "ок спасибо"
+        ]
+        
+        # Check if query is just a simple conversational phrase
+        if any(q_lower == p or q_lower.startswith(p + " ") for p in skip_phrases) and len(query) < 60:
+            return False
+            
+        return True
+
     async def generate_search_queries(self, query: str, history: List[Dict]) -> List[str]:
         """Agent that transforms user intent into optimized legal search queries."""
         prompt = f"""Преврати вопрос пользователя в 2-3 точных поисковых запроса для юридической базы данных Казахстана.
@@ -132,6 +168,42 @@ class LegalAgentOrchestrator:
             logger.error(f"Verification failed: {e}")
             return response
 
+    def _compress_contract_text(self, text: str) -> str:
+        """
+        Compresses contract text to minimize token usage for LLM calls,
+        while preserving all legally significant clauses.
+        """
+        import re
+        if not text:
+            return ""
+            
+        # 1. Normalize spacing and newlines to save tokens
+        text = re.sub(r'[ \t]+', ' ', text)
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        # 2. Cut off typical signatures/requisites blocks from the end
+        # They consume massive tokens (bank accounts, addresses, etc.) but have 0 legal risks.
+        requisites_pattern = re.compile(
+            r'(?i)\n\s*(?:(?:1\d|9|8|7|6)\.?\s*)?(?:Реквизиты|Адреса\s+и\s+реквизиты|Юридические\s+адреса|Подписи\s+сторон|Адреса,\s+реквизиты\s+и\s+подписи|Наименования,\s+адреса\s+и\s+реквизиты)\b'
+        )
+        req_matches = list(requisites_pattern.finditer(text))
+        if req_matches:
+            last_match = req_matches[-1]
+            # Only cut if it is in the second half of the document (to avoid matching early mentions)
+            if last_match.start() > len(text) * 0.5:
+                text = text[:last_match.start()]
+                
+        # 3. Cut off "Акт приема-передачи" (Act of Acceptance) if attached at the end
+        # The Act is standard boilerplate and has no contract-level risk.
+        act_pattern = re.compile(r'(?i)\n\s*(?:Приложение|Акт\s+приема-передачи)\b')
+        act_matches = list(act_pattern.finditer(text))
+        if act_matches:
+            last_match = act_matches[-1]
+            if last_match.start() > len(text) * 0.5:
+                text = text[:last_match.start()]
+                
+        return text.strip()
+
     async def process_contract_audit(self, contract_text: str) -> Dict[str, Any]:
         """Multi-agent workflow for contract auditing."""
         logger.info("Agent 1: Heuristic Risk Scorer running...")
@@ -143,11 +215,15 @@ class LegalAgentOrchestrator:
         
         combined_context = ""
         for q in audit_queries[:2]:
-            context = self.rag.get_context_string(q, n_results=2)
+            context = self.rag.get_context_string(q, n_results=1)  # Compressed to 1 result to save tokens
             if context:
                 combined_context += context + "\n---\n"
         
         logger.info("Agent 3: LLM Audit Synthesizer...")
+        # Compress the contract text for token savings
+        compressed_text = self._compress_contract_text(contract_text)
+        logger.info(f"Compressed contract text for LLM from {len(contract_text)} to {len(compressed_text)} chars.")
+        
         enriched_prompt = f"""
 ОБНАРУЖЕННЫЕ АЛГОРИТМИЧЕСКИЕ РИСКИ:
 Уровень риска: {heuristic_risks['level'].upper()} (Score: {heuristic_risks['score']}/100)
@@ -157,7 +233,7 @@ class LegalAgentOrchestrator:
 {combined_context if combined_context else "Опирайся на общие нормы ГК РК."}
 
 ТЕКСТ ДОГОВОРА:
-{contract_text}
+{compressed_text}
 """
         audit_results = await self.llm.audit_contract(enriched_prompt)
         return {
@@ -165,29 +241,174 @@ class LegalAgentOrchestrator:
             "original_text": contract_text
         }
 
-    async def process_chat_query(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0) -> Dict[str, Any]:
-        """Orchestrated chat query processing."""
-        # 1. Dynamic Query Generation (Internal use Haiku)
-        search_queries = await self.generate_search_queries(query, history)
-        logger.info(f"Generated queries: {search_queries}")
+    def _get_matching_document(self, query: str, user_docs: List[Any]) -> Any:
+        """Finds a matching user document from the database based on the query."""
+        if not user_docs:
+            return None
+            
+        query_lower = query.lower()
+        
+        # 1. Look for explicit matches of the document title (without extension)
+        best_match = None
+        longest_match_len = 0
+        for doc in user_docs:
+            name_clean = doc.name.lower()
+            for ext in [".docx", ".pdf", ".doc", ".txt"]:
+                name_clean = name_clean.replace(ext, "")
+            name_clean = name_clean.strip()
+            
+            if len(name_clean) >= 4 and name_clean in query_lower:
+                if len(name_clean) > longest_match_len:
+                    best_match = doc
+                    longest_match_len = len(name_clean)
+                    
+        if best_match:
+            return best_match
+            
+        # 2. Look for type-based matches if query contains relevant triggers
+        triggers = ["договор", "контракт", "соглашение", "иск", "заявление", "претензия", "жалоба"]
+        if any(t in query_lower for t in triggers):
+            sorted_docs = sorted(user_docs, key=lambda d: d.created_at, reverse=True)
+            for doc in sorted_docs:
+                doc_name = doc.name.lower()
+                doc_type = doc.doc_type.lower()
+                
+                if any(k in query_lower for k in ["договор", "контракт", "соглашение"]):
+                    if "договор" in doc_name or doc_type == "contract":
+                        return doc
+                if any(k in query_lower for k in ["иск", "исковое"]):
+                    if "иск" in doc_name or doc_type == "claim":
+                        return doc
+                if any(k in query_lower for k in ["претензия", "жалоба"]):
+                    if any(x in doc_name for x in ["претенз", "жалоб"]) or doc_type == "complaint":
+                        return doc
+                if "заявление" in query_lower:
+                    if "заявлен" in doc_name or doc_type in ["claim", "statement"]:
+                        return doc
 
-        # 2. Multi-query Retrieval
-        all_docs = []
-        for sq in search_queries:
-            docs = self.rag.search(sq, n_results=2)
-            all_docs.extend(docs)
+        # 3. If there is only one document, and the user asks to analyze/inspect "my document/contract"
+        if len(user_docs) == 1 and any(t in query_lower for t in ["документ", "файл", "договор", "заявление", "претензию", "иск"]):
+            return user_docs[0]
+            
+        return None
+
+    def _extract_text_from_doc(self, file_path: str, filename: str) -> str:
+        """Extracts text from PDF, DOCX, or TXT without circular dependencies."""
+        import os
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == ".txt":
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                return f.read()
+        elif ext == ".pdf":
+            try:
+                from PyPDF2 import PdfReader
+                reader = PdfReader(file_path)
+                return "".join(page.extract_text() or "" for page in reader.pages)
+            except Exception as e:
+                logger.error(f"Failed to extract PDF text in chat: {e}")
+                return ""
+        elif ext in (".docx", ".doc"):
+            try:
+                from docx import Document as DocxDocument
+                doc = DocxDocument(file_path)
+                return "\n".join(p.text for p in doc.paragraphs)
+            except Exception as e:
+                try:
+                    import olefile
+                    if olefile.isOleFile(file_path):
+                        with olefile.OleFileIO(file_path) as ole:
+                            if ole.exists("WordDocument"):
+                                with ole.openstream("WordDocument") as stream:
+                                    data = stream.read()
+                                utf16 = data.decode("utf-16-le", errors="ignore")
+                                cp1251 = data.decode("cp1251", errors="ignore")
+                                import re
+                                cyr = re.compile(r'[\u0410-\u044F\u0401\u0451\u04D8\u04D9\u0492\u0493\u049A\u049B\u04A2\u04A3\u04E8\u04E9\u04B0\u04B1\u04AE\u04AF\u04BA\u04BB\u0406\u0456]')
+                                if len(cyr.findall(utf16)) >= len(cyr.findall(cp1251)):
+                                    return utf16
+                                return cp1251
+                except Exception as ole_err:
+                    logger.error(f"Legacy doc parser failed in chat: {ole_err}")
+                logger.error(f"Failed to extract docx text in chat: {e}")
+                return ""
+        return ""
+
+    async def process_chat_query(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None) -> Dict[str, Any]:
+        """Orchestrated chat query processing."""
         
-        # Deduplicate and format context
-        unique_docs = list(set(all_docs))
-        context = "\n\n---\n".join(unique_docs)
+        # 1. Smart Routing: Skip RAG for simple conversational queries to save tokens
+        if not self._needs_rag(query):
+            logger.info("Skipping RAG for simple conversational query.")
+            context = ""
+            search_queries = []
+        else:
+            # 2. Dynamic Query Generation: Skip LLM call if query is simple & short to save 1s latency
+            if not history or (len(query) < 120 and not any(h in query.lower() for h in ["выше", "ранее", "этот", "этого", "тот", "того", "документ", "договоре"])):
+                search_queries = [query]
+                logger.info(f"Using original query for RAG search (saved query generation latency): {search_queries}")
+            else:
+                search_queries = await self.generate_search_queries(query, history)
+                logger.info(f"Generated queries: {search_queries}")
+
+            # 3. Multi-query Retrieval
+            tasks = [asyncio.to_thread(self.rag.search, sq, 2) for sq in search_queries]
+            docs_results = await asyncio.gather(*tasks)
+            all_docs = []
+            for docs in docs_results:
+                all_docs.extend(docs)
+            
+            # 4. Context Token Compression: Limit to MAX 3 unique chunks
+            unique_docs = list(set(all_docs))[:3]
+            context = "\n\n---\n".join(unique_docs)
+            logger.info(f"RAG Context compressed to {len(unique_docs)} chunks.")
         
+        # Fetch user documents context if db and user_id are provided
+        docs_context = ""
+        matched_doc_text = ""
+        if db and user_id:
+            try:
+                from models import Document
+                user_docs = db.query(Document).filter(Document.user_id == user_id).all()
+                if user_docs:
+                    docs_context = "ДОСТУПНЫЕ ДОКУМЕНТЫ В КАБИНЕТЕ ПОЛЬЗОВАТЕЛЯ:\n"
+                    for d in user_docs:
+                        docs_context += f"- ID: {d.id}, Название: \"{d.name}\", Тип: {d.doc_type}, Создан: {d.created_at.strftime('%d.%m.%Y')}\n"
+                    
+                    matched_doc = self._get_matching_document(query, user_docs)
+                    if matched_doc:
+                        doc_text = self._extract_text_from_doc(matched_doc.file_path, matched_doc.original_filename)
+                        if len(doc_text) > 4000:
+                            doc_text = doc_text[:4000] + "\n...[Текст договора обрезан для экономии токенов]..."
+                        matched_doc_text = f"\n\nТЕКСТ АКТИВНОГО ДОКУМЕНТА ПОЛЬЗОВАТЕЛЯ '{matched_doc.name}':\n{doc_text}\n"
+                        logger.info(f"Loaded matching user document for chat: {matched_doc.name}")
+            except Exception as doc_err:
+                logger.error(f"Error querying user documents: {doc_err}")
+
+        full_context = context
+        if docs_context:
+            full_context = docs_context + "\n---\n" + full_context
+        if matched_doc_text:
+            full_context = full_context + "\n---\n" + matched_doc_text
+
         model_type = self._determine_model(query, history, user_role, user_plan, total_messages)
         lang = self._detect_language(query)
         logger.info(f"Routing query to model: {model_type} (Lang: {lang})")
         
         lang_instruction = "ОТВЕЧАЙ СТРОГО НА КАЗАХСКОМ ЯЗЫКЕ." if lang == "kazakh" else "ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ."
         
-        enriched_query = f"INSTRUCTION: {lang_instruction}\n\nCONTEXT:\n{context}\n\nQUERY: {query}"
+        ecosystem_instruction = """
+ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:
+1. Если пользователь хочет составить/создать/написать юридический документ (например: заявление в суд, исковое заявление, претензию, жалобу, договор аренды и т.д.), ты ДОЛЖЕН предложить ему сгенерировать готовый шаблон в нашей системе и предоставить точную ссылку.
+   Ссылки для генерации шаблонов:
+   - Исковое заявление: [Создать исковое заявление](/dashboard/documents?generate=claim)
+   - Претензия/Жалоба: [Создать претензию или жалобу](/dashboard/documents?generate=complaint)
+   - Договор: [Создать договор](/dashboard/documents?generate=contract)
+   - Обычное заявление: [Создать заявление](/dashboard/documents?generate=statement)
+   Пример: "Я могу помочь вам составить исковое заявление. Для этого вы можете использовать наш конструктор: [Создать исковое заявление](/dashboard/documents?generate=claim)."
+2. Если в контексте выше передан 'ТЕКСТ АКТИВНОГО ДОКУМЕНТА ПОЛЬЗОВАТЕЛЯ', обязательно сошлись на него, проанализируй его и ответь на вопросы пользователя именно на основе этого текста. Упомяни название этого документа.
+"""
+        
+        enriched_query = f"INSTRUCTION: {lang_instruction}\n{ecosystem_instruction}\n\nCONTEXT:\n{full_context}\n\nQUERY: {query}"
         thought_process = f"Использую базу знаний для ответа. Язык: {lang}. Модель: {model_type}"
         
         response = await self.llm.chat(enriched_query, history, user_role, model_type=model_type)
@@ -199,18 +420,62 @@ class LegalAgentOrchestrator:
         response["thought"] = thought_process
         return response
 
-    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0) -> AsyncGenerator[str, None]:
+    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None) -> AsyncGenerator[str, None]:
         """Stream version with orchestrated retrieval."""
-        # For streaming, we do retrieval upfront to avoid interruption
-        search_queries = await self.generate_search_queries(query, history)
         
-        all_docs = []
-        for sq in search_queries:
-            docs = self.rag.search(sq, n_results=2)
-            all_docs.extend(docs)
+        # 1. Smart Routing: Skip RAG for simple conversational queries
+        if not self._needs_rag(query):
+            logger.info("Skipping RAG for simple conversational query (Stream).")
+            context = ""
+            search_queries = []
+        else:
+            # For streaming, we do retrieval upfront to avoid interruption
+            # Skip query-gen LLM call if query is simple & short to save 1s latency
+            if not history or (len(query) < 120 and not any(h in query.lower() for h in ["выше", "ранее", "этот", "этого", "тот", "того", "документ", "договоре"])):
+                search_queries = [query]
+                logger.info(f"Using original query for RAG stream search (saved query generation latency): {search_queries}")
+            else:
+                search_queries = await self.generate_search_queries(query, history)
+            
+            tasks = [asyncio.to_thread(self.rag.search, sq, 2) for sq in search_queries]
+            docs_results = await asyncio.gather(*tasks)
+            all_docs = []
+            for docs in docs_results:
+                all_docs.extend(docs)
+            
+            # Token Compression: Max 3 chunks
+            unique_docs = list(set(all_docs))[:3]
+            context = "\n\n---\n".join(unique_docs)
+            logger.info(f"RAG Context compressed to {len(unique_docs)} chunks (Stream).")
         
-        context = "\n\n---\n".join(list(set(all_docs)))
-        
+        # Fetch user documents context if db and user_id are provided
+        docs_context = ""
+        matched_doc_text = ""
+        if db and user_id:
+            try:
+                from models import Document
+                user_docs = db.query(Document).filter(Document.user_id == user_id).all()
+                if user_docs:
+                    docs_context = "ДОСТУПНЫЕ ДОКУМЕНТЫ В КАБИНЕТЕ ПОЛЬЗОВАТЕЛЯ:\n"
+                    for d in user_docs:
+                        docs_context += f"- ID: {d.id}, Название: \"{d.name}\", Тип: {d.doc_type}, Создан: {d.created_at.strftime('%d.%m.%Y')}\n"
+                    
+                    matched_doc = self._get_matching_document(query, user_docs)
+                    if matched_doc:
+                        doc_text = self._extract_text_from_doc(matched_doc.file_path, matched_doc.original_filename)
+                        if len(doc_text) > 4000:
+                            doc_text = doc_text[:4000] + "\n...[Текст договора обрезан для экономии токенов]..."
+                        matched_doc_text = f"\n\nТЕКСТ АКТИВНОГО ДОКУМЕНТА ПОЛЬЗОВАТЕЛЯ '{matched_doc.name}':\n{doc_text}\n"
+                        logger.info(f"Loaded matching user document for chat stream: {matched_doc.name}")
+            except Exception as doc_err:
+                logger.error(f"Error querying user documents: {doc_err}")
+
+        full_context = context
+        if docs_context:
+            full_context = docs_context + "\n---\n" + full_context
+        if matched_doc_text:
+            full_context = full_context + "\n---\n" + matched_doc_text
+
         # Send initial "thought" as a hidden chunk or separate event if frontend supports it
         # Here we just log it and proceed to stream the main content
         logger.info(f"Streaming with queries: {search_queries}")
@@ -221,7 +486,19 @@ class LegalAgentOrchestrator:
             
         lang_instruction = "ОТВЕЧАЙ СТРОГО НА КАЗАХСКОМ ЯЗЫКЕ." if lang == "kazakh" else "ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ."
         
-        enriched_query = f"INSTRUCTION: {lang_instruction}\n\nCONTEXT:\n{context}\n\nQUERY: {query}"
+        ecosystem_instruction = """
+ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:
+1. Если пользователь хочет составить/создать/написать юридический документ (например: заявление в суд, исковое заявление, претензию, жалобу, договор аренды и т.д.), ты ДОЛЖЕН предложить ему сгенерировать готовый шаблон в нашей системе и предоставить точную ссылку.
+   Ссылки для генерации шаблонов:
+   - Исковое заявление: [Создать исковое заявление](/dashboard/documents?generate=claim)
+   - Претензия/Жалоба: [Создать претензию или жалобу](/dashboard/documents?generate=complaint)
+   - Договор: [Создать договор](/dashboard/documents?generate=contract)
+   - Обычное заявление: [Создать заявление](/dashboard/documents?generate=statement)
+   Пример: "Я могу помочь вам составить исковое заявление. Для этого вы можете использовать наш конструктор: [Создать исковое заявление](/dashboard/documents?generate=claim)."
+2. Если в контексте выше передан 'ТЕКСТ АКТИВНОГО ДОКУМЕНТА ПОЛЬЗОВАТЕЛЯ', обязательно сошлись на него, проанализируй его и ответь на вопросы пользователя именно на основе этого текста. Упомяни название этого документа.
+"""
+
+        enriched_query = f"INSTRUCTION: {lang_instruction}\n{ecosystem_instruction}\n\nCONTEXT:\n{full_context}\n\nQUERY: {query}"
         async for chunk in self.llm.chat_stream(enriched_query, history, user_role, model_type=model_type):
             yield chunk
 

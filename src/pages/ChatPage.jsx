@@ -7,8 +7,9 @@ import AIWaveform from '../components/AIWaveform';
 import MagneticButton from '../components/MagneticButton';
 import { chatApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Scale, Settings2, Home, Building2, Link2, Download, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Scale, Settings2, Home, Building2, Link2, Download, ChevronRight, Search, Phone, UserCheck, Shield, Star } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Users, ShoppingBag, Building, FileText, Book, PenTool, GitCompare } from 'lucide-react';
 
 const msgVariants = {
   hidden: { opacity: 0, filter: 'blur(8px)', y: 12, scale: 0.98 },
@@ -34,33 +35,151 @@ const suggestionVariants = {
   }),
 };
 
-/* ── Escalation Banner ── */
+/* ── Premium Escalation Card ── */
 function EscalationBanner({ escalation }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   if (!escalation || !escalation.needed || user?.role === 'lawyer') return null;
+
+  const category = escalation.category || 'Юридическая консультация';
+  const lawyerSearchUrl = `/lawyers?specialization=${encodeURIComponent(category)}`;
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="mt-6 p-5 rounded-xl border border-amber-500/30 bg-amber-500/5 relative overflow-hidden"
+      initial={{ opacity: 0, y: 16, scale: 0.94, filter: 'blur(8px)' }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+      className="mt-6 relative"
     >
-      <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
-      <div className="flex items-start gap-4">
-        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 flex-shrink-0">
-          <Scale size={20} />
-        </div>
-        <div>
-          <h4 className="text-sm font-bold text-amber-500 mb-1">Рекомендуется помощь адвоката</h4>
-          <p className="text-xs text-amber-500/80 mb-3">{escalation.reason}</p>
-          <Link
-            to={`/lawyers?specialization=${encodeURIComponent(escalation.category || '')}`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-obsidian-950 text-xs font-bold hover:bg-amber-400 transition-colors"
-          >
-            Найти юриста ({escalation.category}) <ChevronRight size={14} />
-          </Link>
+      {/* Animated shimmer border glow */}
+      <div 
+        className="absolute -inset-[1px] rounded-2xl opacity-60 pointer-events-none"
+        style={{
+          background: 'linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.4) 25%, rgba(251,191,36,0.6) 50%, rgba(245,158,11,0.4) 75%, transparent 100%)',
+          backgroundSize: '200% 100%',
+          animation: 'shimmer-border 3s linear infinite',
+        }}
+      />
+      
+      {/* Card body */}
+      <div className="relative rounded-2xl overflow-hidden" style={{
+        background: 'linear-gradient(145deg, rgba(245,158,11,0.06) 0%, rgba(11,13,20,0.95) 40%, rgba(11,13,20,0.98) 100%)',
+        border: '1px solid rgba(245,158,11,0.2)',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 30px rgba(245,158,11,0.05)',
+      }}>
+        {/* Top accent line */}
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+        
+        <div className="p-5">
+          {/* Header */}
+          <div className="flex items-start gap-4 mb-4">
+            {/* Animated icon with pulse ring */}
+            <div className="relative flex-shrink-0">
+              <motion.div
+                className="absolute inset-0 rounded-xl bg-amber-500/20"
+                animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                style={{ borderRadius: '14px' }}
+              />
+              <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/25 to-amber-600/10 border border-amber-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.15)]">
+                <Scale size={22} className="text-amber-400" />
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                <h4 className="text-sm font-bold text-amber-400">Рекомендуется помощь адвоката</h4>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <Shield size={8} /> {category}
+                </span>
+              </div>
+              <p className="text-xs text-steel-300 leading-relaxed">{escalation.reason}</p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <motion.button
+              onClick={() => navigate(lawyerSearchUrl)}
+              className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all"
+              style={{
+                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                color: '#0B0D14',
+                boxShadow: '0 4px 16px rgba(245,158,11,0.25), 0 0 20px rgba(245,158,11,0.1)',
+              }}
+              whileHover={{ scale: 1.03, boxShadow: '0 6px 24px rgba(245,158,11,0.35), 0 0 30px rgba(245,158,11,0.15)' }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Search size={14} />
+              Найти юриста
+              <ChevronRight size={14} />
+            </motion.button>
+            
+            <motion.button
+              onClick={() => navigate(lawyerSearchUrl)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border border-amber-500/25 text-amber-400 transition-all"
+              style={{
+                background: 'rgba(245,158,11,0.05)',
+                backdropFilter: 'blur(8px)',
+              }}
+              whileHover={{ 
+                scale: 1.03, 
+                borderColor: 'rgba(245,158,11,0.5)',
+                background: 'rgba(245,158,11,0.1)',
+              }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Phone size={13} />
+              Связаться с адвокатом
+            </motion.button>
+          </div>
+
+          {/* Bottom info */}
+          <div className="mt-4 pt-3 border-t border-amber-500/10 flex items-center gap-4 text-[10px] text-steel-500">
+            <span className="flex items-center gap-1">
+              <UserCheck size={10} className="text-emerald-400" /> Верифицированные юристы
+            </span>
+            <span className="flex items-center gap-1">
+              <Star size={10} className="text-amber-400" /> Топ рейтинг
+            </span>
+          </div>
         </div>
       </div>
     </motion.div>
+  );
+}
+
+/* ── Lawyer Search Chip (for suggestion bar) ── */
+function LawyerSearchChip({ category }) {
+  const navigate = useNavigate();
+  const searchUrl = `/lawyers?specialization=${encodeURIComponent(category || '')}`;
+  
+  return (
+    <motion.button
+      onClick={() => navigate(searchUrl)}
+      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all"
+      style={{
+        background: 'rgba(245,158,11,0.08)',
+        border: '1px solid rgba(245,158,11,0.25)',
+        color: '#F59E0B',
+        boxShadow: '0 2px 8px rgba(245,158,11,0.08)',
+      }}
+      initial={{ opacity: 0, y: 6, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.1, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={{ 
+        scale: 1.03,
+        borderColor: 'rgba(245,158,11,0.5)',
+        boxShadow: '0 4px 16px rgba(245,158,11,0.15), 0 0 12px rgba(245,158,11,0.08)',
+        background: 'rgba(245,158,11,0.12)',
+      }}
+      whileTap={{ scale: 0.97 }}
+    >
+      <Search size={12} />
+      Найти адвоката
+      <ChevronRight size={12} />
+    </motion.button>
   );
 }
 
@@ -140,9 +259,11 @@ const MarkdownRenderer = memo(({ content, isStreaming = false }) => {
       .split('[REFS]')[0]
       .split('[SEGMENT]')[0]
       .split('[ESCALATION]')[0]
+      .split('[SUGGESTIONS]')[0]
       .split('<!--REFS-->')[0]
       .split('<!--SEGMENT-->')[0]
       .split('<!--ESCALATION-->')[0]
+      .split('<!--SUGGESTIONS-->')[0]
       .trim();
     return normalizeMarkdown(raw);
   };
@@ -231,54 +352,91 @@ export default function ChatPage() {
           {messages.length === 0 ? (
             <motion.div
               key="welcome"
-              className="flex flex-col items-center justify-center min-h-full text-center px-4"
+              className="flex flex-col items-center justify-center min-h-full text-center px-4 relative"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
+              transition={{ duration: 0.4 }}
             >
+              {/* Background Aura */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center z-0">
+                <motion.div 
+                  className="w-[60vw] h-[60vw] max-w-[600px] max-h-[600px] rounded-full opacity-20 blur-[100px]"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(148,163,184,0.4) 0%, rgba(148,163,184,0) 70%)'
+                  }}
+                  animate={{ 
+                    scale: [1, 1.15, 1],
+                    opacity: [0.1, 0.2, 0.1]
+                  }}
+                  transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </div>
+
+              {/* Floating Logo */}
               <motion.div
-                className="relative w-20 h-20 mb-10"
-                animate={{ y: [0, -8, 0] }}
+                className="relative z-10 mb-8"
+                animate={{ y: [-8, 8, -8] }}
                 transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <div className="absolute inset-0 rounded-2xl chrome-gradient shadow-[0_0_50px_rgba(255,255,255,0.1)] opacity-70" />
-                <div className="absolute inset-[2px] rounded-[14px] bg-obsidian-900 flex items-center justify-center border border-obsidian-700">
-                  <Scale size={28} className="text-white opacity-90" />
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-[2rem] bg-gradient-to-br from-slate-500/10 to-obsidian-900 border border-slate-500/20 flex items-center justify-center shadow-[0_0_50px_rgba(148,163,184,0.15)] backdrop-blur-xl group cursor-default">
+                  <div className="absolute inset-0 bg-slate-500/5 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <Scale size={48} className="text-slate-400 drop-shadow-[0_0_15px_rgba(148,163,184,0.3)]" strokeWidth={1.5} />
                 </div>
               </motion.div>
 
               <motion.h2
-                className="text-4xl font-extrabold text-white mb-4 tracking-tight"
+                className="text-4xl sm:text-5xl font-black text-white mb-4 tracking-tight relative z-10"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+                transition={{ delay: 0.1, type: 'spring', stiffness: 100 }}
               >
-                AI-<span className="metal-text">LEGAL</span> KZ
+                AI-<span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-300 to-slate-500">LEGAL</span> KZ
               </motion.h2>
               <motion.p
-                className="text-steel-400 max-w-sm mb-12 text-sm leading-relaxed"
+                className="text-steel-400 max-w-lg mb-12 text-sm sm:text-base leading-relaxed relative z-10"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 100 }}
               >
                 {user?.role === 'lawyer' ? t('lawyer_welcome') : t('chat_welcome')}
               </motion.p>
 
-              <div className="grid sm:grid-cols-2 gap-4 w-full max-w-2xl">
-                {(user?.role === 'lawyer' ? [t('lawyer_suggestion_1'), t('lawyer_suggestion_2')] : [t('chat_suggestion_1'), t('chat_suggestion_2')]).map((s, i) => (
+              {/* Suggestions Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl relative z-10">
+                {(user?.role === 'lawyer' ? [
+                  { text: t('lawyer_suggestion_1'), icon: <Book size={20} /> },
+                  { text: t('lawyer_suggestion_2'), icon: <FileText size={20} /> },
+                  { text: t('lawyer_suggestion_3'), icon: <PenTool size={20} /> },
+                  { text: t('lawyer_suggestion_4'), icon: <GitCompare size={20} /> }
+                ] : [
+                  { text: t('chat_suggestion_1'), icon: <Users size={20} /> },
+                  { text: t('chat_suggestion_2'), icon: <ShoppingBag size={20} /> },
+                  { text: t('chat_suggestion_3'), icon: <Building size={20} /> },
+                  { text: t('chat_suggestion_4'), icon: <Search size={20} /> }
+                ]).map((sug, i) => (
                   <motion.button
                     key={i}
-                    onClick={() => sendMessage(s)}
-                    className="glass-card p-5 text-left text-sm text-steel-300 hover:text-white transition-all border border-obsidian-700/80 hover:border-chrome-500/40"
+                    onClick={() => sendMessage(sug.text)}
+                    className="group relative overflow-hidden rounded-2xl bg-obsidian-900/40 border border-white/[0.05] p-5 text-left transition-all hover:border-slate-500/30 hover:bg-obsidian-800/80 hover:shadow-[0_8px_30px_rgba(148,163,184,0.1)] backdrop-blur-sm flex items-start gap-4"
                     variants={suggestionVariants}
                     initial="hidden"
                     animate="visible"
                     custom={i}
-                    whileHover={{ y: -2, backgroundColor: 'rgba(255,255,255,0.02)' }}
+                    whileHover={{ y: -4 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <span className="flex items-center gap-3">
-                      <span className="text-chrome-500">→</span> {s}
-                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-500/0 via-slate-500/0 to-slate-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    
+                    <div className="w-10 h-10 rounded-xl bg-slate-500/10 border border-slate-500/20 flex items-center justify-center flex-shrink-0 text-slate-400 group-hover:scale-110 group-hover:bg-slate-400 group-hover:text-obsidian-950 transition-all duration-300 shadow-[0_0_15px_rgba(148,163,184,0.1)]">
+                      {sug.icon}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <p className="text-sm font-medium text-steel-300 group-hover:text-white transition-colors leading-relaxed">
+                        {sug.text}
+                      </p>
+                    </div>
                   </motion.button>
                 ))}
               </div>
@@ -288,7 +446,7 @@ export default function ChatPage() {
               {messages.map((msg, index) => (
                 <motion.div
                   key={msg.id || index}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}
+                  className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} w-full gap-2`}
                   variants={msgVariants}
                   initial="hidden"
                   animate="visible"
@@ -326,17 +484,52 @@ export default function ChatPage() {
                       <EscalationBanner escalation={msg.escalation} />
                     )}
                   </div>
+
+                  {/* Clickable Quick Reply Suggestions Chips + Lawyer Search */}
+                  {msg.role === 'assistant' && !isStreaming && (msg.suggestions?.length > 0 || (msg.escalation && msg.escalation.needed)) && (
+                    <motion.div 
+                      className="flex flex-wrap gap-2 mt-2 ml-1"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      {/* Lawyer Search chip (amber accent) when escalation detected */}
+                      {msg.escalation && msg.escalation.needed && user?.role !== 'lawyer' && (
+                        <LawyerSearchChip category={msg.escalation.category} />
+                      )}
+                      
+                      {/* Regular suggestion chips */}
+                      {msg.suggestions?.map((sug, i) => (
+                        <motion.button
+                          key={i}
+                          onClick={() => {
+                            if (isTyping) return;
+                            sendMessage(sug);
+                          }}
+                          disabled={isTyping}
+                          className="ai-suggestion-chip disabled:opacity-40 disabled:pointer-events-none"
+                          initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ delay: 0.2 + i * 0.07, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        >
+                          <span className="text-chrome-500 text-[10px]">→</span>
+                          {sug}
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
                 </motion.div>
               ))}
 
               {isTyping && (
                 <motion.div
                   className="flex justify-start w-full"
-                  initial={{ opacity: 0, filter: 'blur(4px)' }}
-                  animate={{ opacity: 1, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <div className="chat-bubble-ai opacity-80 scale-95 origin-left">
+                  <div className="w-full max-w-md opacity-90 origin-left">
                     <AIWaveform label="Анализирую документы..." />
                   </div>
                 </motion.div>

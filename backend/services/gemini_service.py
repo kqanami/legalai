@@ -7,9 +7,10 @@ from typing import List, Dict, AsyncGenerator
 logger = logging.getLogger(__name__)
 
 try:
-    from groq import Groq, APIError as GroqAPIError
+    from groq import Groq, AsyncGroq, APIError as GroqAPIError
 except ImportError:
     Groq = None
+    AsyncGroq = None
     GroqAPIError = Exception
 
 try:
@@ -36,7 +37,9 @@ LEGAL_CHAT_SYSTEM = """Ты — высококлассный AI-Юрист по 
 4. СТРУКТУРА: Разделяй текст на блоки (###), абзацы. Пустая строка ДО и ПОСЛЕ заголовка.
 5. ЯЗЫК: Только кириллица. НИКАКИХ ИЕРОГЛИФОВ.
 6. ТОЧНОСТЬ: Если уверен на 100% — пиши номер статьи. Если есть сомнение — пиши только название Кодекса.
-7. ОГРАНИЧЕНИЕ ТЕМАТИКИ (КРИТИЧНО): Ты отвечаешь ТОЛЬКО на вопросы, связанные с правом, юриспруденцией, налогами, государственными услугами и делопроизводством. Если пользователь задает вопрос на любую другую тему (например: программирование, история, рецепты, математика, общие рассуждения), вежливо откажись и напомни, что ты — специализированный юридический ассистент.
+7. ОГРАНИЧЕНИЕ ТЕМАТИКИ (КРИТИЧНО): Ты отвечаешь ТОЛЬКО на вопросы, связанные с правом, юриспруденцией, налогами, государственными услугами и делопроизводством. Если пользователь задает вопрос на любую другую тему (например: литература, программирование, история, рецепты, математика, общие рассуждения), вежливо и категорично откажись и напомни, что ты — специализированный юридический ассистент. Категорически запрещено предлагать обсудить любые неюридические альтернативы (например, если спросили про биографию писателя, нельзя предлагать обсудить его творчество/книги). При неюридическом запросе блок [SUGGESTIONS] должен содержать строго стандартные юридические вопросы (например: ["Как зарегистрировать ТОО?", "Какие налоги платит ИП?", "Как оспорить штраф?"]).
+8. УТОЧНЯЮЩИЕ ВОПРОСЫ И СУТЬ (ОЧЕНЬ ВАЖНО): Если суть вопроса пользователя не раскрыта до конца, или для полноценного, точного ответа тебе не хватает ключевых юридических деталей (например: вид сделки, статус сторон, наличие письменного договора, статус контрагента, организационная форма бизнеса, город, сроки), ты ДОЛЖЕН задать 1-2 вежливых, точечных уточняющих вопроса в конце ответа, чтобы помочь пользователю предоставить нужную информацию. Вопросы формулируй чётко, например: "Вы действуете как физическое лицо или от имени ТОО/ИП?" или "Имеется ли письменный договор между сторонами?".
+9. ПРОВЕРКА КОНТРАГЕНТОВ: Если пользователь хочет проверить компанию, ТОО, ИП или запрашивает информацию по БИН/ИИН, вежливо ответь, что в системе есть встроенный модуль для этого, и обязательно дай эту точную ссылку: [Перейти в раздел Проверка контрагентов](/dashboard/counterparty). В самом чате проверку не проводи.
 
 ФОРМАТ ЗАВЕРШЕНИЯ (ОБЯЗАТЕЛЬНО ДОБАВЛЯЙ В САМОМ КОНЦЕ ОТВЕТА СКРЫТЫЕ БЛОКИ ДЛЯ ПАРСИНГА):
 
@@ -47,7 +50,24 @@ LEGAL_CHAT_SYSTEM = """Ты — высококлассный AI-Юрист по 
 b2c (если вопрос от физлица) ИЛИ b2b (если вопрос от бизнеса)
 
 [ESCALATION]
-{"needed": false, "reason": "...", "category": "..."} (Укажи true, если вопрос требует участия живого адвоката)
+{"needed": false, "reason": "...", "category": "..."}
+ПРАВИЛА ЭСКАЛАЦИИ (КОГДА needed = true):
+- Если пользователь ЯВНО просит найти/дать адвоката, юриста, связать с живым специалистом — ВСЕГДА ставь true.
+- Если вопрос слишком сложный, уголовный, требует судебного представительства — ставь true.
+- Если ситуация касается крупных финансовых потерь, уголовного преследования, лишения свободы — ставь true.
+- Если пользователь уже описал конкретный спор и ему нужна юридическая помощь в суде — ставь true.
+Примеры запросов, где needed = true: "дай адвоката", "мне нужен юрист", "найди адвоката", "свяжи с юристом", "помощь адвоката", "нужна консультация юриста очная".
+В поле "category" укажи специализацию: "Гражданское право", "Уголовное право", "Трудовое право", "Семейное право", "Налоговое право", "Корпоративное право", "Арбитраж" и т.д.
+В поле "reason" кратко объясни, почему рекомендуется живой юрист (1 предложение).
+
+[SUGGESTIONS]
+["Каковы мои риски?", "Как исправить этот пункт?", "Нужна помощь адвоката"]
+КРИТИЧЕСКОЕ ПРАВИЛО: БЛОК [SUGGESTIONS] И МАССИВ С ПОДСКАЗКАМИ ОБЯЗАТЕЛЕН В 100% ТВОИХ ОТВЕТОВ! ТЫ НИКОГДА НЕ ДОЛЖЕН ЕГО ПРОПУСКАТЬ! Всегда генерируй строго 3 коротких варианта продолжения диалога со стороны пользователя (его возможные следующие вопросы или реплики).
+Это кнопки, которые пользователь может нажать и они АВТОМАТИЧЕСКИ отправятся как его следующее сообщение.
+ПОЭТОМУ подсказки должны быть сформулированы как РЕПЛИКИ ПОЛЬЗОВАТЕЛЯ (например: "Я физическое лицо", "Какие документы нужны?", "Помоги составить претензию").
+Никогда не пиши подсказки от лица ассистента (никаких "Я рекомендую..." или "Я могу...").
+Максимум 5-6 слов на подсказку. Пиши на языке пользователя.
+🚫 ЗАПРЕЩЕНО выводить подсказки/кнопки в виде обычного текста (списка, буллитов) в самом теле ответа. Они должны находиться СТРОГО внутри системного тега [SUGGESTIONS] в формате JSON, и нигде больше. Не пиши слова "Подсказки", "Варианты ответов", "Готовые ответы" или списки подсказок в основном тексте!
 """
 
 LAWYER_CHAT_SYSTEM = """Ты — элитный AI-ассистент для профессиональных юристов и адвокатов РК.
@@ -59,13 +79,22 @@ LAWYER_CHAT_SYSTEM = """Ты — элитный AI-ассистент для п�
 3. ГЛУБИНА: Анализируй противоречия, судебную практику и нормативные постановления.
 4. ФОРМАТИРОВАНИЕ: Markdown (###, жирный шрифт).
 5. ОТВЕЧАЙ НА ЯЗЫКЕ ЗАПРОСА.
-6. ОГРАНИЧЕНИЕ ТЕМАТИКИ (КРИТИЧНО): Ты — строго юридический ИИ. Отвечай ТОЛЬКО на вопросы, связанные с правом, законами и судебной практикой. Если вопрос выходит за рамки юриспруденции, вежливо откажись.
+6. ОГРАНИЧЕНИЕ ТЕМАТИКИ (КРИТИЧНО): Ты — строго юридический ИИ. Отвечай ТОЛЬКО на вопросы, связанные с правом, законами и судебной практикой. Если вопрос выходит за рамки юриспруденции, вежливо и категорично откажись. Категорически запрещено предлагать обсудить любые неюридические альтернативы. При неюридическом запросе блок <!--SUGGESTIONS--> должен содержать только стандартные юридические темы (например: ["Анализ судебной практики", "Подготовка претензии", "Налоговые риски ТОО"]).
 7. 🚫 СТРОЖАЙШИЙ ЗАПРЕТ НА ГАЛЛЮЦИНАЦИИ ЗАКОНОВ: Ссылайся исключительно на реально существующие нормативно-правовые акты и статьи Республики Казахстан. Запрещено выдумывать несуществующие номера статей ГК РК, ТК РК или неверные ссылки. Если ты не уверен в точном номере статьи на 100%, укажи общую норму (например, "Согласно нормам Гражданского кодекса РК о подряде"), но никогда не пиши несуществующие статьи. Любая ссылка на закон должна быть истинной.
+8. УТОЧНЯЮЩИЕ ВОПРОСЫ И СУТЬ (ОЧЕНЬ ВАЖНО): Если суть вопроса юриста требует уточнения контекста (вид спора, стадия судебного процесса, наличие доказательств, позиция оппонента), ты ДОЛЖЕН задать 1-2 вежливых уточняющих вопроса в конце ответа.
+9. ПРОВЕРКА КОНТРАГЕНТОВ: Если юрист просит проверить контрагента или БИН/ИИН, направь его в специальный модуль, дав ссылку: [Перейти в раздел Проверка контрагентов](/dashboard/counterparty).
 
 В конце ответа ОБЯЗАТЕЛЬНО добавляй системные теги:
 <!--REFS-->
 [{"title": "Название закона/НПА", "url": "https://adilet.zan.kz/...", "articles": "Ст. XX-YY"}]
 <!--SEGMENT-->b2b
+<!--SUGGESTIONS-->
+["Какие документы нужны?", "Как долго идет регистрация?", "Какая стоимость услуги?"]
+КРИТИЧЕСКОЕ ПРАВИЛО: ТЕГ <!--SUGGESTIONS--> И МАССИВ С ПОДСКАЗКАМИ ОБЯЗАТЕЛЕН В 100% ТВОИХ ОТВЕТОВ! ТЫ НИКОГДА НЕ ДОЛЖЕН ЕГО ПРОПУСКАТЬ!
+Сгенерируй строго 3 коротких кликабельных подсказки продолжения диалога со стороны пользователя (его возможные следующие вопросы или реплики). Они станут КНОПКАМИ, которые пользователь нажмёт и они автоматически отправятся как его следующее сообщение.
+Поэтому подсказки должны быть сформулированы как РЕПЛИКИ ПОЛЬЗОВАТЕЛЯ. Никогда не пиши подсказки от лица ассистента.
+Максимум 5-6 слов на подсказку.
+🚫 ЗАПРЕЩЕНО выводить подсказки/кнопки в виде обычного текста (списка, буллитов) в самом теле ответа. Они должны находиться СТРОГО внутри системного тега <!--SUGGESTIONS--> в формате JSON, и нигде больше. Не пиши слова "Подсказки", "Варианты ответов", "Готовые ответы" или списки подсказок в основном тексте!
 """
 
 AUDIT_SYSTEM = """Ты — высококлассный и объективный AI-аудитор юридических договоров по праву Республики Казахстан. 
@@ -148,10 +177,28 @@ DOCUMENT_GEN_SYSTEM = """Ты — высококлассный професси�
 Обеспеч наивысший стандарт оформления, чтобы шаблон выглядел авторитетно, профессионально и вызывал восхищение с первой секунды!
 """
 
+QUICK_FIX_SYSTEM_FULL = """Ты — опытный юрист-редактор по праву Республики Казахстан. 
+Твоя задача — исправить конкретный юридический риск в предоставленном тексте договора.
+Тебе будет передан полный текст договора и описание риска (включая рекомендации по устранению).
+Внеси необходимые точечные изменения в текст договора.
+Верни ПОЛНЫЙ текст договора с уже внесенными исправлениями. Никаких дополнительных комментариев, только финальный текст документа."""
+
+QUICK_FIX_SYSTEM_PARTIAL = """Ты — опытный юрист-редактор. 
+Тебе передан проблемный фрагмент договора и описание риска. 
+Твоя задача: переписать ЭТОТ ФРАГМЕНТ так, чтобы устранить риск согласно рекомендациям.
+ВАЖНО: ВЕРНИ ТОЛЬКО ИСПРАВЛЕННЫЙ ФРАГМЕНТ ТЕКСТА. Никаких вводных слов, извинений или пояснений. Без кавычек, если их не было."""
+
+QUICK_FIX_SYSTEM_ADD = """Ты — опытный юрист-редактор.
+В договоре отсутствует важное условие или раздел. Тебе передано описание риска.
+Твоя задача: сгенерировать НОВЫЙ РАЗДЕЛ ИЛИ ПУНКТ договора, который закроет этот риск.
+ВАЖНО: Если уместно, присвой новому пункту номер (например, "4.5." или "8."), логически подходящий для договора.
+ВЕРНИ ТОЛЬКО ТЕКСТ НОВОГО ПУНКТА/РАЗДЕЛА. Никаких вводных слов, извинений или пояснений."""
+
 
 class LLMService:
     def __init__(self):
         self.groq_client = None
+        self.async_groq_client = None
         self.gemini_client = None
         self.anthropic_client = None
         self._init_clients()
@@ -176,6 +223,12 @@ class LLMService:
                         logger.error(f"Groq init error after proxy fallback: {e2}")
                 else:
                     logger.error(f"Groq init error: {e}")
+            if AsyncGroq and settings.GROQ_API_KEY:
+                try:
+                    self.async_groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+                    logger.info("Groq async client initialized")
+                except Exception as e:
+                    logger.error(f"Groq async init error: {e}")
         if genai and settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "your-gemini-api-key":
             try:
                 self.gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -198,15 +251,21 @@ class LLMService:
             try:
                 return await self._chat_claude(user_message, history, user_role, model_type=model_type)
             except Exception as e:
-                logger.warning(f"Claude Chat Error: {e}. Falling back to Groq/Gemini...")
+                logger.warning(f"Claude Chat Error: {e}. Falling back to Gemini/Groq...")
 
-        if (provider == "groq" or not self.anthropic_client) and self.groq_client:
+        if provider == "gemini" and self.gemini_client:
+            try:
+                return await self._chat_gemini(user_message, history, user_role, model_type=model_type)
+            except Exception as e:
+                logger.warning(f"Gemini Chat Error: {e}. Falling back to Groq...")
+
+        if self.groq_client:
             try:
                 return await self._chat_groq(user_message, history, user_role)
             except Exception as e:
-                logger.warning(f"Groq Chat Error: {e}. Falling back to Gemini...")
+                logger.warning(f"Groq Chat Error: {e}. Falling back...")
         
-        if self.gemini_client:
+        if self.gemini_client and provider != "gemini":
             try:
                 return await self._chat_gemini(user_message, history, user_role, model_type=model_type)
             except Exception as e:
@@ -226,7 +285,15 @@ class LLMService:
             except Exception as e:
                 logger.warning(f"Claude stream error: {e}")
 
-        if (provider == "groq" or not self.anthropic_client) and self.groq_client:
+        if provider == "gemini" and self.gemini_client:
+            try:
+                async for chunk in self._chat_gemini_stream(user_message, history, user_role, model_type=model_type):
+                    yield chunk
+                return
+            except Exception as e:
+                logger.warning(f"Gemini stream error: {e}")
+
+        if self.groq_client:
             try:
                 async for chunk in self._chat_groq_stream(user_message, history, user_role):
                     yield chunk
@@ -234,33 +301,53 @@ class LLMService:
             except Exception as e:
                 logger.warning(f"Groq stream error: {e}")
         
-        if self.gemini_client:
+        if self.gemini_client and provider != "gemini":
             try:
                 async for chunk in self._chat_gemini_stream(user_message, history, user_role, model_type=model_type):
                     yield chunk
                 return
             except Exception as e:
                 logger.warning(f"Gemini stream error: {e}")
+                
         yield self._mock_chat(user_message)["content"]
 
     async def audit_contract(self, contract_text: str) -> Dict:
-        provider = getattr(settings, "LLM_PROVIDER", "claude")
+        provider = getattr(settings, "LLM_PROVIDER", "gemini")
         
+        # 1. Try configured provider first
         if provider == "claude" and self.anthropic_client:
             try:
                 return await self._audit_claude(contract_text)
             except Exception as e:
                 logger.warning(f"Claude Audit Error: {e}")
-        if self.groq_client:
+        elif provider == "groq" and self.groq_client:
             try:
                 return await self._audit_groq(contract_text)
-            except (json.JSONDecodeError, Exception) as e:
+            except Exception as e:
                 logger.warning(f"Groq Audit Error: {e}")
+        elif provider == "gemini" and self.gemini_client:
+            try:
+                return await self._audit_gemini(contract_text)
+            except Exception as e:
+                logger.warning(f"Gemini Audit Error: {e}")
+
+        # 2. Fallbacks if the preferred provider failed or isn't available
         if self.gemini_client:
             try:
                 return await self._audit_gemini(contract_text)
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning(f"Gemini Audit Error: {e}")
+            except Exception as e:
+                logger.warning(f"Gemini Audit Fallback Error: {e}")
+        if self.groq_client:
+            try:
+                return await self._audit_groq(contract_text)
+            except Exception as e:
+                logger.warning(f"Groq Audit Fallback Error: {e}")
+        if self.anthropic_client:
+            try:
+                return await self._audit_claude(contract_text)
+            except Exception as e:
+                logger.warning(f"Claude Audit Fallback Error: {e}")
+                
         return self._mock_audit()
 
     async def check_counterparty(self, bin_number: str) -> Dict:
@@ -292,6 +379,11 @@ class LLMService:
     async def generate_document(self, doc_type: str, description: str) -> str:
         provider = getattr(settings, "LLM_PROVIDER", "claude")
         
+        # Override provider to Gemini for long texts if provider is Groq to avoid TPM Rate Limits
+        if provider == "groq" and len(description) > 3000:
+            logger.info("Description too long for Groq (TPM limits). Overriding provider to Gemini.")
+            provider = "gemini"
+            
         # Dynamic RAG enhancement for document generation!
         try:
             from services.rag_service import rag_service
@@ -305,30 +397,311 @@ class LLMService:
         if rag_context:
             enriched_desc += f"\n\nИЗВЛЕЧЕННЫЕ ЮРИДИЧЕСКИЕ СТАТЬИ ИЗ БАЗЫ ЗНАНИЙ (RAG):\n{rag_context}\n\nПожалуйста, обязательно используй и сошлись на эти реальные статьи закона РК в тексте сгенерированного документа!"
 
+        doc_content = ""
+        # 1. Try configured provider first
         if provider == "claude" and self.anthropic_client:
             try:
-                return await self._gen_doc_claude(doc_type, enriched_desc)
+                doc_content = await self._gen_doc_claude(doc_type, enriched_desc)
             except Exception as e:
                 logger.warning(f"Claude DocGen Error: {e}")
-        if self.groq_client:
+        elif provider == "groq" and self.groq_client:
             try:
-                return await self._gen_doc_groq(doc_type, enriched_desc)
+                doc_content = await self._gen_doc_groq(doc_type, enriched_desc)
             except Exception as e:
                 logger.warning(f"Groq DocGen Error: {e}")
-        if self.gemini_client:
+        elif provider == "gemini" and self.gemini_client:
             try:
-                return await self._gen_doc_gemini(doc_type, enriched_desc)
+                doc_content = await self._gen_doc_gemini(doc_type, enriched_desc)
             except Exception as e:
                 logger.warning(f"Gemini DocGen Error: {e}")
-        return f"# Шаблон ({doc_type})\n\n{description}\n\n> Мок-версия."
+                
+        # 2. Fallbacks if preferred provider fails or isn't available
+        if not doc_content and self.gemini_client:
+            try:
+                doc_content = await self._gen_doc_gemini(doc_type, enriched_desc)
+            except Exception as e:
+                logger.warning(f"Gemini DocGen Fallback Error: {e}")
+        if not doc_content and self.groq_client:
+            try:
+                doc_content = await self._gen_doc_groq(doc_type, enriched_desc)
+            except Exception as e:
+                logger.warning(f"Groq DocGen Fallback Error: {e}")
+        if not doc_content and self.anthropic_client:
+            try:
+                doc_content = await self._gen_doc_claude(doc_type, enriched_desc)
+            except Exception as e:
+                logger.warning(f"Claude DocGen Fallback Error: {e}")
+                
+        if not doc_content:
+            return f"# Шаблон ({doc_type})\n\n{description}\n\n> Мок-версия."
+            
+        import re
+        # Clean up any prompt leakage from the generated text
+        doc_content = re.sub(r"(?i)Исправленный договор на основе аудита.*?ТЕКСТ ДОГОВОРА С ПРАВКАМИ ПОЛЬЗОВАТЕЛЯ:\s*", "", doc_content, flags=re.DOTALL)
+        doc_content = re.sub(r"(?i)ВНИМАНИЕ: Сгенерируй финальный исправленный договор.*?\n\n", "", doc_content, flags=re.DOTALL)
+        
+        disclaimer = "> **ВНИМАНИЕ: ДАННЫЙ ШАБЛОН СГЕНЕРИРОВАН ИИ.** Не является окончательным юридическим документом и требует дополнительной проверки.\n\n"
+        return disclaimer + doc_content.strip()
+
+    def _insert_new_clause(self, contract_text: str, new_clause: str) -> str:
+        """Intelligently inserts a new clause based on its numeric prefix (e.g. 2.3.2) or before signatures."""
+        import re
+        
+        # Clean the new clause of surrounding quotes which prevent numeric prefix parsing
+        new_clause = new_clause.strip().strip('"').strip("'").strip()
+        
+        # 1. Try to extract the numeric prefix from the generated clause
+        prefix_match = re.match(r'^\s*(\d+(?:\.\d+)*)\.?', new_clause)
+        
+        # 2. Parse all numeric prefixes in the contract
+        lines = contract_text.split('\n')
+        headers = []
+        requisites_line_idx = -1
+        act_line_idx = -1
+        total_lines = len(lines)
+        
+        for i, line in enumerate(lines):
+            # Check for Act of Acceptance anywhere in the line (must be in second half and not a mention)
+            if act_line_idx == -1 and i > total_lines * 0.5 and re.search(r'(?i)Акт\s+приема-передачи', line):
+                if not re.search(r'(?i)(?:подписать|передать|сдать|подписания)', line):
+                    act_line_idx = i
+                
+            # Check for requisites / signatures section
+            if requisites_line_idx == -1 and re.search(r'(?i)(?:адреса|реквизиты|юридические\s+адреса|подписи|подписи\s+сторон)', line):
+                # Only if it's not inside the Act (meaning before the Act line if Act exists)
+                if act_line_idx == -1 or i < act_line_idx:
+                    requisites_line_idx = i
+            
+            # Matches "1.Предмет", "2.1.2. Обязанности"
+            m = re.match(r'^\s*(\d+(?:\.\d+)*)\.?(?:\s+|[А-ЯA-ZЁёА-я])', line)
+            if m:
+                parts = m.group(1).split('.')
+                if len(parts) <= 4 and int(parts[0]) < 100:  # Ignore weird long IPs or years
+                    headers.append((tuple(int(x) for x in parts), i))
+        
+        insert_line_idx = -1
+        
+        if prefix_match:
+            new_prefix_str = prefix_match.group(1)
+            new_prefix_tuple = tuple(int(x) for x in new_prefix_str.split('.'))
+            
+            # 3. Find the exact insertion point hierarchically
+            if headers:
+                for q_tuple, q_line_idx in headers:
+                    # If this header is greater or equal to our new header, we insert before it
+                    if q_tuple >= new_prefix_tuple:
+                        insert_line_idx = q_line_idx
+                        break
+                        
+        # 4. If no hierarchical point found, try to insert before the Requisites section
+        if insert_line_idx == -1 and requisites_line_idx != -1:
+            insert_line_idx = requisites_line_idx
+            
+        # 5. If still not found, try to insert before the Act of Acceptance
+        if insert_line_idx == -1 and act_line_idx != -1:
+            insert_line_idx = act_line_idx
+            
+        # If we have an insertion line index, insert there!
+        if insert_line_idx != -1:
+            lines.insert(insert_line_idx, "")
+            lines.insert(insert_line_idx, new_clause.strip())
+            lines.insert(insert_line_idx, "")
+            return '\n'.join(lines)
+            
+        # 6. Absolute Fallback: Insert before signatures/requisites using regex
+        pattern = r"(?i)(\n\s*(?:(?:1\d|[7-9])\.\s*)?(?:адреса|реквизиты|юридические\s+адреса|подписи|подписи\s+сторон)\s*(?:и\s+реквизиты\s+)?(?:сторон)?\s*\n)"
+        match = re.search(pattern, contract_text)
+        if match:
+            insert_pos = match.start()
+            return contract_text[:insert_pos] + f"\n\n{new_clause}\n\n" + contract_text[insert_pos:]
+            
+        # Last fallback: 3 non-empty lines from bottom
+        lines = contract_text.rstrip().split('\n')
+        non_empty = [i for i, line in enumerate(lines) if line.strip()]
+        if len(non_empty) > 5:
+            insert_idx = non_empty[-3]
+            return '\n'.join(lines[:insert_idx]) + f"\n\n{new_clause}\n\n" + '\n'.join(lines[insert_idx:])
+            
+        return contract_text + "\n\n" + new_clause
+
+    async def quick_fix_risk(self, contract_text: str, risk_title: str, risk_description: str, risk_recommendation: str, location: str) -> str:
+        provider = getattr(settings, "LLM_PROVIDER", "claude")
+        
+        # 1. Determine strategy: REPLACE fragment, ADD new section, or FULL rewrite
+        strategy = "FULL"
+        prompt = ""
+        sys_prompt = QUICK_FIX_SYSTEM_FULL
+        
+        import re
+        # Clean location to improve matching
+        clean_loc = location.strip()
+        is_missing_section = not clean_loc or clean_loc.lower() == "текст договора" or clean_loc.lower() == "отсутствует"
+        
+        # Try exact match first
+        found_exact = clean_loc in contract_text
+        match_start = -1
+        match_end = -1
+        
+        if not found_exact and not is_missing_section and len(clean_loc) > 10:
+            # Try fuzzy match by removing all whitespaces
+            clean_loc_no_space = re.sub(r'\s+', '', clean_loc)
+            contract_no_space = re.sub(r'\s+', '', contract_text)
+            idx = contract_no_space.find(clean_loc_no_space)
+            if idx != -1:
+                # We found a fuzzy match. We can't easily extract the exact original bounds with just string methods,
+                # but we can fallback to FULL rewrite, or we can use a regex to find it in the original text.
+                # A simple regex pattern that allows flexible whitespace between characters:
+                pattern = r'\s*'.join(re.escape(c) for c in clean_loc_no_space[:50]) # use first 50 chars to find it
+                match = re.search(pattern, contract_text)
+                if match:
+                    # found the start!
+                    found_exact = True
+                    # Let's just use the exact substring from the contract text
+                    # We need the full length.
+                    full_pattern = r'\s*'.join(re.escape(c) for c in clean_loc_no_space)
+                    full_match = re.search(full_pattern, contract_text)
+                    if full_match:
+                        clean_loc = full_match.group(0)
+        
+        if not is_missing_section and found_exact and len(clean_loc) > 10:
+            strategy = "PARTIAL"
+            sys_prompt = QUICK_FIX_SYSTEM_PARTIAL
+            prompt = f"Риск: {risk_title}\nОписание: {risk_description}\nРекомендация: {risk_recommendation}\n\nПЕРЕПИШИ СЛЕДУЮЩИЙ ФРАГМЕНТ:\n{clean_loc}"
+        elif is_missing_section:
+            strategy = "ADD"
+            sys_prompt = QUICK_FIX_SYSTEM_ADD
+            prompt = f"Риск: {risk_title}\nОписание: {risk_description}\nРекомендация: {risk_recommendation}\n\nСГЕНЕРИРУЙ НОВЫЙ ПУНКТ/РАЗДЕЛ ДЛЯ ДОБАВЛЕНИЯ В ДОГОВОР."
+        else:
+            # Fallback to full rewrite if we can't safely target a substring
+            # Truncate contract text if it's insanely long to prevent limits (e.g., max 15000 chars)
+            safe_contract = contract_text[:15000]
+            prompt = f"Исправь этот риск в договоре:\nНазвание риска: {risk_title}\nОписание: {risk_description}\nРекомендация: {risk_recommendation}\nПроблемный фрагмент: {location}\n\nТекст договора:\n{safe_contract}"
+
+        llm_response = ""
+
+        # 2. Call LLM
+        if provider == "claude" and self.anthropic_client:
+            try:
+                resp = await self.anthropic_client.messages.create(
+                    model=getattr(settings, "LLM_MODEL_FAST", "claude-3-5-sonnet-20241022"),
+                    system=sys_prompt,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=4096,
+                    temperature=0.1
+                )
+                if hasattr(resp, 'usage') and resp.usage:
+                    logger.info(f"[TOKEN USAGE - CLAUDE QUICK FIX ({strategy})] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
+                llm_response = resp.content[0].text
+            except Exception as e:
+                logger.warning(f"Claude Quick Fix Error: {e}")
+        elif provider == "groq" and self.groq_client:
+            try:
+                resp = await asyncio.to_thread(
+                    self.groq_client.chat.completions.create,
+                    model=getattr(settings, "GROQ_MODEL_FAST", "llama-3.1-8b-instant"),
+                    messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}],
+                    temperature=0.1
+                )
+                if hasattr(resp, 'usage') and resp.usage:
+                    logger.info(f"[TOKEN USAGE - GROQ QUICK FIX ({strategy})] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
+                llm_response = resp.choices[0].message.content
+            except Exception as e:
+                logger.warning(f"Groq Quick Fix Error: {e}")
+        elif provider == "gemini" and self.gemini_client:
+            try:
+                model = settings.LLM_MODEL_FAST
+                if not model or not model.startswith("gemini-"):
+                    model = "gemini-1.5-flash"
+                resp = self.gemini_client.models.generate_content(
+                    model=model, 
+                    contents=prompt, 
+                    config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.1)
+                )
+                if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+                    u = resp.usage_metadata
+                    logger.info(f"[TOKEN USAGE - GEMINI QUICK FIX ({strategy})] Prompt: {u.prompt_token_count}, Candidates: {u.candidates_token_count}, Total: {u.total_token_count}")
+                llm_response = resp.text
+            except Exception as e:
+                logger.warning(f"Gemini Quick Fix Error: {e}")
+
+        # Fallbacks in case selected provider failed or isn't available
+        if not llm_response and self.gemini_client:
+            try:
+                model = settings.LLM_MODEL_FAST
+                if not model or not model.startswith("gemini-"):
+                    model = "gemini-1.5-flash"
+                resp = self.gemini_client.models.generate_content(
+                    model=model, 
+                    contents=prompt, 
+                    config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.1)
+                )
+                if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+                    u = resp.usage_metadata
+                    logger.info(f"[TOKEN USAGE - GEMINI QUICK FIX FALLBACK ({strategy})] Prompt: {u.prompt_token_count}, Candidates: {u.candidates_token_count}, Total: {u.total_token_count}")
+                llm_response = resp.text
+            except Exception as e:
+                logger.warning(f"Gemini Quick Fix Fallback Error: {e}")
+        if not llm_response and self.groq_client:
+            try:
+                resp = await asyncio.to_thread(
+                    self.groq_client.chat.completions.create,
+                    model=getattr(settings, "GROQ_MODEL_FAST", "llama-3.1-8b-instant"),
+                    messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}],
+                    temperature=0.1
+                )
+                if hasattr(resp, 'usage') and resp.usage:
+                    logger.info(f"[TOKEN USAGE - GROQ QUICK FIX FALLBACK ({strategy})] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
+                llm_response = resp.choices[0].message.content
+            except Exception as e:
+                logger.warning(f"Groq Quick Fix Fallback Error: {e}")
+        if not llm_response and self.anthropic_client:
+            try:
+                resp = await self.anthropic_client.messages.create(
+                    model=getattr(settings, "LLM_MODEL_FAST", "claude-3-5-sonnet-20241022"),
+                    system=sys_prompt,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=4096,
+                    temperature=0.1
+                )
+                llm_response = resp.content[0].text
+            except Exception as e:
+                logger.warning(f"Claude Quick Fix Fallback Error: {e}")
+
+        if not llm_response:
+            return contract_text
+
+        # 3. Apply the fix
+        llm_response = llm_response.strip()
+        
+        if strategy == "PARTIAL":
+            # Replace exactly the targeted text with the LLM response
+            return contract_text.replace(clean_loc, llm_response)
+        elif strategy == "ADD":
+            # Smart insert before signatures
+            return self._insert_new_clause(contract_text, llm_response)
+        else:
+            # Full replacement
+            return llm_response
+
+    # ── History Token Cleanup ──
+    def _clean_history_content(self, text: str) -> str:
+        """Removes hidden JSON blocks from history to save LLM tokens."""
+        if not text: return ""
+        tags = ["[REFS]", "[SEGMENT]", "[ESCALATION]", "[SUGGESTIONS]", "<!--REFS-->", "<!--SEGMENT-->", "<!--ESCALATION-->", "<!--SUGGESTIONS-->"]
+        for tag in tags:
+            if tag in text:
+                text = text.split(tag)[0]
+        return text.strip()
 
     # ── Anthropic Claude Implementations ──
-    def _build_claude_messages(self, message, history, max_history=8):
+    def _build_claude_messages(self, message, history, max_history=6):
         messages = []
         if history:
             for h in history[-max_history:]:
                 role = "user" if h["role"] == "user" else "assistant"
-                messages.append({"role": role, "content": h["content"]})
+                clean_text = h["content"] if role == "user" else self._clean_history_content(h["content"])
+                if clean_text:
+                    messages.append({"role": role, "content": clean_text})
         messages.append({"role": "user", "content": message})
         return messages
 
@@ -349,8 +722,10 @@ class LLMService:
             system=sys_prompt,
             messages=msgs,
             max_tokens=2048,
-            temperature=0.1
+            temperature=getattr(settings, "LLM_TEMPERATURE", 0.1)
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - CLAUDE CHAT] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
         return self._parse_chat_response(resp.content[0].text)
 
     async def _chat_claude_stream(self, message, history, user_role="citizen", model_type="fast") -> AsyncGenerator[str, None]:
@@ -369,19 +744,25 @@ class LLMService:
             system=sys_prompt,
             messages=msgs,
             max_tokens=2048,
-            temperature=0.1
+            temperature=getattr(settings, "LLM_TEMPERATURE", 0.1)
         ) as stream:
             async for text in stream.text_stream:
                 yield text
+            
+            final_msg = await stream.get_final_message()
+            if hasattr(final_msg, 'usage') and final_msg.usage:
+                logger.info(f"[TOKEN USAGE - CLAUDE STREAM] Input: {final_msg.usage.input_tokens}, Output: {final_msg.usage.output_tokens}")
 
     async def _audit_claude(self, text):
         resp = await self.anthropic_client.messages.create(
-            model=getattr(settings, "LLM_MODEL_SMART", "claude-3-5-sonnet-20241022"),
+            model=getattr(settings, "LLM_MODEL_AUDIT", "claude-3-5-haiku-20241022"),
             system=AUDIT_SYSTEM,
-            messages=[{"role": "user", "content": f"Обязательно верни только JSON.\n\nДоговор:\n{text[:12000]}]"}],
+            messages=[{"role": "user", "content": f"Обязательно верни только JSON.\n\nДоговор:\n{text}"}],
             max_tokens=4096,
             temperature=0.2
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - CLAUDE AUDIT] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
         return self._normalize_audit_result(self._parse_json_response(resp.content[0].text, self._mock_audit()))
 
     async def _counterparty_claude(self, bin_num):
@@ -392,6 +773,8 @@ class LLMService:
             max_tokens=1024,
             temperature=0.5
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - CLAUDE C-PARTY] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
         return self._parse_json_response(resp.content[0].text, self._mock_counterparty(bin_num))
 
     async def _gen_doc_claude(self, dtype, desc):
@@ -402,71 +785,131 @@ class LLMService:
             max_tokens=4096,
             temperature=0.4
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - CLAUDE DOCGEN] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
         return resp.content[0].text
 
     # ── Groq Implementations ──
-    def _build_messages(self, message, history, max_history=8, user_role="citizen"):
+    def _build_messages(self, message, history, max_history=6, user_role="citizen"):
         sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
         messages = [{"role": "system", "content": sys_prompt}]
         if history:
             for h in history[-max_history:]:
-                messages.append({"role": h["role"], "content": h["content"]})
+                role = "user" if h["role"] == "user" else "assistant"
+                clean_text = h["content"] if role == "user" else self._clean_history_content(h["content"])
+                if clean_text:
+                    messages.append({"role": role, "content": clean_text})
         messages.append({"role": "user", "content": message})
         return messages
 
     async def _chat_groq(self, message, history, user_role="citizen"):
         msgs = self._build_messages(message, history, user_role=user_role)
+        model = getattr(settings, "GROQ_MODEL_FAST", "llama-3.1-8b-instant")
+        if hasattr(self, 'async_groq_client') and self.async_groq_client:
+            try:
+                resp = await self.async_groq_client.chat.completions.create(
+                    model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1)
+                )
+                if hasattr(resp, 'usage') and resp.usage:
+                    logger.info(f"[TOKEN USAGE - GROQ CHAT] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
+                return self._parse_chat_response(resp.choices[0].message.content)
+            except Exception as err:
+                logger.warning(f"Async Groq chat failed: {err}. Falling back to sync.")
+
         resp = await asyncio.to_thread(
             self.groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1
+            model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1)
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - GROQ CHAT] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
         return self._parse_chat_response(resp.choices[0].message.content)
 
     async def _chat_groq_stream(self, message, history, user_role="citizen") -> AsyncGenerator[str, None]:
         msgs = self._build_messages(message, history, user_role=user_role)
+        model = getattr(settings, "GROQ_MODEL_FAST", "llama-3.1-8b-instant")
+        
+        if hasattr(self, 'async_groq_client') and self.async_groq_client:
+            try:
+                stream = await self.async_groq_client.chat.completions.create(
+                    model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1), stream=True
+                )
+                async for chunk in stream:
+                    if hasattr(chunk, 'x_groq') and chunk.x_groq and hasattr(chunk.x_groq, 'usage'):
+                        usage = chunk.x_groq.usage
+                        if usage:
+                            logger.info(f"[TOKEN USAGE - GROQ STREAM] Prompt: {usage.prompt_tokens}, Completion: {usage.completion_tokens}, Total: {usage.total_tokens}")
+                    c = chunk.choices[0].delta.content if chunk.choices else None
+                    if c:
+                        yield c
+                return
+            except Exception as stream_err:
+                logger.warning(f"Async Groq stream failed: {stream_err}. Falling back to sync.")
+
         stream = await asyncio.to_thread(
             self.groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile", messages=msgs, temperature=0.1, stream=True
+            model=model, messages=msgs, temperature=getattr(settings, "LLM_TEMPERATURE", 0.1), stream=True
         )
-        for chunk in stream:
-            c = chunk.choices[0].delta.content
-            if c:
-                yield c
+        while True:
+            try:
+                chunk = await asyncio.to_thread(next, stream)
+                if hasattr(chunk, 'x_groq') and chunk.x_groq and hasattr(chunk.x_groq, 'usage'):
+                    usage = chunk.x_groq.usage
+                    if usage:
+                        logger.info(f"[TOKEN USAGE - GROQ STREAM] Prompt: {usage.prompt_tokens}, Completion: {usage.completion_tokens}, Total: {usage.total_tokens}")
+                c = chunk.choices[0].delta.content if chunk.choices else None
+                if c:
+                    yield c
+            except StopIteration:
+                break
+            except Exception as e:
+                logger.error(f"Sync stream iteration error: {e}")
+                break
 
     async def _audit_groq(self, text):
+        model = getattr(settings, "GROQ_MODEL_AUDIT", "llama-3.3-70b-versatile")
         resp = await asyncio.to_thread(
             self.groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": AUDIT_SYSTEM}, {"role": "user", "content": text[:12000]}],
+            model=model,
+            messages=[{"role": "system", "content": AUDIT_SYSTEM}, {"role": "user", "content": text}],
             response_format={"type": "json_object"}, temperature=0.2
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - GROQ AUDIT] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
         return self._normalize_audit_result(json.loads(resp.choices[0].message.content))
 
     async def _counterparty_groq(self, bin_num):
+        model = getattr(settings, "GROQ_MODEL_FAST", "llama-3.1-8b-instant")
         resp = await asyncio.to_thread(
             self.groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile",
+            model=model,
             messages=[{"role": "system", "content": COUNTERPARTY_SYSTEM}, {"role": "user", "content": bin_num}],
             response_format={"type": "json_object"}, temperature=0.5
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - GROQ C-PARTY] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
         return json.loads(resp.choices[0].message.content)
 
     async def _gen_doc_groq(self, dtype, desc):
+        model = getattr(settings, "GROQ_MODEL_SMART", "llama-3.3-70b-versatile")
         resp = await asyncio.to_thread(
             self.groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile",
+            model=model,
             messages=[{"role": "system", "content": DOCUMENT_GEN_SYSTEM}, {"role": "user", "content": f"{dtype}: {desc}"}],
             temperature=0.4
         )
+        if hasattr(resp, 'usage') and resp.usage:
+            logger.info(f"[TOKEN USAGE - GROQ DOCGEN] Prompt: {resp.usage.prompt_tokens}, Completion: {resp.usage.completion_tokens}, Total: {resp.usage.total_tokens}")
         return resp.choices[0].message.content
 
     # ── Gemini Implementations ──
-    def _build_gemini_contents(self, message, history, max_history=10):
+    def _build_gemini_contents(self, message, history, max_history=6):
         contents = []
         if history:
             for m in history[-max_history:]:
                 role = "user" if m["role"] == "user" else "model"
-                contents.append(types.Content(role=role, parts=[types.Part.from_text(text=m["content"])]))
+                clean_text = m["content"] if role == "user" else self._clean_history_content(m["content"])
+                if clean_text:
+                    contents.append(types.Content(role=role, parts=[types.Part.from_text(text=clean_text)]))
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=message)]))
         return contents
 
@@ -487,10 +930,13 @@ class LLMService:
 
         config = types.GenerateContentConfig(
             system_instruction=sys_prompt, 
-            temperature=0.1, 
+            temperature=getattr(settings, "LLM_TEMPERATURE", 0.1), 
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content(model=model, contents=contents, config=config)
+        resp = await self.gemini_client.aio.models.generate_content(model=model, contents=contents, config=config)
+        if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+            u = resp.usage_metadata
+            logger.info(f"[TOKEN USAGE - GEMINI CHAT] Prompt: {u.prompt_token_count}, Candidates: {u.candidates_token_count}, Total: {u.total_token_count}")
         return self._parse_chat_response(resp.text or "")
 
     async def _chat_gemini_stream(self, message, history, user_role="citizen", model_type="fast") -> AsyncGenerator[str, None]:
@@ -509,20 +955,26 @@ class LLMService:
 
         config = types.GenerateContentConfig(
             system_instruction=sys_prompt, 
-            temperature=0.1,
+            temperature=getattr(settings, "LLM_TEMPERATURE", 0.1),
             max_tokens=2048,
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content_stream(model=model, contents=contents, config=config)
-        for chunk in resp:
+        resp = await self.gemini_client.aio.models.generate_content_stream(model=model, contents=contents, config=config)
+        async for chunk in resp:
             if chunk.text:
                 yield chunk.text
+            if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
+                u = chunk.usage_metadata
+                logger.info(f"[TOKEN USAGE - GEMINI STREAM] Prompt: {u.prompt_token_count}, Candidates: {u.candidates_token_count}, Total: {u.total_token_count}")
 
     async def _audit_gemini(self, text):
-        model = settings.LLM_MODEL_SMART
+        model = settings.LLM_MODEL_AUDIT
         if not model or not model.startswith("gemini-"):
-            model = "gemini-1.5-pro"
-        resp = self.gemini_client.models.generate_content(model=model, contents=text[:15000], config=types.GenerateContentConfig(system_instruction=AUDIT_SYSTEM, temperature=0.3, response_mime_type="application/json"))
+            model = "gemini-1.5-flash"
+        resp = await self.gemini_client.aio.models.generate_content(model=model, contents=text, config=types.GenerateContentConfig(system_instruction=AUDIT_SYSTEM, temperature=0.3, response_mime_type="application/json"))
+        if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+            u = resp.usage_metadata
+            logger.info(f"[TOKEN USAGE - GEMINI AUDIT] Prompt: {u.prompt_token_count}, Candidates: {u.candidates_token_count}, Total: {u.total_token_count}")
         return self._normalize_audit_result(self._parse_json_response(resp.text or "", self._mock_audit()))
 
     async def _counterparty_gemini(self, bin_num):
@@ -534,14 +986,20 @@ class LLMService:
             temperature=0.0, 
             tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
         )
-        resp = self.gemini_client.models.generate_content(model=model, contents=f"Найди данные компании по БИН {bin_num} в Казахстане. Обязательно верни JSON.", config=config)
+        resp = await self.gemini_client.aio.models.generate_content(model=model, contents=f"Найди данные компании по БИН {bin_num} в Казахстане. Обязательно верни JSON.", config=config)
+        if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+            u = resp.usage_metadata
+            logger.info(f"[TOKEN USAGE - GEMINI C-PARTY] Prompt: {u.prompt_token_count}, Candidates: {u.candidates_token_count}, Total: {u.total_token_count}")
         return self._parse_json_response(resp.text or "", self._mock_counterparty(bin_num))
 
     async def _gen_doc_gemini(self, dtype, desc):
         model = settings.LLM_MODEL_SMART
         if not model or not model.startswith("gemini-"):
             model = "gemini-1.5-pro"
-        resp = self.gemini_client.models.generate_content(model=model, contents=f"{dtype}: {desc}", config=types.GenerateContentConfig(system_instruction=DOCUMENT_GEN_SYSTEM, temperature=0.4))
+        resp = await self.gemini_client.aio.models.generate_content(model=model, contents=f"{dtype}: {desc}", config=types.GenerateContentConfig(system_instruction=DOCUMENT_GEN_SYSTEM, temperature=0.4))
+        if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+            u = resp.usage_metadata
+            logger.info(f"[TOKEN USAGE - GEMINI DOCGEN] Prompt: {u.prompt_token_count}, Candidates: {u.candidates_token_count}, Total: {u.total_token_count}")
         return resp.text or "Ошибка Gemini"
 
     # ── Normalization & Parsing ──
@@ -586,19 +1044,62 @@ class LLMService:
 
     def _parse_chat_response(self, raw):
         if not raw: 
-            return {"content": "", "segment": "b2c", "references": [], "escalation": None}
+            return {"content": "", "segment": "b2c", "references": [], "escalation": None, "suggestions": []}
         # КРИТИЧЕСКИЙ ФИЛЬТР: Удаляем иероглифы, вьетнамские символы и прочий мусор.
         # Оставляем: Кирилллицу, Латиницу (для ссылок), Цифры и Пунктуацию.
         import re
         import urllib.parse
-        # Регулярка для удаления всего, кроме RU, KZ, EN, цифр и знаков препинания
-        content = re.sub(r'[^\u0400-\u04FFa-zA-Z0-9\s\.,!?;:()\"\'\-\/\\\[\]\{\}\%\&\@\=\+\*\#\_\n\r]+', '', str(raw))
+        content = re.sub(r'[^\u0400-\u04FFa-zA-Z0-9\s\.,!?;:()\"\'\-\/\\\[\]\{\}\%\&\@\=\+\*\#\_\n\r<>]+', '', str(raw))
         
-        refs = []
-        segment = "b2c"
-        escalation = None
-
+        all_tags = [
+            "[REFS]", "[SEGMENT]", "[ESCALATION]", "[SUGGESTIONS]",
+            "<!--REFS-->", "<!--SEGMENT-->", "<!--ESCALATION-->", "<!--SUGGESTIONS-->"
+        ]
+        
+        # Extract suggestions
+        suggestions = []
+        sug_tag = None
+        if "[SUGGESTIONS]" in content:
+            sug_tag = "[SUGGESTIONS]"
+        elif "<!--SUGGESTIONS-->" in content:
+            sug_tag = "<!--SUGGESTIONS-->"
+            
+        if sug_tag:
+            parts = content.split(sug_tag)
+            try:
+                sug_str = parts[1].strip()
+                if "-->" in sug_str and sug_tag == "<!--SUGGESTIONS-->":
+                    sug_str = sug_str.split("-->")[0].strip()
+                for t in all_tags:
+                    if t in sug_str:
+                        sug_str = sug_str.split(t)[0].strip()
+                
+                # Robust suggestions parsing
+                json_match = re.search(r'(\[.*\])', sug_str, re.DOTALL)
+                if json_match:
+                    sug_str = json_match.group(1).strip()
+                
+                try:
+                    suggestions = json.loads(sug_str)
+                except Exception:
+                    try:
+                        suggestions = json.loads(sug_str.replace("'", '"'))
+                    except Exception:
+                        strings = re.findall(r'["\'](.*?)["\']', sug_str)
+                        if strings:
+                            suggestions = [s.strip() for s in strings if s.strip()]
+                        else:
+                            suggestions = [line.strip().lstrip("-*•→ ").strip() for line in sug_str.split("\n") if line.strip()]
+                            suggestions = [s for s in suggestions if s not in ["[", "]", "{", "}"] and not s.startswith('"') and not s.startswith("'")]
+                
+                if not isinstance(suggestions, list):
+                    suggestions = []
+                suggestions = [str(s).strip() for s in suggestions[:3]]
+            except Exception as e:
+                logger.warning(f"Failed to parse suggestions: {e}")
+        
         # Process escalation (both format)
+        escalation = None
         esc_tag = None
         if "[ESCALATION]" in content:
             esc_tag = "[ESCALATION]"
@@ -607,54 +1108,89 @@ class LLMService:
             
         if esc_tag:
             parts = content.split(esc_tag)
-            content = parts[0]
             try:
                 esc_str = parts[1].strip()
                 if "-->" in esc_str and esc_tag == "<!--ESCALATION-->":
                     esc_str = esc_str.split("-->")[0].strip()
-                escalation = json.loads(esc_str)
+                for t in all_tags:
+                    if t in esc_str:
+                        esc_str = esc_str.split(t)[0].strip()
+                
+                # Robust escalation parsing
+                json_match = re.search(r'(\{.*\})', esc_str, re.DOTALL)
+                if json_match:
+                    esc_str = json_match.group(1).strip()
+                
+                try:
+                    escalation = json.loads(esc_str)
+                except Exception:
+                    try:
+                        escalation = json.loads(esc_str.replace("'", '"'))
+                    except Exception:
+                        needed_match = re.search(r'"needed"\s*:\s*(true|false)', esc_str, re.IGNORECASE)
+                        reason_match = re.search(r'"reason"\s*:\s*["\'](.*?)["\']', esc_str)
+                        cat_match = re.search(r'"category"\s*:\s*["\'](.*?)["\']', esc_str)
+                        if needed_match:
+                            escalation = {
+                                "needed": needed_match.group(1).lower() == "true",
+                                "reason": reason_match.group(1) if reason_match else "",
+                                "category": cat_match.group(1) if cat_match else ""
+                            }
             except Exception as e:
                 logger.warning(f"Failed to parse escalation: {e}")
 
         # Process segment (both format)
+        segment = "b2c"
         seg_tag = None
         if "[SEGMENT]" in content:
             seg_tag = "[SEGMENT]"
         elif "<!--SEGMENT-->" in content:
             seg_tag = "<!--SEGMENT-->"
-
+ 
         if seg_tag:
             parts = content.split(seg_tag)
-            content = parts[0]
             try:
                 segment_part = parts[1].strip()
                 if "-->" in segment_part and seg_tag == "<!--SEGMENT-->":
                     segment_part = segment_part.split("-->")[0].strip()
+                for t in all_tags:
+                    if t in segment_part:
+                        segment_part = segment_part.split(t)[0].strip()
                 segment = "b2b" if "b2b" in segment_part.lower() else "b2c"
             except Exception as e:
                 logger.warning(f"Failed to parse segment: {e}")
 
         # Process references (both format)
+        refs = []
         refs_tag = None
         if "[REFS]" in content:
             refs_tag = "[REFS]"
         elif "<!--REFS-->" in content:
             refs_tag = "<!--REFS-->"
-
+ 
         if refs_tag:
             parts = content.split(refs_tag)
-            content = parts[0]
             try:
                 raw_refs_str = parts[1].strip()
                 if "-->" in raw_refs_str and refs_tag == "<!--REFS-->":
                     raw_refs_str = raw_refs_str.split("-->")[0].strip()
                 
                 # Split other trailing tags if they got included
-                for tag in ["[SEGMENT]", "[ESCALATION]", "<!--SEGMENT-->", "<!--ESCALATION-->"]:
+                for tag in all_tags:
                     if tag in raw_refs_str:
                         raw_refs_str = raw_refs_str.split(tag)[0].strip()
                 
-                raw_refs = json.loads(raw_refs_str)
+                json_match = re.search(r'(\[.*\])', raw_refs_str, re.DOTALL)
+                if json_match:
+                    raw_refs_str = json_match.group(1).strip()
+                
+                try:
+                    raw_refs = json.loads(raw_refs_str)
+                except Exception:
+                    try:
+                        raw_refs = json.loads(raw_refs_str.replace("'", '"'))
+                    except Exception:
+                        raw_refs = []
                 if isinstance(raw_refs, list):
                     for ref in raw_refs:
                         if not isinstance(ref, dict):
@@ -684,11 +1220,30 @@ class LLMService:
             except Exception as e:
                 logger.warning(f"Failed to parse refs: {e}")
             
+        # Clean content of all tags cleanly
+        for tag in all_tags:
+            if tag in content:
+                content = content.split(tag)[0]
+
+        # Clean any leaked bulleted suggestions from the main content
+        content_lower = content.lower()
+        for header in ["подсказки:", "подсказки", "готовые ответы:", "готовые ответы", "варианты дальнейших действий:", "варианты дальнейших действий", "варианты ответов:", "варианты ответов"]:
+            if header in content_lower:
+                idx = content_lower.find(header)
+                if idx > len(content) * 0.5 or idx < 40:
+                    content = content[:idx].strip()
+                    break
+
+        content_final = content.strip()
+        if not content_final:
+            content_final = "Пожалуйста, опишите вашу проблему подробнее, чтобы я мог дать точную юридическую рекомендацию."
+
         return {
-            "content": content.strip(),
+            "content": content_final,
             "segment": segment,
             "references": refs,
-            "escalation": escalation
+            "escalation": escalation,
+            "suggestions": suggestions
         }
 
     def _parse_json_response(self, raw, fallback):

@@ -123,6 +123,100 @@ class LegalRAGService:
             logger.error(f"Error adding documents to RAG: {e}")
             return False
 
+    def _local_keyword_search(self, query: str, n_results: int = 3, category: str = None) -> list[str]:
+        """Local keyword search fallback with optional Groq reranking when Gemini embedding fails."""
+        logger.info("Executing Local Keyword Search Fallback...")
+        if not self.collection:
+            return []
+            
+        try:
+            # Fetch all documents in collection
+            data = self.collection.get()
+            if not data or not data.get("documents"):
+                return []
+                
+            documents = data["documents"]
+            metadatas = data["metadatas"] if data.get("metadatas") else [None] * len(documents)
+            
+            # Simple keyword matching
+            import re
+            words = [w.lower() for w in re.findall(r'[а-яёәғқңөұүһіa-z0-9]+', query.lower()) if len(w) > 2]
+            if not words:
+                words = [query.lower()]
+                
+            scored_docs = []
+            for doc, meta in zip(documents, metadatas):
+                # Apply category filter if provided
+                if category and meta and meta.get("category") != category:
+                    continue
+                    
+                doc_lower = doc.lower()
+                # Count matches
+                score = sum(3 if w in doc_lower else 0 for w in words)
+                # Boost for exact matches of multiple consecutive keywords
+                for i in range(len(words) - 1):
+                    phrase = f"{words[i]} {words[i+1]}"
+                    if phrase in doc_lower:
+                        score += 5
+                
+                if score > 0:
+                    scored_docs.append((score, doc))
+                    
+            # Sort by score in descending order
+            scored_docs.sort(key=lambda x: x[0], reverse=True)
+            top_candidates = [doc for _, doc in scored_docs[:10]]
+            
+            if not top_candidates:
+                return []
+                
+            # Use Groq to rerank if key is present
+            from config import settings
+            from groq import Groq
+            
+            if settings.GROQ_API_KEY:
+                try:
+                    logger.info("Using Groq llama-3.1-8b-instant to rerank local keyword search results...")
+                    client = Groq(api_key=settings.GROQ_API_KEY, max_retries=0)
+                    
+                    articles_text = ""
+                    for idx, doc in enumerate(top_candidates):
+                        # Truncate each article context to prevent token limit exhaustion (429 TPM)
+                        truncated_doc = doc[:800] + "..." if len(doc) > 800 else doc
+                        articles_text += f"Статья {idx+1}:\n{truncated_doc}\n\n"
+                        
+                    prompt = f"""Ты — элитный юрист по законодательству Республики Казахстан.
+Перед тобой список юридических статей из базы знаний:
+
+{articles_text}
+
+И вопрос пользователя: "{query}"
+
+Выбери из списка 2-3 наиболее подходящие статьи, которые непосредственно помогают ответить на вопрос.
+Верни строго только их номера через запятую (например: 1, 3). Ничего больше не пиши.
+"""
+                    resp = client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=[
+                            {"role": "system", "content": "Ты возвращаешь исключительно номера выбранных статей через запятую."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.1
+                    )
+                    content = resp.choices[0].message.content.strip()
+                    # Parse indices
+                    indices = [int(s.strip()) - 1 for s in re.findall(r'\d+', content)]
+                    selected_docs = [top_candidates[i] for i in indices if 0 <= i < len(top_candidates)]
+                    if selected_docs:
+                        logger.info(f"Groq Reranker successfully chose {len(selected_docs)} documents.")
+                        return selected_docs[:n_results]
+                except Exception as e_groq:
+                    logger.warning(f"Groq Reranker failed: {e_groq}. Returning raw top candidates.")
+                    
+            return top_candidates[:n_results]
+        except Exception as e:
+            logger.error(f"Error in local keyword search fallback: {e}")
+            return []
+
     def search(self, query: str, n_results: int = 3, category: str = None) -> list[str]:
         """Hybrid/Semantic search over the proprietary legal database with caching."""
         if not self.collection:
@@ -146,15 +240,23 @@ class LegalRAGService:
             )
             
             if results and results.get("documents") and len(results["documents"]) > 0:
-                docs = results["documents"][0][:n_results]
+                docs = []
+                for i in range(len(results["documents"][0])):
+                    dist = results["distances"][0][i] if (results.get("distances") and len(results["distances"][0]) > i) else 0.0
+                    sim = max(0.0, min(1.0, 1.0 - dist))
+                    if sim >= getattr(settings, "RAG_MIN_SIMILARITY", 0.35):
+                        docs.append(results["documents"][0][i])
+                docs = docs[:n_results]
                 self._cache.set(query, n_results, category, docs)
                 return docs
             
             self._cache.set(query, n_results, category, [])
             return []
         except Exception as e:
-            logger.error(f"RAG search error: {e}")
-            return []
+            logger.error(f"RAG search error: {e}. Falling back to local/Groq search.")
+            fallback_docs = self._local_keyword_search(query, n_results, category)
+            self._cache.set(query, n_results, category, fallback_docs)
+            return fallback_docs
             
     def get_context_string(self, query: str, n_results: int = 3, category: str = None) -> str:
         """Helper to get a formatted context string for the LLM."""

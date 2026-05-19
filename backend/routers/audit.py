@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from auth import get_current_user
 from models import User, AuditResult
-from schemas import AuditResponse, AuditHistoryItem, ReanalyzeRequest, SaveTextRequest
+from schemas import AuditResponse, AuditHistoryItem, ReanalyzeRequest, SaveTextRequest, QuickFixRequest
 from services.gemini_service import gemini_service
 from services.agent_orchestrator import orchestrator
 
@@ -402,3 +402,50 @@ def save_edited_contract_text(audit_id: int, req: SaveTextRequest, user: User = 
     audit.original_text = req.text
     db.commit()
     return {"status": "success", "message": "Правки успешно сохранены"}
+
+
+@router.post("/quick-fix", response_model=AuditResponse)
+async def quick_fix_contract_risk(req: QuickFixRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Use AI to correct a specific document risk, then re-audit the document."""
+    audit = db.query(AuditResult).filter(AuditResult.id == req.audit_id, AuditResult.user_id == user.id).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Анализ не найден")
+
+    # 1. Generate updated text using AI quick fix
+    fixed_text = await gemini_service.quick_fix_risk(
+        contract_text=audit.original_text,
+        risk_title=req.risk_title,
+        risk_description=req.risk_description,
+        risk_recommendation=req.risk_recommendation,
+        location=req.location
+    )
+
+    # 2. Skip full re-audit for speed! Just remove the fixed risk from the list.
+    try:
+        current_risks = json.loads(audit.risks_json) if audit.risks_json else []
+        # Remove the risk that was just fixed
+        risks = [r for r in current_risks if r.get('title') != req.risk_title and r.get('description') != req.risk_description]
+    except Exception:
+        risks = []
+        
+    total = len(risks)
+    if total == 0:
+        summary = "Все риски успешно устранены. Документ безопасен и готов к использованию."
+    else:
+        summary = f"Выявлено {total} рисков. Рекомендуется устранить их перед подписанием."
+
+    # 3. Update existing audit result
+    audit.original_text = fixed_text
+    audit.risks_json = json.dumps(risks, ensure_ascii=False)
+    audit.summary = summary
+    audit.total_risks = total
+    db.commit()
+    db.refresh(audit)
+
+    return AuditResponse(
+        id=audit.id,
+        risks=risks,
+        summary=summary,
+        totalRisks=total,
+        original_text=fixed_text
+    )

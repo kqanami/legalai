@@ -41,6 +41,8 @@ export function ChatProvider({ children }) {
         content: m.content,
         segment: m.segment,
         references: m.references,
+        escalation: m.escalation,
+        suggestions: m.suggestions,
         timestamp: m.timestamp,
       })));
       if (msgs.length > 0) {
@@ -122,6 +124,7 @@ export function ChatProvider({ children }) {
               segment: finalData.segment,
               references: finalData.references,
               escalation: finalData.escalation,
+              suggestions: finalData.suggestions,
             } : m
           ));
         }
@@ -146,6 +149,7 @@ export function ChatProvider({ children }) {
               segment: response.segment,
               references: response.references,
               escalation: response.escalation,
+              suggestions: response.suggestions,
               timestamp: response.timestamp || new Date().toISOString(),
             } : m
           ));
@@ -157,6 +161,7 @@ export function ChatProvider({ children }) {
             segment: response.segment,
             references: response.references,
             escalation: response.escalation,
+            suggestions: response.suggestions,
             timestamp: response.timestamp || new Date().toISOString(),
           }]);
         }

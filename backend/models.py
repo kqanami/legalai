@@ -30,6 +30,7 @@ class User(Base):
     audit_results = relationship("AuditResult", back_populates="user", cascade="all, delete-orphan")
     escalation_requests = relationship("EscalationRequest", back_populates="user", cascade="all, delete-orphan")
     reviews_given = relationship("ClientReview", back_populates="reviewer", cascade="all, delete-orphan")
+    lawyer_profile = relationship("LawyerProfile", back_populates="user", cascade="all, delete-orphan", uselist=False)
 
 
 class ChatSession(Base):
@@ -56,6 +57,7 @@ class ChatMessage(Base):
     segment = Column(String(10), nullable=True)
     references_json = Column(Text, nullable=True)  # JSON string of references
     escalation_json = Column(Text, nullable=True)  # JSON escalation data from AI
+    suggestions_json = Column(Text, nullable=True)  # JSON list of suggested next questions/chips
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     session = relationship("ChatSession", back_populates="messages")
@@ -136,7 +138,7 @@ class LawyerProfile(Base):
     __tablename__ = "lawyer_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     iin = Column(String(12), nullable=False, index=True)
     license_number = Column(String(255), nullable=False)
     specialization = Column(String(255), nullable=False)  # Legacy text field
@@ -152,7 +154,7 @@ class LawyerProfile(Base):
     is_accepting_clients = Column(Boolean, default=True)
     response_time_hours = Column(Float, nullable=True)  # Average response time
 
-    user = relationship("User", backref="lawyer_profile")
+    user = relationship("User", back_populates="lawyer_profile")
     clients = relationship("Client", back_populates="lawyer", cascade="all, delete-orphan")
     cases = relationship("Case", back_populates="lawyer", cascade="all, delete-orphan")
     templates = relationship("DocumentTemplate", back_populates="lawyer", cascade="all, delete-orphan")

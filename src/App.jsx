@@ -73,6 +73,12 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+const AdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user || user.role !== 'admin') return <Navigate to="/dashboard" />;
+  return children;
+};
+
 // Lazy loaded placeholders for unfinished routes (Fallback)
 const Placeholder = ({ title }) => (
   <div className="flex items-center justify-center h-full text-steel-400 text-lg font-light tracking-wide">
@@ -86,7 +92,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/lawyers" element={<LawyerMarketplace />} />
         <Route path="/lawyers/rankings" element={<Placeholder title="Глобальный рейтинг юристов" />} />
         <Route path="/lawyers/:id" element={<LawyerPublicProfile />} />

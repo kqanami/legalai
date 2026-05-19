@@ -18,6 +18,30 @@ from sqlalchemy import func as sqla_func
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+# ── Server-side Lawyer Request Detector (Safety Net) ──
+_LAWYER_KEYWORDS = [
+    "дай адвоката", "найди адвоката", "найди юриста", "дай юриста",
+    "мне нужен адвокат", "мне нужен юрист", "нужен адвокат", "нужен юрист",
+    "свяжи с юристом", "свяжи с адвокатом", "помощь адвоката", "помощь юриста",
+    "связать с адвокатом", "связать с юристом", "позови адвоката",
+    "хочу адвоката", "хочу юриста", "нанять юриста", "нанять адвоката",
+    "ищу адвоката", "ищу юриста", "подскажи адвоката", "подскажи юриста",
+    "порекомендуй адвоката", "порекомендуй юриста", "консультация юриста",
+    "очная консультация", "живой юрист", "живой адвокат",
+]
+
+def _detect_lawyer_request(user_text: str) -> dict | None:
+    """Detects explicit lawyer/advocate requests from user message text."""
+    text_lower = user_text.lower().strip()
+    for kw in _LAWYER_KEYWORDS:
+        if kw in text_lower:
+            return {
+                "needed": True,
+                "reason": "Вы запросили помощь профессионального адвоката. Мы можем подобрать верифицированного специалиста из нашего маркетплейса.",
+                "category": "Юридическая консультация"
+            }
+    return None
+
 
 @router.post("/sessions", response_model=SessionResponse)
 def create_session(req: CreateSessionRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -91,10 +115,18 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
     db.add(user_msg)
     db.commit()
 
-    prev_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at).all()
+    prev_messages = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id,
+        ChatMessage.id != user_msg.id
+    ).order_by(ChatMessage.created_at).all()
     history = [{"role": m.role, "content": m.content} for m in prev_messages]
 
-    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs)
+    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs, db=db, user_id=user.id)
+
+    # Server-side escalation safety net: force escalation for explicit lawyer requests
+    forced_esc = _detect_lawyer_request(req.content)
+    if forced_esc and (not ai_response.get("escalation") or not ai_response["escalation"].get("needed")):
+        ai_response["escalation"] = forced_esc
 
     if ai_response.get("segment"):
         session.segment = ai_response["segment"]
@@ -103,13 +135,31 @@ async def send_message(session_id: int, req: SendMessageRequest, user: User = De
 
     refs_json = json.dumps(ai_response.get("references", []), ensure_ascii=False) if ai_response.get("references") else None
     escalation_json = json.dumps(ai_response.get("escalation"), ensure_ascii=False) if ai_response.get("escalation") else None
+    suggestions_json = json.dumps(ai_response.get("suggestions", []), ensure_ascii=False) if ai_response.get("suggestions") else None
     
-    ai_msg = ChatMessage(session_id=session_id, role="assistant", content=ai_response["content"], segment=ai_response.get("segment"), references_json=refs_json, escalation_json=escalation_json)
+    ai_msg = ChatMessage(
+        session_id=session_id, 
+        role="assistant", 
+        content=ai_response["content"], 
+        segment=ai_response.get("segment"), 
+        references_json=refs_json, 
+        escalation_json=escalation_json,
+        suggestions_json=suggestions_json
+    )
     db.add(ai_msg)
     db.commit()
     db.refresh(ai_msg)
 
-    return MessageResponse(id=ai_msg.id, role="assistant", content=ai_msg.content, segment=ai_msg.segment, references=ai_response.get("references", []), escalation=ai_response.get("escalation"), timestamp=ai_msg.created_at.isoformat())
+    return MessageResponse(
+        id=ai_msg.id, 
+        role="assistant", 
+        content=ai_msg.content, 
+        segment=ai_msg.segment, 
+        references=ai_response.get("references", []), 
+        escalation=ai_response.get("escalation"), 
+        suggestions=ai_response.get("suggestions"), 
+        timestamp=ai_msg.created_at.isoformat()
+    )
 
 
 @router.post("/sessions/{session_id}/messages/stream")
@@ -136,7 +186,10 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
     db.add(user_msg)
     db.commit()
 
-    prev_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at).all()
+    prev_messages = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id,
+        ChatMessage.id != user_msg.id
+    ).order_by(ChatMessage.created_at).all()
     history = [{"role": m.role, "content": m.content} for m in prev_messages]
 
     if len(prev_messages) <= 2:
@@ -150,7 +203,7 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
     async def generate():
         full_content = ""
         try:
-            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs):
+            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs, db=db, user_id=user.id):
                 if not chunk:
                     continue
                 full_content += chunk
@@ -162,18 +215,32 @@ async def stream_message(session_id: int, req: SendMessageRequest, user: User = 
         # Parse the full response for refs/segment
         parsed = gemini_service._parse_chat_response(full_content)
 
+        # Server-side escalation safety net for streaming
+        forced_esc = _detect_lawyer_request(req.content)
+        if forced_esc and (not parsed.get("escalation") or not parsed["escalation"].get("needed")):
+            parsed["escalation"] = forced_esc
+
         if parsed.get("segment"):
             session.segment = parsed["segment"]
 
         refs_json = json.dumps(parsed.get("references", []), ensure_ascii=False) if parsed.get("references") else None
         escalation_json = json.dumps(parsed.get("escalation"), ensure_ascii=False) if parsed.get("escalation") else None
+        suggestions_json = json.dumps(parsed.get("suggestions", []), ensure_ascii=False) if parsed.get("suggestions") else None
 
-        ai_msg = ChatMessage(session_id=session_id, role="assistant", content=parsed["content"], segment=parsed.get("segment"), references_json=refs_json, escalation_json=escalation_json)
+        ai_msg = ChatMessage(
+            session_id=session_id, 
+            role="assistant", 
+            content=parsed["content"], 
+            segment=parsed.get("segment"), 
+            references_json=refs_json, 
+            escalation_json=escalation_json,
+            suggestions_json=suggestions_json
+        )
         db.add(ai_msg)
         db.commit()
         db.refresh(ai_msg)
 
-        yield f"data: {json.dumps({'done': True, 'id': ai_msg.id, 'segment': parsed.get('segment'), 'references': parsed.get('references', []), 'escalation': parsed.get('escalation'), 'content': parsed['content']}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'done': True, 'id': ai_msg.id, 'segment': parsed.get('segment'), 'references': parsed.get('references', []), 'escalation': parsed.get('escalation'), 'suggestions': parsed.get('suggestions', []), 'content': parsed['content']}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -202,7 +269,23 @@ def get_messages(session_id: int, user: User = Depends(get_current_user), db: Se
             except (json.JSONDecodeError, TypeError) as e:
                 logger.warning(f"Failed to parse escalation for message {m.id}: {e}")
 
-        result.append(MessageResponse(id=m.id, role=m.role, content=m.content, segment=m.segment, references=refs if refs else None, escalation=escalation, timestamp=m.created_at.isoformat()))
+        suggestions = []
+        if m.suggestions_json:
+            try:
+                suggestions = json.loads(m.suggestions_json)
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse suggestions for message {m.id}: {e}")
+
+        result.append(MessageResponse(
+            id=m.id, 
+            role=m.role, 
+            content=m.content, 
+            segment=m.segment, 
+            references=refs if refs else None, 
+            escalation=escalation, 
+            suggestions=suggestions if suggestions else None, 
+            timestamp=m.created_at.isoformat()
+        ))
     return result
 
 

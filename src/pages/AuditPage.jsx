@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
-import { ShieldAlert, FileSearch, CheckCircle2, AlertTriangle, FileText, Download, SlidersHorizontal, UploadCloud, Link as LinkIcon, Building2, Clock, ChevronRight, Trash2 } from 'lucide-react';
+import { diffLines } from 'diff';
+import { ShieldAlert, FileSearch, CheckCircle2, AlertTriangle, FileText, Download, SlidersHorizontal, UploadCloud, Link as LinkIcon, Building2, Clock, ChevronRight, Trash2, EyeOff } from 'lucide-react';
 import MagneticButton from '../components/MagneticButton';
 import { auditApi, docsApi } from '../services/api';
 
@@ -36,6 +37,8 @@ export default function AuditPage() {
   const [activeAuditId, setActiveAuditId] = useState(null);
   const [savingText, setSavingText] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [fixingRiskIndex, setFixingRiskIndex] = useState(null);
+  const [diffResult, setDiffResult] = useState(null);
 
   useEffect(() => { loadHistory(); }, []);
 
@@ -46,6 +49,41 @@ export default function AuditPage() {
       setHistory(data);
     } catch (e) { console.error('Audit history error:', e); }
     finally { setHistoryLoading(false); }
+  };
+
+  const handleQuickFix = async (risk, index) => {
+    if (!activeAuditId) return;
+    setFixingRiskIndex(index);
+    try {
+      const data = await auditApi.quickFix(
+        activeAuditId,
+        risk.title,
+        risk.description,
+        risk.recommendation,
+        risk.location || ''
+      );
+      const newText = data.original_text || '';
+      const diffArr = diffLines(contractText, newText);
+      setDiffResult(diffArr);
+      
+      setTimeout(() => {
+        const highlightElement = document.getElementById('diff-highlight');
+        if (highlightElement) {
+          highlightElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      setResults(data.risks || []);
+      setSummary(data.summary || '');
+      setContractText(newText);
+      setActiveRiskIndex(null);
+      loadHistory();
+      showToast('Пункт договора успешно исправлен ИИ и проверен!', 'success');
+    } catch (err) {
+      showToast('Ошибка исправления: ' + err.message, 'error');
+    } finally {
+      setFixingRiskIndex(null);
+    }
   };
 
   const handleAnalyze = async () => {
@@ -71,6 +109,7 @@ export default function AuditPage() {
   const loadFromHistory = async (item) => {
     try {
       setIsEditing(false);
+      setDiffResult(null);
       const data = await auditApi.getDetail(item.id);
       setResults(data.risks || []);
       setSummary(data.summary || '');
@@ -98,6 +137,7 @@ export default function AuditPage() {
         setActiveRiskIndex(null);
         setActiveAuditId(null);
         setIsEditing(false);
+        setDiffResult(null);
       }
       showToast('Анализ успешно удалён из истории', 'success');
     } catch (err) {
@@ -118,6 +158,7 @@ export default function AuditPage() {
       setActiveRiskIndex(null);
       setActiveAuditId(null);
       setIsEditing(false);
+      setDiffResult(null);
       showToast('Вся история успешно очищена', 'success');
     } catch (err) {
       showToast('Ошибка очистки истории: ' + err.message, 'error');
@@ -210,6 +251,35 @@ export default function AuditPage() {
                 </>
               )}
             </button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (diffResult) {
+      return (
+        <div className="whitespace-pre-wrap font-serif text-steel-200 leading-relaxed text-sm bg-obsidian-950/30 p-5 sm:p-6 rounded-2xl border border-obsidian-800 shadow-inner max-h-[58vh] overflow-y-auto custom-scrollbar">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-chrome-400 flex items-center gap-2">
+              <SlidersHorizontal size={12} /> Изменения от ИИ
+            </span>
+            <button 
+              onClick={() => setDiffResult(null)} 
+              className="text-[10px] bg-obsidian-800 hover:bg-obsidian-700 px-3 py-1.5 rounded-lg border border-obsidian-600 text-steel-300 transition-colors flex items-center gap-1.5"
+            >
+              <EyeOff size={12} /> Скрыть выделение
+            </button>
+          </div>
+          <div className="font-sans">
+            {diffResult.map((part, i) => {
+              if (part.added) {
+                return <span key={i} id={i === diffResult.findIndex(p => p.added || p.removed) ? 'diff-highlight' : undefined} className="bg-emerald-500/20 text-emerald-300 px-1 rounded shadow-[0_0_10px_rgba(16,185,129,0.1)] inline-block w-full">{part.value}</span>;
+              } else if (part.removed) {
+                return <span key={i} id={i === diffResult.findIndex(p => p.added || p.removed) ? 'diff-highlight' : undefined} className="bg-red-500/20 text-red-400/80 line-through px-1 rounded mx-1 inline-block w-full">{part.value}</span>;
+              } else {
+                return <span key={i}>{part.value}</span>;
+              }
+            })}
           </div>
         </div>
       );
@@ -374,13 +444,23 @@ export default function AuditPage() {
 
                   {/* Right: Risks List */}
                   <div className="space-y-4">
-                    <div className="glass-card p-3.5 sm:p-4 border-l-4 border-amber-500/50 bg-amber-950/10 relative overflow-hidden">
+                    <div className={`glass-card p-3.5 sm:p-4 border-l-4 relative overflow-hidden transition-all duration-300
+                      ${results.length === 0 
+                        ? 'border-emerald-500/50 bg-emerald-950/10' 
+                        : 'border-amber-500/50 bg-amber-950/10'}`}>
                       <div className="flex items-center gap-3.5 sm:gap-4 relative z-10">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                          <AlertTriangle size={20} className="text-amber-400" />
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
+                          ${results.length === 0 ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                          {results.length === 0 ? (
+                            <CheckCircle2 size={20} className="text-emerald-400" />
+                          ) : (
+                            <AlertTriangle size={20} className="text-amber-400" />
+                          )}
                         </div>
                         <div>
-                          <p className="text-sm sm:text-base font-bold text-white tracking-wide">Выявлено {results.length} рисков</p>
+                          <p className="text-sm sm:text-base font-bold text-white tracking-wide">
+                            {results.length === 0 ? 'Рисков не обнаружено' : `Выявлено ${results.length} рисков`}
+                          </p>
                           <p className="text-xs text-steel-400 mt-0.5 leading-relaxed">{summary}</p>
                         </div>
                       </div>
@@ -406,10 +486,39 @@ export default function AuditPage() {
                             <div className="bg-obsidian-950/80 rounded-xl p-3 border border-obsidian-800">
                                 <p className="text-[10px] uppercase font-bold tracking-widest text-steel-500 mb-1">Рекомендация:</p>
                                 <p className="text-xs font-medium text-white mb-2">{risk.recommendation}</p>
-                                <a href={risk.url} target="_blank" rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 text-[10px] font-mono text-chrome-500 hover:text-chrome-300 transition-colors">
-                                  <LinkIcon size={10} /> {risk.article}
-                                </a>
+                                <div className="flex items-center justify-between gap-3 mt-3 pt-2.5 border-t border-white/[0.03]">
+                                  <a href={risk.url} target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 text-[10px] font-mono text-chrome-500 hover:text-chrome-300 transition-colors">
+                                    <LinkIcon size={10} /> {risk.article}
+                                  </a>
+
+                                  {activeAuditId && (
+                                    <button
+                                      disabled={fixingRiskIndex !== null || generating}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        await handleQuickFix(risk, i);
+                                      }}
+                                      className={`text-[9px] font-bold px-2.5 py-1.5 rounded-lg border transition-all duration-200 uppercase tracking-wider flex items-center gap-1.5
+                                        ${fixingRiskIndex === i
+                                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.15)] animate-pulse'
+                                          : 'bg-chrome-500/10 border-chrome-500/30 hover:border-chrome-500/50 text-chrome-400 hover:text-white'
+                                        }`}
+                                    >
+                                      {fixingRiskIndex === i ? (
+                                        <>
+                                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-2.5 h-2.5 border border-emerald-400 border-t-transparent rounded-full" />
+                                          <span>Исправление...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <SlidersHorizontal size={10} />
+                                          <span>Исправить с ИИ</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
                             </div>
                           </motion.div>
                         );
@@ -430,18 +539,45 @@ export default function AuditPage() {
                         }, 300);
 
                         try {
-                          const docDescription = `Исправленный договор на основе аудита.
-ВНИМАНИЕ: Сгенерируй финальный исправленный договор, СТРОГО основываясь на следующем тексте договора с правками пользователя. Сохрани все пункты, реквизиты, условия и внесенные изменения пользователя, исправив юридические ошибки и снизив риски в соответствии с законодательством РК.
+                          let finalContent = "";
+                          if (results.length === 0) {
+                            // All risks are already resolved, download directly!
+                            finalContent = `> **ВНИМАНИЕ: ДАННЫЙ ШАБЛОН СГЕНЕРИРОВАН ИИ.** Не является окончательным юридическим документом и требует дополнительной проверки.\n\n${contractText}`;
+                          } else {
+                            // There are unresolved risks! Ask the AI to fix all of them in one go.
+                            const docDescription = `Исправленный договор на основе аудита.
+ВНИМАНИЕ: Сгенерируй финальный исправленный договор, СТРОГО основываясь на следующем тексте договора с правками пользователя.
+Исправь ВСЕ оставшиеся юридические риски и ошибки в соответствии с законодательством РК.
 
-ТЕКСТ ДОГОВОРА С ПРАВКАМИ ПОЛЬЗОВАТЕЛЯ:
+ОСТАВШИЕСЯ РИСКИ ДЛЯ ИСПРАВЛЕНИЯ:
+${results.map((r, i) => `${i+1}. ${r.title}: ${r.description} (Рекомендация: ${r.recommendation})`).join('\n')}
+
+ТЕКСТ ДОГОВОРА ДЛЯ ИСПРАВЛЕНИЯ:
 ${contractText}`;
-                          await docsApi.generate('contract', docDescription);
+                            
+                            const data = await docsApi.generate('contract', docDescription);
+                            finalContent = data.content || '';
+                          }
+                          
+                          // Save the final markdown content as a DOCX file on the backend
+                          const savedDoc = await docsApi.saveFixed(`Исправленный договор_${Date.now()}`, finalContent);
+                          
+                          // Download the DOCX file natively
+                          await docsApi.download(savedDoc.id);
+                          
                           clearInterval(progressInterval);
                           setGenProgress(100);
                           setTimeout(() => {
-                            showToast("Исправленный договор успешно сгенерирован! Перейдите в 'Мои документы'.", 'success');
+                            showToast(results.length === 0 ? "Договор успешно скачан в формате DOCX!" : "ИИ исправил все оставшиеся риски и скачал финальный DOCX документ!", 'success');
                             setGenerating(false);
                             setGenProgress(0);
+                            if (results.length > 0) {
+                              // If they generated a new contract, update the UI text and set risks to 0
+                              const cleanedText = finalContent.replace(/> \*\*ВНИМАНИЕ: ДАННЫЙ ШАБЛОН СГЕНЕРИРОВАН ИИ\.\*\*.*?\n\n/g, '');
+                              setContractText(cleanedText);
+                              setResults([]);
+                              setSummary("Все риски успешно устранены. Документ безопасен и готов к использованию.");
+                            }
                           }, 600);
                         } catch (e) { 
                           clearInterval(progressInterval);
