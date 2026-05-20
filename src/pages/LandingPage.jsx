@@ -295,9 +295,59 @@ export default function LandingPage() {
 
         {/* Floating AI chat preview — Parallax */}
         <div className="w-full max-w-5xl mx-auto mt-20 px-6 perspective-[2000px] relative z-10 hidden sm:block">
+          
+          {/* Decorative floating blurred orbs */}
+          <div className="absolute top-1/4 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
+
+          {/* Floating UI Elements (Parallax) */}
+          <motion.div 
+            className="absolute -left-12 top-1/4 z-20"
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 1.2, duration: 0.8 }}
+            animate={{ y: [0, -10, 0] }}
+            style={{ animationDuration: '6s', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out' }}
+          >
+            <div className="bg-obsidian-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <Shield className="text-emerald-400" size={20} />
+              </div>
+              <div>
+                <p className="text-xs text-steel-400 font-medium">Точность ссылок</p>
+                <p className="text-white font-bold text-lg">99.9%</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            className="absolute -right-8 bottom-1/3 z-20"
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 1.4, duration: 0.8 }}
+            animate={{ y: [0, 15, 0] }}
+            style={{ animationDuration: '8s', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out' }}
+          >
+            <div className="bg-obsidian-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <Zap className="text-amber-400" size={20} />
+              </div>
+              <div>
+                <p className="text-xs text-steel-400 font-medium">Отклик AI</p>
+                <p className="text-white font-bold text-lg">&lt; 2 сек</p>
+              </div>
+            </div>
+          </motion.div>
+
           <Reveal delay={1.0} duration={0.8}>
             <TiltCard>
-              <div className="relative rounded-[2rem] border border-white/[0.06] bg-obsidian-950/80 backdrop-blur-3xl shadow-[0_20px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(148,163,184,0.05)] overflow-hidden">
+              <div className="relative rounded-[2rem] border border-white/[0.06] bg-obsidian-950/80 backdrop-blur-3xl shadow-[0_30px_100px_rgba(0,0,0,0.8),0_0_60px_rgba(245,158,11,0.03)] overflow-hidden">
+                {/* Accent glow top */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-24 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none" />
+
                 {/* Header */}
                 <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.05] bg-obsidian-900/50">
                   <div className="flex gap-2">
@@ -306,7 +356,7 @@ export default function LandingPage() {
                     <div className="w-3 h-3 rounded-full bg-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.4)]" />
                   </div>
                   <div className="flex-1 flex justify-center">
-                    <span className="text-[10px] text-emerald-400/80 font-medium">Online</span>
+                    <span className="text-[10px] text-emerald-400/80 font-medium tracking-widest uppercase">Система AI-Юрист активна</span>
                   </div>
                 </div>
 
@@ -314,22 +364,22 @@ export default function LandingPage() {
                   {/* User message */}
                   <motion.div className="flex justify-end" initial={{ opacity: 0, x: 40 }}
                     whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.6 }}>
-                    <div className="chat-bubble-user text-sm max-w-[75%]">Как рассчитать алименты на 2 детей?</div>
+                    <div className="chat-bubble-user text-sm max-w-[75%] shadow-lg">Как рассчитать алименты на 2 детей?</div>
                   </motion.div>
 
                   {/* AI message */}
                   <motion.div className="flex gap-3 items-start" initial={{ opacity: 0, x: -40 }}
                     whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.5, duration: 0.6 }}>
-                    <div className="w-9 h-9 rounded-xl chrome-gradient flex items-center justify-center flex-shrink-0 mt-0.5 shadow-lg">
+                    <div className="w-9 h-9 rounded-xl chrome-gradient flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
                       <Scale className="text-obsidian-950" size={15} strokeWidth={2.5} />
                     </div>
-                    <div className="chat-bubble-ai text-sm flex-1 text-steel-300">
+                    <div className="chat-bubble-ai text-sm flex-1 text-steel-300 relative overflow-hidden group">
                       <div className="flex items-center gap-2 mb-3">
-                        <span className="segment-b2c text-[10px]">🏠 B2C — Автоопределение</span>
+                        <span className="segment-b2c text-[10px] px-2 py-1 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">B2C — Автоопределение</span>
                       </div>
-                      <p className="leading-relaxed">Согласно <span className="text-white font-medium">ст. 139 Кодекса о браке и семье РК</span>, на двоих детей устанавливается <strong className="text-chrome-100">1/3 (33%) от дохода</strong> родителя. Минимальный размер алиментов не может быть ниже...</p>
+                      <p className="leading-relaxed">Согласно <span className="text-white font-medium">ст. 139 Кодекса о браке и семье РК</span>, на двоих детей устанавливается <strong className="text-chrome-100 drop-shadow-md">1/3 (33%) от дохода</strong> родителя. Минимальный размер алиментов не может быть ниже 1/3 величины прожиточного минимума.</p>
                       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.05]">
-                        <span className="inline-flex items-center gap-1.5 text-[11px] text-chrome-400">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-chrome-400 font-medium">
                           <FileText size={11} /> adilet.zan.kz
                         </span>
                         <span className="text-obsidian-600">•</span>
@@ -337,21 +387,24 @@ export default function LandingPage() {
                           <Clock size={10} /> 2.3 сек
                         </span>
                       </div>
+                      
+                      {/* Sweep hover effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
                     </div>
                   </motion.div>
 
                   {/* Input bar */}
-                  <motion.div className="flex items-center gap-3 bg-obsidian-800/60 rounded-2xl p-3 border border-white/[0.05]"
+                  <motion.div className="flex items-center gap-3 bg-obsidian-900/80 backdrop-blur-md rounded-2xl p-3 border border-white/[0.08] shadow-inner"
                     initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.8, duration: 0.5 }}>
-                    <span className="flex-1 text-sm text-steel-500 px-3">Задайте юридический вопрос...</span>
-                    <div className="w-10 h-10 rounded-xl chrome-gradient flex items-center justify-center shadow-md">
+                    <span className="flex-1 text-sm text-steel-500 px-3 font-mono">Задайте юридический вопрос...</span>
+                    <div className="w-10 h-10 rounded-xl chrome-gradient flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.15)] cursor-pointer hover:scale-105 transition-transform">
                       <ArrowRight className="text-obsidian-950" size={16} />
                     </div>
                   </motion.div>
                 </div>
 
                 {/* Bottom glow */}
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent shadow-[0_0_20px_rgba(255,255,255,0.5)]" />
               </div>
             </TiltCard>
           </Reveal>
