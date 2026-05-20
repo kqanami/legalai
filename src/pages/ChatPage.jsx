@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo, useCallback, Children } from 'react';
+import React, { useState, useRef, useEffect, memo, useCallback, Children, useMemo } from 'react';
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -312,8 +312,6 @@ const MarkdownRenderer = memo(({ content, isStreaming = false, references = [] }
   // Parse inline law article references and inject CitationTooltip components
   const injectCitations = (textNode) => {
     if (typeof textNode !== 'string') return textNode;
-    // Match patterns like: ст. 49, статья 152, п. 3 ст. 24, ст.ст. 115-120
-    // Followed by optional law name: ТК РК, ГК РК, УК РК, КоАП РК, НК РК, ЗРК, Закона РК, etc.
     const citationRegex = /((?:[пч]\.\s*\d+\s+)?(?:ст\.(?:ст\.)?|стать[ияюейях]+)\s*\d+(?:[\s,.-]*\d+)*(?:\s+(?:ТК|ГК|УК|КоАП|НК|ГПК|УПК|ЗРК|Закона|Конституци[ияюей]+)(?:\s+РК)?)?)/gi;
     
     const parts = textNode.split(citationRegex);
@@ -321,9 +319,7 @@ const MarkdownRenderer = memo(({ content, isStreaming = false, references = [] }
 
     return parts.map((part, idx) => {
       if (citationRegex.test(part)) {
-        // Reset regex lastIndex
         citationRegex.lastIndex = 0;
-        // Try to find a matching reference
         const matchedRef = references.find(r =>
           r.title && (part.toLowerCase().includes(r.title.toLowerCase().slice(0, 10)) ||
           r.title.toLowerCase().includes(part.toLowerCase().slice(0, 10)))
@@ -337,31 +333,30 @@ const MarkdownRenderer = memo(({ content, isStreaming = false, references = [] }
           />
         );
       }
-      // Reset lastIndex again to avoid issues in the next iteration
       citationRegex.lastIndex = 0;
       return part;
     });
   };
 
-  const WithCitations = ({ children }) => {
-    if (isStreaming) {
-      return <>{children}</>;
-    }
-    return <>{Children.map(children, child => {
-      if (typeof child === 'string') return injectCitations(child);
-      return child;
-    })}</>;
-  };
+  const components = React.useMemo(() => {
+    const WithCitations = ({ children }) => {
+      if (isStreaming) return <>{children}</>;
+      return <>{Children.map(children, child => {
+        if (typeof child === 'string') return injectCitations(child);
+        return child;
+      })}</>;
+    };
 
-  const components = {
-    p: ({ children }) => <p><WithCitations>{children}</WithCitations></p>,
-    li: ({ children }) => <li><WithCitations>{children}</WithCitations></li>,
-    strong: ({ children }) => <strong><WithCitations>{children}</WithCitations></strong>,
-    em: ({ children }) => <em><WithCitations>{children}</WithCitations></em>,
-    h1: ({ children }) => <h1>{children}</h1>,
-    h2: ({ children }) => <h2>{children}</h2>,
-    h3: ({ children }) => <h3>{children}</h3>,
-  };
+    return {
+      p: ({ children }) => <p><WithCitations>{children}</WithCitations></p>,
+      li: ({ children }) => <li><WithCitations>{children}</WithCitations></li>,
+      strong: ({ children }) => <strong className="font-bold text-chrome-100 drop-shadow-sm"><WithCitations>{children}</WithCitations></strong>,
+      em: ({ children }) => <em className="text-steel-300 not-italic"><WithCitations>{children}</WithCitations></em>,
+      h1: ({ children }) => <h1>{children}</h1>,
+      h2: ({ children }) => <h2>{children}</h2>,
+      h3: ({ children }) => <h3>{children}</h3>,
+    };
+  }, [isStreaming, references]);
 
   return (
     <div className={`markdown-content ${isStreaming ? 'streaming-message' : ''}`}>
