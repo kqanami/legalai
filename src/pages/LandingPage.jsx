@@ -194,48 +194,9 @@ export default function LandingPage() {
   return (
     <div className="bg-obsidian-950 overflow-hidden">
       
-      {/* ══════ INTRO REVEAL (Sticky) ══════ */}
-      <div className="h-[130vh] w-full relative z-0">
-        <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-black">
-          {/* Subtle noise over intro */}
-          <div className="absolute inset-0 z-[1] pointer-events-none opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
-          
-          <motion.div 
-            style={{ opacity: introOpacity, scale: introScale, filter: introFilter }}
-            className="relative w-full max-w-6xl px-6 flex flex-col items-center justify-center text-center"
-          >
-            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight leading-[1.1] mb-8">
-              <span className="text-white drop-shadow-2xl">Правовой интеллект</span>
-              <br />
-              <span className="metal-text">нового поколения</span>
-            </h1>
-            
-            <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 z-20">
-               <motion.span 
-                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1, duration: 1 }}
-                 className="text-chrome-400 text-[10px] tracking-[0.3em] uppercase font-medium drop-shadow-md"
-               >
-                 Скролльте вниз
-               </motion.span>
-               <motion.div 
-                 initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 1.5, duration: 1 }}
-                 className="w-px h-16 bg-gradient-to-b from-chrome-400 to-transparent origin-top" 
-               />
-            </div>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* ══════ MAIN SITE (Slides over the intro) ══════ */}
-      <div className="relative z-10 bg-obsidian-950 rounded-t-[3rem] shadow-[0_-30px_80px_rgba(0,0,0,0.9)] overflow-hidden">
-        
-        {/* Backgrounds for main site */}
-        <div className="absolute inset-0 z-0 pointer-events-none"><KineticBackground variant="landing" /></div>
-        <div className="absolute inset-0 z-[1] pointer-events-none opacity-[0.025]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
-
-        {/* ══════ HEADER ══════ */}
-        <motion.header
-          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'backdrop-blur-2xl bg-obsidian-950/80 border-b border-white/[0.06] shadow-[0_4px_30px_rgba(0,0,0,0.4)]' : 'bg-transparent border-b border-transparent opacity-0 pointer-events-none'}`}
+      {/* ══════ HEADER ══════ */}
+      <motion.header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'backdrop-blur-2xl bg-obsidian-950/80 border-b border-white/[0.06] shadow-[0_4px_30px_rgba(0,0,0,0.4)]' : 'bg-transparent border-b border-transparent'}`}
         initial={{ y: -80 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
@@ -255,85 +216,92 @@ export default function LandingPage() {
         </div>
       </motion.header>
 
-
-      {/* ══════ HERO ══════ */}
-      <section ref={heroRef} className="relative z-10 pt-32 sm:pt-44 pb-8 sm:pb-12 min-h-[90vh] flex flex-col items-center justify-center">
-        {/* Floating particles for extra wow factor */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          {[...Array(8)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-chrome-400 rounded-full"
-              initial={{
-                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
-                y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
-                opacity: Math.random() * 0.5 + 0.1,
-              }}
-              animate={{
-                y: [null, Math.random() * -100 - 50],
-                opacity: [null, 0],
-              }}
-              transition={{
-                duration: Math.random() * 5 + 5,
-                repeat: Infinity,
-                ease: "linear"
-              }}
-            />
-          ))}
-        </div>
-
-        <motion.div className="max-w-6xl mx-auto px-6 text-center relative z-10" style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}>
-
-          {/* Badge */}
-          <motion.div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-md mb-8 hover:bg-white/[0.05] transition-colors cursor-default"
-            initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ delay: 0.3, duration: 0.6 }}>
-            <motion.span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
-              animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }} transition={{ duration: 2, repeat: Infinity }} />
-            <span className="text-xs text-chrome-300 font-medium tracking-wider uppercase">Система активна • AI Legal Engine v1.0</span>
-          </motion.div>
-
-          {/* Headline — staggered word reveal */}
-          <motion.h1 className="text-5xl sm:text-7xl lg:text-[6rem] font-extrabold tracking-tight leading-[1.05] mb-6 drop-shadow-2xl"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.35 }}>
-            <motion.span className="text-white inline-block"
-              initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: 0.9, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}>
-              Правовой интеллект
-            </motion.span>
-            <br />
-            <motion.span className="metal-text inline-block relative"
-              initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}>
-              нового поколения
-              <motion.div 
-                className="absolute -bottom-4 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-chrome-500/50 to-transparent blur-[2px]"
-                animate={{ opacity: [0.2, 0.8, 0.2] }}
-                transition={{ duration: 3, repeat: Infinity }}
+      {/* ══════ HERO TEXT REVEAL (Sticky) ══════ */}
+      <div className="h-[150vh] w-full relative z-0">
+        <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-obsidian-950">
+          {/* Backgrounds */}
+          <div className="absolute inset-0 z-0 pointer-events-none"><KineticBackground variant="landing" /></div>
+          <div className="absolute inset-0 z-[1] pointer-events-none opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
+          
+          {/* Floating particles */}
+          <div className="absolute inset-0 pointer-events-none z-[2]">
+            {[...Array(8)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 bg-chrome-400 rounded-full"
+                initial={{
+                  x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
+                  y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
+                  opacity: Math.random() * 0.5 + 0.1,
+                }}
+                animate={{
+                  y: [null, Math.random() * -100 - 50],
+                  opacity: [null, 0],
+                }}
+                transition={{ duration: Math.random() * 5 + 5, repeat: Infinity, ease: "linear" }}
               />
-            </motion.span>
-          </motion.h1>
+            ))}
+          </div>
 
-          {/* Sub */}
-          <motion.p className="text-lg sm:text-xl text-steel-400 max-w-2xl mx-auto mb-12 leading-relaxed"
-            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.6 }}>
-            {t('landing_subtitle')}
-          </motion.p>
+          <motion.div 
+            style={{ opacity: introOpacity, scale: introScale, filter: introFilter }}
+            className="relative w-full max-w-6xl px-6 flex flex-col items-center justify-center text-center z-10"
+          >
+            {/* Badge */}
+            <motion.div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-md mb-8 hover:bg-white/[0.05] transition-colors cursor-default"
+              initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ delay: 0.3, duration: 0.6 }}>
+              <motion.span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+                animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }} transition={{ duration: 2, repeat: Infinity }} />
+              <span className="text-xs text-chrome-300 font-medium tracking-wider uppercase">Система активна • AI Legal Engine v1.0</span>
+            </motion.div>
 
-          {/* Action buttons */}
-          <motion.div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6"
-            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.6 }}>
-            <MagneticButton as={Link} to="/auth" className="btn-primary px-8 py-4 text-base w-full sm:w-auto flex items-center justify-center gap-2 group relative overflow-hidden">
-              <span className="relative z-10 flex items-center gap-2">{t('landing_cta_main')} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></span>
-              <div className="absolute inset-0 bg-white/20 translate-y-[100%] group-hover:translate-y-[0%] transition-transform duration-300 ease-out" />
-            </MagneticButton>
-            <MagneticButton as="a" href="#capabilities" className="btn-secondary px-8 py-4 text-base w-full sm:w-auto flex items-center justify-center gap-2 border border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.05] transition-all">
-              {t('landing_cta_secondary')} <Search size={18} className="text-chrome-500" />
-            </MagneticButton>
+            {/* Headline */}
+            <motion.h1 className="text-5xl sm:text-7xl lg:text-[6rem] font-extrabold tracking-tight leading-[1.05] mb-6 drop-shadow-2xl"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.35 }}>
+              <motion.span className="text-white inline-block"
+                initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                transition={{ duration: 0.9, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}>
+                Правовой интеллект
+              </motion.span>
+              <br />
+              <motion.span className="metal-text inline-block relative"
+                initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}>
+                нового поколения
+              </motion.span>
+            </motion.h1>
+
+            {/* Sub */}
+            <motion.p className="text-lg sm:text-xl text-steel-400 max-w-2xl mx-auto mb-12 leading-relaxed"
+              initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.6 }}>
+              {t('landing_subtitle')}
+            </motion.p>
+
+            {/* Action buttons */}
+            <motion.div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6"
+              initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.6 }}>
+              <MagneticButton as={Link} to="/auth" className="btn-primary px-8 py-4 text-base w-full sm:w-auto flex items-center justify-center gap-2 group relative overflow-hidden">
+                <span className="relative z-10 flex items-center gap-2">{t('landing_cta_main')} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></span>
+                <div className="absolute inset-0 bg-white/20 translate-y-[100%] group-hover:translate-y-[0%] transition-transform duration-300 ease-out" />
+              </MagneticButton>
+              <MagneticButton as="a" href="#capabilities" className="btn-secondary px-8 py-4 text-base w-full sm:w-auto flex items-center justify-center gap-2 border border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.05] transition-all">
+                {t('landing_cta_secondary')} <Search size={18} className="text-chrome-500" />
+              </MagneticButton>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        </div>
+      </div>
+
+      {/* ══════ MAIN SITE (Slides over the intro) ══════ */}
+      <div className="relative z-10 bg-obsidian-950 rounded-t-[3rem] shadow-[0_-30px_80px_rgba(0,0,0,0.9)] overflow-hidden">
+        
+        {/* Backgrounds for main site */}
+        <div className="absolute inset-0 z-0 pointer-events-none"><KineticBackground variant="landing" /></div>
+        <div className="absolute inset-0 z-[1] pointer-events-none opacity-[0.025]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
 
         {/* Floating AI chat preview — Parallax */}
-        <div className="w-full max-w-4xl mx-auto mt-20 px-6 perspective-[2000px] relative z-10 hidden sm:block">
+        <section className="pt-24 pb-12 w-full relative z-10 flex justify-center">
+          <div className="w-full max-w-4xl mx-auto px-6 perspective-[2000px] hidden sm:block">
           
           {/* Decorative floating blurred orbs */}
           <div className="absolute top-1/4 -left-20 w-72 h-72 bg-emerald-500/20 rounded-full blur-[100px] pointer-events-none" />
