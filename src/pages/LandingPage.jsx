@@ -173,6 +173,12 @@ export default function LandingPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const heroRef = useRef(null);
+  const { scrollY } = useScroll();
+  const introOpacity = useTransform(scrollY, [0, 400], [1, 0]);
+  const introScale = useTransform(scrollY, [0, 400], [1, 1.1]);
+  const introFilter = useTransform(scrollY, [0, 400], ['blur(0px)', 'blur(20px)']);
+  
+  const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
@@ -181,22 +187,53 @@ export default function LandingPage() {
   // Scrolled header
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
+    const onScroll = () => setScrolled(window.scrollY > window.innerHeight * 0.8);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   return (
-    <div className="min-h-screen bg-obsidian-950 overflow-hidden">
-      {/* ══════ BACKGROUNDS ══════ */}
-      <div className="fixed inset-0 z-0"><KineticBackground variant="landing" /></div>
-      {/* Noise overlay */}
-      <div className="fixed inset-0 z-[1] pointer-events-none opacity-[0.025]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`, backgroundRepeat: 'repeat', backgroundSize: '128px' }} />
+    <div className="bg-obsidian-950 overflow-hidden">
+      
+      {/* ══════ INTRO REVEAL (Sticky) ══════ */}
+      <div className="h-[130vh] w-full relative z-0">
+        <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-black">
+          {/* Subtle noise over intro */}
+          <div className="absolute inset-0 z-[1] pointer-events-none opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
+          
+          <motion.div 
+            style={{ opacity: introOpacity, scale: introScale, filter: introFilter }}
+            className="relative w-full max-w-5xl px-6 aspect-[16/9] sm:aspect-[21/9] flex items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
+            <img src="/intro-image.png" className="w-full h-full object-cover rounded-[2rem] border border-white/[0.05] shadow-[0_0_120px_rgba(16,185,129,0.15)]" alt="AI Legal Intro" />
+            
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 z-20">
+               <motion.span 
+                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1, duration: 1 }}
+                 className="text-chrome-400 text-[10px] tracking-[0.3em] uppercase font-medium drop-shadow-md"
+               >
+                 Скролльте вниз
+               </motion.span>
+               <motion.div 
+                 initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 1.5, duration: 1 }}
+                 className="w-px h-16 bg-gradient-to-b from-chrome-400 to-transparent origin-top" 
+               />
+            </div>
+          </motion.div>
+        </div>
+      </div>
 
-      {/* ══════ HEADER ══════ */}
-      <motion.header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'backdrop-blur-2xl bg-obsidian-950/80 border-b border-white/[0.06] shadow-[0_4px_30px_rgba(0,0,0,0.4)]' : 'bg-transparent border-b border-transparent'}`}
+      {/* ══════ MAIN SITE (Slides over the intro) ══════ */}
+      <div className="relative z-10 bg-obsidian-950 rounded-t-[3rem] shadow-[0_-30px_80px_rgba(0,0,0,0.9)] overflow-hidden">
+        
+        {/* Backgrounds for main site */}
+        <div className="absolute inset-0 z-0 pointer-events-none"><KineticBackground variant="landing" /></div>
+        <div className="absolute inset-0 z-[1] pointer-events-none opacity-[0.025]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
+
+        {/* ══════ HEADER ══════ */}
+        <motion.header
+          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'backdrop-blur-2xl bg-obsidian-950/80 border-b border-white/[0.06] shadow-[0_4px_30px_rgba(0,0,0,0.4)]' : 'bg-transparent border-b border-transparent opacity-0 pointer-events-none'}`}
         initial={{ y: -80 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
@@ -735,6 +772,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
