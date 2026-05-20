@@ -17,7 +17,7 @@ const translations = {
     landing_title: 'ИИ-Юрист',
     landing_title_accent: 'Казахстан',
     landing_subtitle: 'Интеллектуальный правовой консультант на базе искусственного интеллекта. Мгновенные ответы по законодательству РК с ссылками на официальные источники.',
-    landing_cta: 'Начать консультацию',
+    landing_cta_main: 'Начать консультацию',
     landing_cta_secondary: 'Узнать больше',
 
     // Features
@@ -133,7 +133,7 @@ const translations = {
     landing_title: 'AI-Заңгер',
     landing_title_accent: 'Қазақстан',
     landing_subtitle: 'Жасанды интеллект негізіндегі зияткерлік құқықтық кеңесші. ҚР заңнамасы бойынша ресми дереккөздерге сілтемелермен жылдам жауаптар.',
-    landing_cta: 'Кеңес алуды бастау',
+    landing_cta_main: 'Кеңес алуды бастау',
     landing_cta_secondary: 'Толығырақ',
 
     // Features  
