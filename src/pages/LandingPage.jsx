@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import LanguageToggle from '../components/LanguageToggle';
 import KineticBackground from '../components/KineticBackground';
 import MagneticButton from '../components/MagneticButton';
+import Marquee from '../components/Marquee';
+import SpotlightCard from '../components/SpotlightCard';
 import { Scale, FileText, Globe, ArrowRight, Sparkles, Search, FileSearch, Building2, Zap, Users, Briefcase, Crown, Check, Shield, Clock, MessageSquare, ChevronRight, ArrowUpRight, Cpu, Database, Lock, BadgeCheck } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════
@@ -217,10 +219,34 @@ export default function LandingPage() {
 
       {/* ══════ HERO ══════ */}
       <section ref={heroRef} className="relative z-10 pt-32 sm:pt-44 pb-8 sm:pb-12 min-h-[90vh] flex flex-col items-center justify-center">
-        <motion.div className="max-w-6xl mx-auto px-6 text-center" style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}>
+        {/* Floating particles for extra wow factor */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-chrome-400 rounded-full"
+              initial={{
+                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
+                y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
+                opacity: Math.random() * 0.5 + 0.1,
+              }}
+              animate={{
+                y: [null, Math.random() * -100 - 50],
+                opacity: [null, 0],
+              }}
+              transition={{
+                duration: Math.random() * 5 + 5,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+            />
+          ))}
+        </div>
+
+        <motion.div className="max-w-6xl mx-auto px-6 text-center relative z-10" style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}>
 
           {/* Badge */}
-          <motion.div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-md mb-8"
+          <motion.div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-md mb-8 hover:bg-white/[0.05] transition-colors cursor-default"
             initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ delay: 0.3, duration: 0.6 }}>
             <motion.span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
               animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }} transition={{ duration: 2, repeat: Infinity }} />
@@ -228,7 +254,7 @@ export default function LandingPage() {
           </motion.div>
 
           {/* Headline — staggered word reveal */}
-          <motion.h1 className="text-5xl sm:text-7xl lg:text-[6rem] font-extrabold tracking-tight leading-[1.05] mb-6"
+          <motion.h1 className="text-5xl sm:text-7xl lg:text-[6rem] font-extrabold tracking-tight leading-[1.05] mb-6 drop-shadow-2xl"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.35 }}>
             <motion.span className="text-white inline-block"
               initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -236,10 +262,15 @@ export default function LandingPage() {
               Правовой интеллект
             </motion.span>
             <br />
-            <motion.span className="metal-text inline-block"
+            <motion.span className="metal-text inline-block relative"
               initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}>
               нового поколения
+              <motion.div 
+                className="absolute -bottom-4 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-chrome-500/50 to-transparent blur-[2px]"
+                animate={{ opacity: [0.2, 0.8, 0.2] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
             </motion.span>
           </motion.h1>
 
@@ -249,54 +280,32 @@ export default function LandingPage() {
             {t('landing_subtitle')}
           </motion.p>
 
-          {/* CTAs */}
-          <motion.div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.6 }}>
-            <MagneticButton as={Link} to={user ? '/dashboard' : '/auth'}
-              className="btn-primary text-lg px-10 py-5 shadow-[0_0_40px_rgba(255,255,255,0.12)] hover:shadow-[0_0_60px_rgba(255,255,255,0.2)] group" strength={0.3}>
-              <span className="flex items-center gap-2">
-                {user ? 'Перейти в дашборд' : t('landing_cta')}
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-              </span>
+          {/* Action buttons */}
+          <motion.div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6"
+            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.6 }}>
+            <MagneticButton as={Link} to="/auth" className="btn-primary px-8 py-4 text-base w-full sm:w-auto flex items-center justify-center gap-2 group relative overflow-hidden">
+              <span className="relative z-10 flex items-center gap-2">{t('landing_cta_main')} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></span>
+              <div className="absolute inset-0 bg-white/20 translate-y-[100%] group-hover:translate-y-[0%] transition-transform duration-300 ease-out" />
             </MagneticButton>
-            <MagneticButton as="a" href="#capabilities"
-              className="btn-secondary text-lg px-10 py-5 backdrop-blur-md bg-white/[0.02]" strength={0.2}>
-              {t('landing_cta_secondary')}
+            <MagneticButton as="a" href="#capabilities" className="btn-secondary px-8 py-4 text-base w-full sm:w-auto flex items-center justify-center gap-2 border border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.05] transition-all">
+              {t('landing_cta_secondary')} <Search size={18} className="text-chrome-500" />
             </MagneticButton>
-          </motion.div>
-
-          {/* Trust strip */}
-          <motion.div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1, duration: 0.6 }}>
-            {trustBadges.map((badge, i) => (
-              <div key={i} className="flex items-center gap-2 text-steel-500 text-xs font-medium">
-                <span className="text-chrome-500/60">{badge.icon}</span>
-                {badge.label}
-              </div>
-            ))}
           </motion.div>
         </motion.div>
-      </section>
 
-
-      {/* ══════ CHAT PREVIEW ══════ */}
-      <section className="relative z-10 pb-24 sm:pb-32">
-        <div className="max-w-6xl mx-auto px-6">
-          <Reveal>
-            <TiltCard className="max-w-4xl mx-auto">
-              <div className="relative rounded-3xl border border-white/[0.08] bg-obsidian-900/60 backdrop-blur-2xl overflow-hidden shadow-[0_30px_100px_-20px_rgba(0,0,0,0.9)]">
-                {/* Accent glow top */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-24 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none" />
-
-                {/* Window bar */}
-                <div className="flex items-center gap-2 px-6 py-4 border-b border-white/[0.05]">
-                  <span className="w-3 h-3 rounded-full bg-white/10 border border-white/10" />
-                  <span className="w-3 h-3 rounded-full bg-white/10 border border-white/10" />
-                  <span className="w-3 h-3 rounded-full bg-white/10 border border-white/10" />
-                  <span className="ml-4 text-xs text-steel-500 font-mono tracking-wider">AI-Юрист • Консультация</span>
-                  <div className="ml-auto flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500/80 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+        {/* Floating AI chat preview — Parallax */}
+        <div className="w-full max-w-5xl mx-auto mt-20 px-6 perspective-[2000px] relative z-10 hidden sm:block">
+          <Reveal delay={1.0} duration={0.8}>
+            <TiltCard>
+              <div className="relative rounded-[2rem] border border-white/[0.06] bg-obsidian-950/80 backdrop-blur-3xl shadow-[0_20px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(148,163,184,0.05)] overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.05] bg-obsidian-900/50">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-rose-500/80 shadow-[0_0_10px_rgba(244,63,94,0.4)]" />
+                    <div className="w-3 h-3 rounded-full bg-amber-500/80 shadow-[0_0_10px_rgba(245,158,11,0.4)]" />
+                    <div className="w-3 h-3 rounded-full bg-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.4)]" />
+                  </div>
+                  <div className="flex-1 flex justify-center">
                     <span className="text-[10px] text-emerald-400/80 font-medium">Online</span>
                   </div>
                 </div>
@@ -349,6 +358,22 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══════ TRUSTED BY MARQUEE ══════ */}
+      <section className="relative z-10 w-full overflow-hidden pb-12">
+        <p className="text-center text-xs text-steel-500 font-bold uppercase tracking-[0.2em] mb-6">Технологии & Интеграции</p>
+        <Marquee 
+          items={[
+            <span className="text-xl font-bold text-chrome-400 flex items-center gap-2"><Cpu size={24} /> Neural Processing</span>,
+            <span className="text-xl font-bold text-chrome-400 flex items-center gap-2"><Database size={24} /> Adilet.zan.kz API</span>,
+            <span className="text-xl font-bold text-chrome-400 flex items-center gap-2"><Lock size={24} /> End-to-End Encryption</span>,
+            <span className="text-xl font-bold text-chrome-400 flex items-center gap-2"><Shield size={24} /> E-Gov Data Ready</span>,
+            <span className="text-xl font-bold text-chrome-400 flex items-center gap-2"><Zap size={24} /> Instant Responses</span>,
+            <span className="text-xl font-bold text-chrome-400 flex items-center gap-2"><Globe size={24} /> Multilingual (KZ/RU)</span>
+          ]}
+          speed={60}
+        />
+      </section>
+
 
       {/* ══════ STATS ══════ */}
       <section className="relative z-10 py-20 sm:py-28">
@@ -382,8 +407,8 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {capabilities.map((c, i) => (
               <Reveal key={i} delay={i * 0.08} className={c.span}>
-                <TiltCard className="h-full">
-                  <div className={`landing-capability-card group h-full ${c.featured ? 'lg:flex lg:items-center lg:gap-8' : ''}`}>
+                <SpotlightCard className="h-full p-[1px]">
+                  <div className={`landing-capability-card group h-full w-full bg-obsidian-950/80 rounded-2xl ${c.featured ? 'lg:flex lg:items-center lg:gap-8' : ''}`}>
                     {/* Accent line top */}
                     <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
@@ -398,10 +423,10 @@ export default function LandingPage() {
                       <p className="text-sm text-steel-400 leading-relaxed group-hover:text-steel-300 transition-colors">{c.desc}</p>
                     </div>
 
-                    {/* Hover glow */}
+                    {/* Hover glow inside card */}
                     <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-white/[0.015] rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   </div>
-                </TiltCard>
+                </SpotlightCard>
               </Reveal>
             ))}
           </div>
