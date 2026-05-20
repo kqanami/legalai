@@ -178,7 +178,6 @@ export default function LandingPage() {
   const introScale = useTransform(scrollY, [0, 400], [1, 1.1]);
   const introFilter = useTransform(scrollY, [0, 400], ['blur(0px)', 'blur(20px)']);
   
-  const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
