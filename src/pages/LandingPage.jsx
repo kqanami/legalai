@@ -202,12 +202,15 @@ export default function LandingPage() {
           
           <motion.div 
             style={{ opacity: introOpacity, scale: introScale, filter: introFilter }}
-            className="relative w-full max-w-5xl px-6 aspect-[16/9] sm:aspect-[21/9] flex items-center justify-center"
+            className="relative w-full max-w-6xl px-6 flex flex-col items-center justify-center text-center"
           >
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
-            <img src="/intro-image.png" className="w-full h-full object-cover rounded-[2rem] border border-white/[0.05] shadow-[0_0_120px_rgba(16,185,129,0.15)]" alt="AI Legal Intro" />
+            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight leading-[1.1] mb-8">
+              <span className="text-white drop-shadow-2xl">Правовой интеллект</span>
+              <br />
+              <span className="metal-text">нового поколения</span>
+            </h1>
             
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 z-20">
+            <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 z-20">
                <motion.span 
                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1, duration: 1 }}
                  className="text-chrome-400 text-[10px] tracking-[0.3em] uppercase font-medium drop-shadow-md"
