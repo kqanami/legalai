@@ -112,7 +112,7 @@ export default function Sidebar({ isOpen, onClose }) {
           {/* New Chat Button */}
           <button
             onClick={() => { clearMessages(); navigate('/dashboard'); onClose(); }}
-            className="mb-6 w-full py-4 rounded-xl chrome-gradient text-obsidian-950 font-bold text-xs uppercase tracking-widest shadow-[0_4px_20px_rgba(255,255,255,0.1)] hover:shadow-[0_8px_30px_rgba(255,255,255,0.2)] transition-all group flex items-center justify-center gap-2"
+            className="btn-primary mb-6 w-full py-4 text-xs uppercase tracking-widest group flex items-center justify-center gap-2"
           >
             <Plus size={16} /> {t('new_chat')}
           </button>

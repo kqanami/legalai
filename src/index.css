@@ -198,16 +198,46 @@
 
   /* ======= Chat Bubbles ======= */
   .chat-bubble-user {
-    @apply max-w-[80%] px-5 py-4 rounded-2xl rounded-br-md text-obsidian-950 font-medium;
+    @apply max-w-[80%] px-5 py-4 rounded-2xl rounded-br-sm text-obsidian-950 font-medium relative overflow-hidden;
     background: linear-gradient(135deg, #CBD5E1 0%, #94A3B8 100%);
-    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px rgba(203, 213, 225, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  .chat-bubble-user::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%);
+    pointer-events: none;
   }
 
   .chat-bubble-ai {
-    @apply max-w-[85%] px-5 py-4 rounded-2xl rounded-bl-md border border-obsidian-600/30;
-    background: rgba(11, 13, 20, 0.85);
-    backdrop-filter: blur(16px);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    @apply max-w-[85%] px-5 py-4 rounded-2xl rounded-bl-sm border border-white/[0.04] relative;
+    background: rgba(11, 13, 20, 0.7);
+    backdrop-filter: blur(24px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* ======= Input Glow (Chat Page) ======= */
+  .glow-input-container {
+    @apply relative transition-all duration-500;
+  }
+  
+  .glow-input-container::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(203,213,225,0.2), transparent 40%, transparent 60%, rgba(203,213,225,0.1));
+    z-index: -1;
+    filter: blur(8px);
+    opacity: 0.5;
+    transition: opacity 0.5s ease, filter 0.5s ease;
+  }
+
+  .glow-input-container:focus-within::before {
+    opacity: 1;
+    filter: blur(12px);
   }
 
   /* ======= Segment Badges ======= */
@@ -327,6 +357,112 @@
 
   .risk-low {
     @apply text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-bold;
+  }
+
+  /* ======= Landing Page — Stat Cards ======= */
+  .landing-stat-card {
+    @apply relative rounded-2xl p-6 sm:p-7 transition-all duration-500;
+    background: rgba(9, 10, 15, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px);
+  }
+
+  .landing-stat-card:hover {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(9, 10, 15, 0.8);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.3),
+      0 0 30px rgba(255, 255, 255, 0.015),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    transform: translateY(-2px);
+  }
+
+  /* ======= Landing Page — Capability Cards ======= */
+  .landing-capability-card {
+    @apply relative rounded-2xl p-7 sm:p-8 transition-all duration-500 overflow-hidden;
+    background: rgba(9, 10, 15, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px);
+  }
+
+  .landing-capability-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 50%, rgba(255, 255, 255, 0.02));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
+  .landing-capability-card:hover {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(11, 13, 20, 0.7);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    transform: translateY(-3px);
+  }
+
+  .landing-capability-card:hover::after {
+    opacity: 1;
+  }
+
+  /* ======= Landing Page — Pricing Cards ======= */
+  .landing-pricing-card {
+    @apply relative transition-all duration-500;
+    background: rgba(9, 10, 15, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px);
+  }
+
+  .landing-pricing-card:hover {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(11, 13, 20, 0.7);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+    transform: translateY(-4px);
+  }
+
+  /* ======= Landing Page — Pricing Popular Card ======= */
+  .landing-pricing-popular {
+    @apply relative transition-all duration-500;
+    background: rgba(11, 13, 20, 0.8);
+    border: 1px solid rgba(203, 213, 225, 0.12);
+    backdrop-filter: blur(30px);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.4),
+      0 0 60px rgba(255, 255, 255, 0.02),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .landing-pricing-popular::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(203, 213, 225, 0.15), transparent 40%, transparent 60%, rgba(203, 213, 225, 0.08));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: background 0.5s ease;
+  }
+
+  .landing-pricing-popular:hover {
+    border-color: rgba(203, 213, 225, 0.2);
+    box-shadow:
+      0 16px 64px rgba(0, 0, 0, 0.5),
+      0 0 80px rgba(255, 255, 255, 0.03),
+      inset 0 1px 1px rgba(255, 255, 255, 0.06);
+    transform: translateY(-4px);
+  }
+
+  .landing-pricing-popular:hover::after {
+    background: linear-gradient(135deg, rgba(203, 213, 225, 0.25), rgba(255, 255, 255, 0.03) 50%, rgba(203, 213, 225, 0.15));
   }
 }
 

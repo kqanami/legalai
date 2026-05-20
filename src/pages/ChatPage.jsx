@@ -748,7 +748,7 @@ export default function ChatPage() {
       <div className="px-4 pb-8 pt-4">
         <form 
           onSubmit={handleSubmit}
-          className="max-w-4xl mx-auto relative group"
+          className="max-w-4xl mx-auto relative group glow-input-container"
         >
           <div className="absolute -inset-0.5 bg-gradient-to-r from-chrome-500/20 to-chrome-300/20 rounded-2xl blur opacity-30 group-focus-within:opacity-60 transition duration-500" />
           
