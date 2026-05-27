@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
-import { Search, Building2, CheckCircle2, ShieldCheck, Download, BarChart3, AlertCircle, Clock, ChevronRight } from 'lucide-react';
-import MagneticButton from '../components/MagneticButton';
+import { Search, Building2, CheckCircle2, ShieldCheck, BarChart3, AlertCircle, Clock, ChevronRight, Zap } from 'lucide-react';
 import { counterpartyApi } from '../services/api';
 
 /* ─── Pure SVG Radar Chart ─────────────────────────────────────── */
@@ -33,107 +32,74 @@ function computeRadarScores(result) {
   return [courtScore, taxScore, financeScore, licenseScore, yearsScore];
 }
 
-function RadarChart({ scores, size = 220 }) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const R = size * 0.38;          // max radius
+function RadarChart({ scores, size = 260 }) {
+  const cx = size / 2, cy = size / 2, R = size * 0.35;
   const rings = [0.25, 0.5, 0.75, 1.0];
-  const N = RADAR_AXES.length;
-  const angleStep = (2 * Math.PI) / N;
-  const startAngle = -Math.PI / 2; // top
+  const angleStep = (2 * Math.PI) / RADAR_AXES.length;
+  const startAngle = -Math.PI / 2;
 
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
   const isLowRisk = avg >= 65;
 
-  // Unique gradient id per instance
   const gradId = useMemo(() => 'radar-fill-' + Math.random().toString(36).slice(2, 8), []);
   const glowId = useMemo(() => 'radar-glow-' + Math.random().toString(36).slice(2, 8), []);
 
-  const pointOnAxis = (i, pct) => {
-    const angle = startAngle + i * angleStep;
-    return [
-      cx + R * pct * Math.cos(angle),
-      cy + R * pct * Math.sin(angle),
-    ];
-  };
+  const pointOnAxis = (i, pct) => [
+    cx + R * pct * Math.cos(startAngle + i * angleStep),
+    cy + R * pct * Math.sin(startAngle + i * angleStep),
+  ];
 
-  // Pentagon ring path
-  const ringPath = (pct) =>
-    RADAR_AXES.map((_, i) => pointOnAxis(i, pct))
-      .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`)
-      .join(' ') + ' Z';
+  const ringPath = (pct) => RADAR_AXES.map((_, i) => pointOnAxis(i, pct))
+    .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ') + ' Z';
 
-  // Data polygon
-  const dataPath = scores
-    .map((s, i) => pointOnAxis(i, s / 100))
-    .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`)
-    .join(' ') + ' Z';
+  const dataPath = scores.map((s, i) => pointOnAxis(i, s / 100))
+    .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ') + ' Z';
 
-  // Label positions — nudged outward
-  const labelOffset = 1.22;
   const labels = RADAR_AXES.map((axis, i) => {
-    const [lx, ly] = pointOnAxis(i, labelOffset);
-    let anchor = 'middle';
+    const [lx, ly] = pointOnAxis(i, 1.3);
     const angle = startAngle + i * angleStep;
+    let anchor = 'middle';
     if (Math.cos(angle) < -0.1) anchor = 'end';
     else if (Math.cos(angle) > 0.1) anchor = 'start';
     return { ...axis, x: lx, y: ly, anchor, score: scores[i] };
   });
 
-  const accentColor = isLowRisk ? '#34d399' : '#f87171'; // emerald-400 / red-400
-  const accentDark  = isLowRisk ? '#065f46' : '#7f1d1d';
+  const color = isLowRisk ? '#34d399' : '#f87171';
+  const darkColor = isLowRisk ? '#065f46' : '#7f1d1d';
 
   return (
-    <svg
-      viewBox={`-75 -60 ${size + 150} ${size + 120}`}
-      width="100%"
-      height="100%"
-      className="select-none max-w-[320px]"
-      style={{ filter: `drop-shadow(0 0 18px ${isLowRisk ? 'rgba(16,185,129,0.15)' : 'rgba(248,113,113,0.15)'})` }}
-    >
+    <svg viewBox={`-80 -80 ${size + 160} ${size + 160}`} width="100%" height="100%" className="select-none max-w-[360px] drop-shadow-[0_0_20px_rgba(16,185,129,0.15)]">
       <defs>
         <radialGradient id={gradId} cx="50%" cy="50%" r="50%">
-          <stop offset="0%"  stopColor={accentColor} stopOpacity="0.45" />
-          <stop offset="100%" stopColor={accentDark}  stopOpacity="0.10" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.5" />
+          <stop offset="100%" stopColor={darkColor} stopOpacity="0.1" />
         </radialGradient>
         <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feGaussianBlur stdDeviation="4" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
-
-      {/* Grid rings */}
-      {rings.map((r) => (
-        <path key={r} d={ringPath(r)} fill="none" stroke="rgba(148,163,184,0.10)" strokeWidth="1" />
-      ))}
-
-      {/* Axis lines */}
+      {rings.map((r) => <path key={r} d={ringPath(r)} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />)}
       {RADAR_AXES.map((_, i) => {
         const [ex, ey] = pointOnAxis(i, 1);
-        return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(148,163,184,0.10)" strokeWidth="1" />;
+        return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
       })}
-
-      {/* Data fill */}
-      <path d={dataPath} fill={`url(#${gradId})`} stroke={accentColor} strokeWidth="2" strokeLinejoin="round" filter={`url(#${glowId})`} />
-
-      {/* Data dots */}
+      <path d={dataPath} fill={`url(#${gradId})`} stroke={color} strokeWidth="2.5" strokeLinejoin="round" filter={`url(#${glowId})`} />
       {scores.map((s, i) => {
         const [dx, dy] = pointOnAxis(i, s / 100);
         return (
           <g key={i}>
-            <circle cx={dx} cy={dy} r="4" fill={accentColor} opacity="0.9" />
-            <circle cx={dx} cy={dy} r="2" fill="#fff" opacity="0.8" />
+            <circle cx={dx} cy={dy} r="5" fill={color} />
+            <circle cx={dx} cy={dy} r="2.5" fill="#fff" />
           </g>
         );
       })}
-
-      {/* Labels + score */}
       {labels.map((l) => (
         <g key={l.key}>
-          <text x={l.x} y={l.y - 6} textAnchor={l.anchor} fill="#94a3b8" fontSize="11" fontWeight="600" fontFamily="'Inter', sans-serif" letterSpacing="0.02em" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
+          <text x={l.x} y={l.y - 8} textAnchor={l.anchor} fill="#94a3b8" fontSize="12" fontWeight="700" letterSpacing="0.05em" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
             {l.label}
           </text>
-          <text x={l.x} y={l.y + 10} textAnchor={l.anchor} fill={accentColor} fontSize="13" fontWeight="800" fontFamily="'Inter', sans-serif" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
+          <text x={l.x} y={l.y + 12} textAnchor={l.anchor} fill={color} fontSize="16" fontWeight="900" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
             {l.score}
           </text>
         </g>
@@ -142,16 +108,9 @@ function RadarChart({ scores, size = 220 }) {
   );
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 15 } }
-};
-
+/* ─────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────── */
 export default function CounterpartyPage() {
   const { t } = useLanguage();
   const [bin, setBin] = useState('');
@@ -161,268 +120,227 @@ export default function CounterpartyPage() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Load history on mount
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  useEffect(() => { loadHistory(); }, []);
 
   const loadHistory = async () => {
     setHistoryLoading(true);
     try {
       const data = await counterpartyApi.getHistory();
       setHistory(data);
-    } catch (e) {
-      console.error('History load error:', e);
-    } finally {
-      setHistoryLoading(false);
-    }
+    } catch (e) { console.error(e); } finally { setHistoryLoading(false); }
   };
 
   const handleCheck = async (e) => {
     e.preventDefault();
     if (bin.length !== 12) return;
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       const data = await counterpartyApi.check(bin);
       setResult(data);
-      loadHistory(); // Refresh history after new check
-    } catch (err) {
-      setError(err.message || 'Ошибка проверки');
-    } finally {
-      setLoading(false);
-    }
+      loadHistory();
+    } catch (err) { setError(err.message || 'Ошибка проверки'); } finally { setLoading(false); }
   };
 
   const loadFromHistory = async (item) => {
+    setLoading(true);
     try {
       const data = await counterpartyApi.getDetail(item.id);
       setResult(data);
       setBin(item.bin_number);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  const riskColor = (level) => {
-    if (!level) return 'text-steel-400';
-    const l = level.toLowerCase();
-    if (l.includes('низк') || l === 'low') return 'text-emerald-400';
-    if (l.includes('средн') || l === 'medium') return 'text-amber-400';
-    return 'text-red-400';
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-8 mt-4 pb-20">
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-            
-            {/* Header */}
-            <motion.div variants={itemVariants} className="text-center sm:text-left mb-8">
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight flex items-center justify-center sm:justify-start gap-4 mb-2">
-                <Search className="text-chrome-400" size={36} strokeWidth={2.5} />
-                {t('counterparty_title')}
-              </h1>
-              <p className="text-steel-400 text-sm tracking-wide">Проверка юридических лиц по базам данных Республики Казахстан на предмет рисков.</p>
-            </motion.div>
+    <div className="min-h-screen bg-transparent text-white font-sans selection:bg-emerald-500/30 pb-24 relative overflow-hidden">
 
-            {/* Search Form */}
-            <motion.div variants={itemVariants} className="bg-neutral-900/30 backdrop-blur-xl border border-white/10 p-2 sm:p-2 rounded-[2rem] overflow-hidden shadow-2xl relative">
-              <AnimatePresence>
-                {bin.length > 0 && !result && (
-                  <motion.div
-                    className="absolute top-0 bottom-0 w-32 bg-gradient-to-r from-transparent via-chrome-500/20 to-transparent skew-x-12 opacity-50"
-                    animate={{ x: ['-200%', '800%'] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                  />
-                )}
-              </AnimatePresence>
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-16 relative z-10 flex flex-col xl:flex-row gap-8">
+        
+        {/* ── Main Panel ── */}
+        <div className="flex-1 min-w-0 flex flex-col gap-8">
+          
+          <div className="flex flex-col items-start gap-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
+              <ShieldCheck size={14} className="text-emerald-400" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">KYB Интеграция с базами РК</span>
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-[1.1]">
+              Анализ <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">контрагентов</span>
+            </h1>
+            <p className="text-white/40 max-w-lg leading-relaxed font-medium">
+              Мгновенная проверка юридических лиц на благонадежность по БИН. Оценка рисков на базе налоговых, судебных и финансовых реестров.
+            </p>
+          </div>
 
-              <form onSubmit={handleCheck} className="flex flex-col sm:flex-row gap-3 relative z-10 w-full">
-                <div className="flex-1 relative flex items-center">
-                  <div className="absolute left-6 text-steel-500"><Building2 size={24} /></div>
-                  <input
-                    type="text" value={bin}
-                    onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 12); setBin(val); if (result) setResult(null); }}
-                    placeholder={t('counterparty_placeholder')}
-                    className="w-full bg-black/50 border border-white/5 focus:border-white/20 rounded-xl py-6 pl-16 pr-16 text-xl tracking-[0.2em] font-mono text-white placeholder-neutral-600 outline-none transition-all shadow-inner focus:shadow-[inset_0_2px_10px_rgba(0,0,0,0.5),0_0_15px_rgba(255,255,255,0.02)]"
-                  />
-                  <span className={`absolute right-6 text-xs font-mono font-bold tracking-widest ${bin.length === 12 ? 'text-emerald-400' : 'text-steel-600'}`}>
-                    {bin.length}/12
-                  </span>
-                </div>
-                <MagneticButton type="submit" disabled={bin.length !== 12 || loading}
-                  className={`h-auto px-10 rounded-xl flex items-center justify-center border font-bold tracking-widest text-sm uppercase transition-all duration-300
-                    ${bin.length === 12 && !loading 
-                      ? 'bg-white text-black border-white hover:bg-neutral-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                      : 'bg-neutral-900 border-white/5 text-neutral-600 cursor-not-allowed'}`}
-                  strength={0.2}>
-                  {loading ? (
-                    <span className="flex items-center gap-3">
-                      <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                      Ожидание...
-                    </span>
-                  ) : t('counterparty_check')}
-                </MagneticButton>
-              </form>
-            </motion.div>
-
+          {/* Search Box */}
+          <div className="glass-premium rounded-[2rem] p-4 shadow-2xl relative overflow-hidden">
             <AnimatePresence>
               {loading && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className="bg-neutral-900/40 backdrop-blur-xl p-8 border border-white/10 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center overflow-hidden">
-                  <div className="w-16 h-1 rounded-full bg-neutral-800 overflow-hidden mb-6 relative">
-                    <motion.div className="absolute left-0 top-0 bottom-0 bg-white shadow-[0_0_10px_#fff]"
-                      animate={{ width: ['0%', '100%'] }} transition={{ duration: 2, ease: "easeInOut" }} />
-                  </div>
-                  <p className="font-mono text-white text-sm tracking-widest animate-pulse">ОБРАЩЕНИЕ К БАЗЕ ДАННЫХ...</p>
-                </motion.div>
+                <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent"
+                  animate={{ x: ['-200%', '200%'] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }} />
               )}
             </AnimatePresence>
-
-            {/* Error */}
-            {error && (
-              <div className="glass-card p-4 border border-red-500/30 text-red-400 text-sm flex items-center gap-3">
-                <AlertCircle size={18} /> {error}
+            <form onSubmit={handleCheck} className="flex flex-col sm:flex-row gap-3 relative z-10">
+              <div className="flex-1 relative flex items-center bg-obsidian-950/50 rounded-2xl border border-white/[0.05] focus-within:border-white/20 transition-colors">
+                <Building2 size={20} className="absolute left-6 text-white/30" />
+                <input
+                  type="text" value={bin}
+                  onChange={e => { setBin(e.target.value.replace(/\D/g, '').slice(0, 12)); if (result) setResult(null); }}
+                  placeholder="Введите БИН компании (12 цифр)"
+                  className="w-full bg-transparent py-5 pl-16 pr-16 text-lg tracking-[0.15em] font-mono font-bold text-white placeholder-white/20 outline-none"
+                />
+                <span className={`absolute right-6 text-[10px] font-black tracking-widest ${bin.length === 12 ? 'text-emerald-400' : 'text-white/20'}`}>
+                  {bin.length}/12
+                </span>
               </div>
-            )}
+              <button type="submit" disabled={bin.length !== 12 || loading}
+                className="h-[68px] px-10 rounded-2xl bg-white text-black text-sm font-black uppercase tracking-widest hover:bg-white/90 disabled:bg-white/10 disabled:text-white/30 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                {loading ? 'Анализ...' : 'Проверить'}
+              </button>
+            </form>
+          </div>
 
-            {/* Results */}
-            <AnimatePresence>
-              {result && !loading && (
-                <motion.div initial={{ opacity: 0, y: 40, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ type: 'spring', damping: 20, stiffness: 100 }}>
-                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                      <CheckCircle2 className="text-emerald-400" /> {t('counterparty_result')}
-                    </h2>
-                    <span className="px-2 py-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest"><Building2 size={10}/> B2B</span>
-                  </div>
+          {error && (
+            <div className="rounded-2xl bg-red-500/10 border border-red-500/20 p-5 flex items-center gap-4 text-red-400 font-medium">
+              <AlertCircle size={20} /> {error}
+            </div>
+          )}
 
-                  <div className="grid sm:grid-cols-2 gap-6 mb-6">
-                    <div className="bg-neutral-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl hover:border-white/10 transition-colors">
-                      <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-5 flex items-center gap-2">
-                        <Building2 size={14} className="text-white" /> Основная информация
-                      </h3>
-                      <div className="space-y-4">
-                        {[['Наименование', result.companyName], ['БИН', result.bin],
-                          ['Статус', result.status, result.status === 'Действующее' ? 'text-emerald-400' : 'text-amber-400'],
-                          ['Дата регистрации', result.registrationDate], ['Руководитель', result.director],
-                        ].map(([label, value, colorClass]) => (
-                          <div key={label} className="flex justify-between items-center border-b border-white/5 pb-2">
-                            <span className="text-xs text-neutral-500">{label}</span>
-                            <span className={`text-sm font-medium ${colorClass || 'text-white'} text-right max-w-[60%]`}>{value}</span>
-                          </div>
-                        ))}
+          {/* Results Bento Grid */}
+          <AnimatePresence>
+            {result && !loading && (
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* Radar Box (Takes full width on mobile, right column on desktop) */}
+                <div className="lg:col-span-2 rounded-[2.5rem] glass-premium p-8 sm:p-12 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-12">
+                  <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
+                  
+                  <div className="flex-1 w-full relative z-10">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                        <ShieldCheck size={24} className="text-emerald-400" />
                       </div>
-                    </div>
-
-                    <div className="bg-neutral-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl hover:border-white/10 transition-colors">
-                      <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-5 flex items-center gap-2">
-                        <BarChart3 size={14} className="text-white" /> Детали компании
-                      </h3>
-                      <div className="space-y-4">
-                        {[['Адрес', result.address], ['Вид деятельности', result.activity],
-                          ['Кол-во сотрудников', result.employees],
-                          ['Налоговая задолженность', result.taxDebt, result.taxDebt === '0 ₸' ? 'text-emerald-400' : 'text-red-400'],
-                        ].map(([label, value, colorClass]) => (
-                          <div key={label} className="flex flex-col sm:flex-row justify-between sm:items-center gap-1 border-b border-white/5 pb-2">
-                            <span className="text-xs text-neutral-500">{label}</span>
-                            <span className={`text-sm font-medium ${colorClass || 'text-white'} sm:text-right max-w-[80%]`}>{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Risk + Radar */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', damping: 22, stiffness: 90, delay: 0.25 }}
-                    className="bg-neutral-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-emerald-500/10 shadow-[0_0_50px_rgba(16,185,129,0.02)] relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-                    <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-6 flex items-center gap-2">
-                      <ShieldCheck size={14} className="text-emerald-400" /> AI Оценка рисков
-                    </h3>
-
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8 relative z-10">
-                      {/* Left: text info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-5 mb-4">
-                          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                            <ShieldCheck size={32} className="text-emerald-400" />
-                          </div>
-                          <div>
-                            <p className="text-xl font-bold text-emerald-400 mb-1 tracking-wide">Уровень риска: {result.riskLevel}</p>
-                            <p className="text-sm text-steel-400 font-medium">Контрагент прошёл первичную проверку ИИ.</p>
-                          </div>
-                        </div>
-
-                        {/* Mini score breakdown */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                          {(() => {
-                            const s = computeRadarScores(result);
-                            return RADAR_AXES.map((axis, i) => (
-                              <div key={axis.key} className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2 border border-white/5">
-                                <span className={`text-lg font-bold font-mono ${s[i] >= 65 ? 'text-emerald-400' : s[i] >= 45 ? 'text-amber-400' : 'text-red-400'}`}>{s[i]}</span>
-                                <span className="text-[10px] text-neutral-500 leading-tight">{axis.label}</span>
-                              </div>
-                            ));
-                          })()}
+                      <div>
+                        <h2 className="text-2xl font-black text-white tracking-tight">AI Индекс Доверия</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${result.riskLevel.includes('Низк') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {result.riskLevel}
+                          </span>
                         </div>
                       </div>
-
-                      {/* Right: Radar Chart */}
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.7, rotate: -15 }}
-                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                        transition={{ type: 'spring', damping: 18, stiffness: 80, delay: 0.5 }}
-                        className="flex-shrink-0 mx-auto lg:mx-0"
-                      >
-                        <RadarChart scores={computeRadarScores(result)} size={220} />
-                      </motion.div>
                     </div>
-
-                    {result.aiAnalysis && (
-                      <p className="mt-4 text-sm text-steel-400 border-t border-obsidian-700/50 pt-4">{result.aiAnalysis}</p>
-                    )}
-                    <p className="mt-4 text-[10px] text-steel-500 italic text-center">
-                      * Данные получены из открытых источников методом ИИ-поиска. Рекомендуется сверка с egov.kz.
+                    
+                    <p className="text-white/40 text-sm leading-relaxed mb-8">
+                      {result.aiAnalysis || "ИИ провел глубокий анализ открытых реестров, налоговых задолженностей и судебных разбирательств. Настоятельно рекомендуется ознакомиться с полной выпиской перед заключением сделки."}
                     </p>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {RADAR_AXES.map((axis, i) => {
+                        const s = computeRadarScores(result)[i];
+                        return (
+                          <div key={axis.key} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-4 flex flex-col justify-center relative overflow-hidden">
+                            <div className={`absolute bottom-0 left-0 h-1 bg-gradient-to-r ${s >= 65 ? 'from-emerald-500' : 'from-red-500'} to-transparent opacity-50`} style={{ width: `${s}%` }} />
+                            <span className="text-[10px] uppercase tracking-widest font-bold text-white/30 mb-1">{axis.label}</span>
+                            <span className="text-2xl font-black text-white/90">{s} <span className="text-xs text-white/20">/100</span></span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="w-full md:w-[360px] flex-shrink-0 flex items-center justify-center relative z-10">
+                    <RadarChart scores={computeRadarScores(result)} size={300} />
+                  </div>
+                </div>
+
+                {/* Company Info Box */}
+                <div className="rounded-[2rem] glass-card p-8 relative overflow-hidden group">
+                  <h3 className="text-[11px] font-black uppercase tracking-widest text-white/30 mb-6 flex items-center gap-2">
+                    <Building2 size={14} /> Базовые реквизиты
+                  </h3>
+                  <div className="space-y-5">
+                    {[
+                      { label: 'Наименование', value: result.companyName, accent: false },
+                      { label: 'БИН', value: result.bin, accent: false, mono: true },
+                      { label: 'Статус', value: result.status, accent: result.status === 'Действующее' ? 'text-emerald-400' : 'text-amber-400' },
+                      { label: 'Регистрация', value: result.registrationDate, accent: false },
+                      { label: 'Руководитель', value: result.director, accent: false },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex flex-col gap-1 border-b border-white/[0.04] pb-4 last:border-0 last:pb-0">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">{item.label}</span>
+                        <span className={`text-sm font-medium ${item.accent ? item.accent : 'text-white/80'} ${item.mono ? 'font-mono tracking-wider' : ''}`}>
+                          {item.value || '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Financial Info Box */}
+                <div className="rounded-[2rem] glass-card p-8 relative overflow-hidden group">
+                  <h3 className="text-[11px] font-black uppercase tracking-widest text-white/30 mb-6 flex items-center gap-2">
+                    <BarChart3 size={14} /> Деятельность и Финансы
+                  </h3>
+                  <div className="space-y-5">
+                    {[
+                      { label: 'Юридический адрес', value: result.address, accent: false },
+                      { label: 'ОКЭД (Вид деятельности)', value: result.activity, accent: false },
+                      { label: 'Размер предприятия', value: result.employees, accent: false },
+                      { label: 'Налоговая задолженность', value: result.taxDebt, accent: result.taxDebt === '0 ₸' ? 'text-emerald-400' : 'text-red-400 font-bold' },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex flex-col gap-1 border-b border-white/[0.04] pb-4 last:border-0 last:pb-0">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">{item.label}</span>
+                        <span className={`text-sm font-medium ${item.accent ? item.accent : 'text-white/80'}`}>
+                          {item.value || '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* History sidebar */}
-        <div className="w-full lg:w-72 flex-shrink-0">
-          <div className="bg-neutral-900/30 backdrop-blur-xl border border-white/5 rounded-2xl p-5 sticky top-24 shadow-2xl">
-            <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-4 flex items-center gap-2">
-              <Clock size={14} className="text-white" /> История проверок
-            </h3>
+        {/* ── Sidebar (History) ── */}
+        <div className="w-full xl:w-[320px] flex-shrink-0">
+          <div className="glass-card rounded-[2rem] p-6 sticky top-24">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
+                <Clock size={14} /> История
+              </h3>
+              <span className="text-[10px] font-bold text-white/20 bg-white/[0.05] px-2 py-0.5 rounded-full">{history.length}</span>
+            </div>
+            
             {historyLoading ? (
-              <p className="text-xs text-steel-600 animate-pulse">Загрузка...</p>
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-white/[0.02] animate-pulse" />)}
+              </div>
             ) : history.length === 0 ? (
-              <p className="text-xs text-steel-600">Пока нет проверок</p>
+              <div className="py-12 flex flex-col items-center text-center">
+                <div className="w-12 h-12 rounded-2xl bg-white/[0.02] flex items-center justify-center mb-3">
+                  <Zap size={20} className="text-white/10" />
+                </div>
+                <p className="text-xs text-white/30 font-medium">История запросов пуста</p>
+              </div>
             ) : (
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 custom-scrollbar">
                 {history.map((item) => (
                   <button key={item.id} onClick={() => loadFromHistory(item)}
-                    className="w-full text-left p-3 rounded-xl bg-black/20 hover:bg-black/50 border border-transparent hover:border-white/10 transition-all duration-200 group">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-mono text-white tracking-wider">{item.bin_number}</span>
-                      <ChevronRight size={12} className="text-neutral-600 group-hover:text-white transition-colors" />
+                    className="w-full text-left p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-transparent hover:border-white/[0.08] transition-all group">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-mono font-bold text-white/60 tracking-wider">{item.bin_number}</span>
+                      <ChevronRight size={14} className="text-white/20 group-hover:text-white transition-colors" />
                     </div>
-                    <p className="text-xs text-neutral-400 truncate">{item.company_name || 'Компания'}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className={`text-[10px] font-bold ${riskColor(item.risk_level)}`}>{item.risk_level || '—'}</span>
-                      <span className="text-[10px] text-neutral-600">{new Date(item.created_at).toLocaleDateString('ru')}</span>
+                    <p className="text-xs font-medium text-white/80 truncate mb-2">{item.company_name || 'Неизвестная компания'}</p>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                        item.risk_level?.includes('Низк') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                      }`}>
+                        {item.risk_level || '—'}
+                      </span>
+                      <span className="text-[10px] text-white/30 font-medium">{new Date(item.created_at).toLocaleDateString('ru')}</span>
                     </div>
                   </button>
                 ))}

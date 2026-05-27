@@ -7,8 +7,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { Plus, Crown } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
 
+// Items that need special click handling are handled inline
 const navItems = [
-  { path: '/dashboard', key: 'nav_chat', exact: true, anim: 'chat' },
+  { path: '/dashboard', key: 'nav_chat', exact: true, anim: 'chat', chatNav: true },
   { path: '/dashboard/documents', key: 'nav_documents', anim: 'document' },
   { path: '/dashboard/history', key: 'nav_history', anim: 'history' },
   { path: '/dashboard/counterparty', key: 'nav_counterparty', anim: 'search' },
@@ -18,13 +19,32 @@ const navItems = [
 
 export default function Sidebar({ isOpen, onClose }) {
   const { t } = useLanguage();
-  const { currentSegment, clearMessages } = useChat();
+  const { currentSegment, clearMessages, chatHistory, loadSession, sessionId } = useChat();
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   
   const [isHovered, setIsHovered] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  // When user clicks "Консультант": resume latest session or start new
+  const handleChatNav = () => {
+    if (!isDesktop) onClose();
+    // If already in this session, do nothing
+    if (location.pathname === '/dashboard' && sessionId) return;
+    // If there's history, load the most recent session
+    if (chatHistory && chatHistory.length > 0) {
+      const latest = chatHistory[0];
+      if (sessionId !== latest.id) {
+        loadSession(latest.id);
+      }
+      navigate('/dashboard');
+    } else {
+      // No history → fresh chat
+      clearMessages();
+      navigate('/dashboard');
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -101,6 +121,41 @@ export default function Sidebar({ isOpen, onClose }) {
           <nav className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
             {navItems.map((item) => {
               const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+
+              // Chat item gets special click handler
+              if (item.chatNav) {
+                return (
+                  <button
+                    key={item.path}
+                    onClick={handleChatNav}
+                    className={`group relative flex items-center h-12 rounded-2xl transition-all overflow-hidden whitespace-nowrap w-full ${
+                      isActive ? (expanded ? 'bg-white/10 text-white shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]' : 'text-white') : 'text-neutral-500 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] z-10"
+                        layoutId="active-indicator"
+                      />
+                    )}
+                    <div className="w-[48px] shrink-0 flex items-center justify-center relative z-0">
+                      <AnimatedIcon type={item.anim}>
+                        <span className={`text-xl ${isActive ? 'grayscale-0' : 'grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100'}`}>
+                          {item.icon}
+                        </span>
+                      </AnimatedIcon>
+                    </div>
+                    <motion.span
+                      initial={false}
+                      animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }}
+                      className="font-medium text-sm tracking-wide overflow-hidden block"
+                    >
+                      {t(item.key)}
+                    </motion.span>
+                  </button>
+                );
+              }
+
               return (
                 <NavLink
                   key={item.path}
@@ -123,7 +178,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       </span>
                     </AnimatedIcon>
                   </div>
-                  <motion.span 
+                  <motion.span
                     initial={false}
                     animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }}
                     className="font-medium text-sm tracking-wide overflow-hidden block"

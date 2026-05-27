@@ -1,113 +1,313 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useLanguage } from '../i18n/LanguageContext';
-import { diffLines } from 'diff';
-import { ShieldAlert, FileSearch, CheckCircle2, AlertTriangle, FileText, Download, SlidersHorizontal, UploadCloud, Link as LinkIcon, Building2, Clock, ChevronRight, Trash2, EyeOff, Columns2, Sparkles, X, RefreshCw, Save } from 'lucide-react';
-import MagneticButton from '../components/MagneticButton';
-import { auditApi, docsApi } from '../services/api';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { diffLines } from 'diff';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clipboard,
+  Columns2,
+  Download,
+  EyeOff,
+  FileCheck2,
+  FileSearch,
+  FileText,
+  Link as LinkIcon,
+  ListTree,
+  Loader2,
+  RefreshCw,
+  Save,
+  Search,
+  ShieldAlert,
+  SlidersHorizontal,
+  Sparkles,
+  Target,
+  X,
+} from 'lucide-react';
+import { auditApi, docsApi } from '../services/api';
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+const riskMeta = {
+  high: {
+    label: 'Высокий риск',
+    short: 'Высокие',
+    border: 'border-red-500/35',
+    bg: 'bg-red-500/10',
+    text: 'text-red-300',
+    dot: 'bg-red-400',
+    icon: AlertTriangle,
+  },
+  medium: {
+    label: 'Средний риск',
+    short: 'Средние',
+    border: 'border-amber-500/35',
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-300',
+    dot: 'bg-amber-400',
+    icon: SlidersHorizontal,
+  },
+  low: {
+    label: 'Рекомендация',
+    short: 'Рекомендации',
+    border: 'border-sky-500/35',
+    bg: 'bg-sky-500/10',
+    text: 'text-sky-300',
+    dot: 'bg-sky-400',
+    icon: CheckCircle2,
+  },
 };
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 15 } }
+const riskFilters = [
+  { value: 'all', label: 'Все' },
+  { value: 'high', label: 'Высокие' },
+  { value: 'medium', label: 'Средние' },
+  { value: 'low', label: 'Рекомендации' },
+];
+
+const normalizeRiskLevel = (level) => {
+  const normalized = String(level || '').toLowerCase();
+  if (normalized.includes('high') || normalized.includes('выс')) return 'high';
+  if (normalized.includes('medium') || normalized.includes('сред')) return 'medium';
+  if (normalized.includes('low') || normalized.includes('низ') || normalized.includes('рекомен')) return 'low';
+  return 'low';
+};
+
+const formatSavedTime = (date) =>
+  date ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+
+const cleanGeneratedContract = (content) =>
+  (content || '').replace(/> \*\*ВНИМАНИЕ: ДАННЫЙ ШАБЛОН СГЕНЕРИРОВАН ИИ\.\*\*.*?\n\n/gs, '').trim();
+
+const getLineScrollTop = (text, start, textarea) => {
+  const lineCountBefore = text.slice(0, start).split('\n').length;
+  const totalLines = Math.max(1, text.split('\n').length);
+  const maxScroll = Math.max(0, textarea.scrollHeight - textarea.clientHeight);
+  return Math.max(0, (lineCountBefore / totalLines) * maxScroll - 120);
+};
+
+const getSearchMatches = (text, query) => {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [];
+
+  const haystack = text.toLowerCase();
+  const matches = [];
+  let start = 0;
+
+  while (matches.length < 500) {
+    const index = haystack.indexOf(needle, start);
+    if (index === -1) break;
+    matches.push({ start: index, end: index + needle.length });
+    start = index + Math.max(needle.length, 1);
+  }
+
+  return matches;
+};
+
+const getDocumentSections = (text) => {
+  const lines = text.split('\n');
+  const sections = [];
+  let cursor = 0;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    const isSection =
+      /^(раздел|глава|статья)\s*\d+/i.test(trimmed) ||
+      /^\d+(\.\d+)*[.)]?\s*\S+/.test(trimmed) ||
+      /^[IVX]+\.\s*\S+/.test(trimmed);
+
+    if (isSection && trimmed.length <= 160) {
+      sections.push({
+        title: trimmed,
+        start: cursor + line.indexOf(trimmed),
+      });
+    }
+
+    cursor += line.length + 1;
+  });
+
+  return sections.slice(0, 80);
+};
+
+const getFirstChangedRange = (before, after) => {
+  const parts = diffLines(before, after);
+  let cursor = 0;
+
+  for (const part of parts) {
+    if (part.added) {
+      return { start: cursor, end: Math.max(cursor + part.value.length, cursor + 1) };
+    }
+    if (!part.removed) {
+      cursor += part.value.length;
+    }
+  }
+
+  const limit = Math.min(before.length, after.length);
+  let start = 0;
+  while (start < limit && before[start] === after[start]) start += 1;
+  return { start, end: Math.min(after.length, start + 300) };
 };
 
 export default function DocumentWorkspace() {
-  const { t } = useLanguage();
-  const [results, setResults] = useState(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const { id } = useParams();
   const navigate = useNavigate();
-  const [loadingDoc, setLoadingDoc] = useState(true);
-  const [error, setError] = useState('');
+  const docScrollRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
+  const lastSavedTextRef = useRef('');
+  
+  const diffOriginalRef = useRef(null);
+  const diffModifiedRef = useRef(null);
+  const isScrollingRef = useRef(false);
+
+  const [results, setResults] = useState(null);
   const [summary, setSummary] = useState('');
+  const [auditDocType, setAuditDocType] = useState('');
+  const [contractText, setContractText] = useState('');
+  const [originalAnalyzedText, setOriginalAnalyzedText] = useState('');
+  const [baselineText, setBaselineText] = useState('');
+  const [activeAuditId, setActiveAuditId] = useState(null);
+
+  const [loadingDoc, setLoadingDoc] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
   const [savingText, setSavingText] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
-  
-  const [contractText, setContractText] = useState('');
-  const [originalAnalyzedText, setOriginalAnalyzedText] = useState(''); // Text at the time of last analysis
-  
+  const [error, setError] = useState('');
+
   const [activeRiskIndex, setActiveRiskIndex] = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [toast, setToast] = useState(null);
-  const [genProgress, setGenProgress] = useState(0);
-  const [activeAuditId, setActiveAuditId] = useState(null);
-  const [reanalyzing, setReanalyzing] = useState(false);
   const [fixingRiskIndex, setFixingRiskIndex] = useState(null);
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [riskSearch, setRiskSearch] = useState('');
   const [diffResult, setDiffResult] = useState(null);
   const [showSideBySide, setShowSideBySide] = useState(true);
-  const docScrollRef = useRef(null);
-  
-  // Autosave timer
-  const saveTimeoutRef = useRef(null);
+  const [contractSearch, setContractSearch] = useState('');
+  const [searchMatchIndex, setSearchMatchIndex] = useState(0);
+  const [lastFixRange, setLastFixRange] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [showSections, setShowSections] = useState(false);
 
+  const riskList = Array.isArray(results) ? results : [];
   const isDirty = contractText !== originalAnalyzedText;
+  const hasChanges = baselineText !== contractText;
 
-  const loadDocumentAndAudit = useCallback(async (docId) => {
-    setLoadingDoc(true);
-    setContractText('');
-    setOriginalAnalyzedText('');
-    setResults(null);
-    setSummary('');
-    setActiveAuditId(null);
-    setError(null);
-    setDiffResult(null);
-    setActiveRiskIndex(null);
-    setLastSaved(null);
-    setReanalyzing(false);
-    setFixingRiskIndex(null);
+  const textStats = useMemo(() => {
+    const words = contractText.trim() ? contractText.trim().split(/\s+/).length : 0;
+    return {
+      words,
+      chars: contractText.length,
+      pages: Math.max(1, Math.ceil(words / 450)),
+    };
+  }, [contractText]);
 
-    try {
-      const docRes = await docsApi.getContent(docId);
-      const docContent = docRes.content || '';
-      setContractText(docContent);
-      setOriginalAnalyzedText(docContent);
-      
+  const riskStats = useMemo(
+    () =>
+      riskList.reduce(
+        (acc, risk) => {
+          const level = normalizeRiskLevel(risk.level);
+          acc[level] += 1;
+          acc.total += 1;
+          return acc;
+        },
+        { total: 0, high: 0, medium: 0, low: 0 },
+      ),
+    [riskList],
+  );
+
+  const filteredRisks = useMemo(() => {
+    const query = riskSearch.trim().toLowerCase();
+    return riskList
+      .map((risk, index) => ({ risk, index }))
+      .filter(({ risk }) => riskFilter === 'all' || normalizeRiskLevel(risk.level) === riskFilter)
+      .filter(({ risk }) => {
+        if (!query) return true;
+        return [risk.title, risk.description, risk.recommendation, risk.article, risk.location]
+          .filter(Boolean)
+          .some((field) => String(field).toLowerCase().includes(query));
+      });
+  }, [riskFilter, riskList, riskSearch]);
+
+  const searchMatches = useMemo(
+    () => getSearchMatches(contractText, contractSearch),
+    [contractText, contractSearch],
+  );
+
+  const documentSections = useMemo(
+    () => getDocumentSections(contractText),
+    [contractText],
+  );
+
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const applyAuditResponse = useCallback((data, fallbackText = '', options = {}) => {
+    const nextText = data.original_text || fallbackText || '';
+    setResults(data.risks || []);
+    setSummary(data.summary || '');
+    setAuditDocType(data.doc_type || '');
+    setActiveAuditId(data.id || null);
+    setContractText(nextText);
+    setOriginalAnalyzedText(nextText);
+    if (options.resetBaseline) {
+      setBaselineText(nextText);
+    }
+    lastSavedTextRef.current = nextText;
+  }, []);
+
+  const loadDocumentAndAudit = useCallback(
+    async (docId) => {
+      setLoadingDoc(true);
+      setError('');
+      setResults(null);
+      setSummary('');
+      setAuditDocType('');
+      setActiveAuditId(null);
+      setActiveRiskIndex(null);
+      setDiffResult(null);
+      setLastSaved(null);
+      setContractText('');
+      setOriginalAnalyzedText('');
+      setBaselineText('');
+      setContractSearch('');
+      setLastFixRange(null);
+      lastSavedTextRef.current = '';
+
       try {
-        const auditData = await auditApi.getDocumentAudit(docId);
-        setResults(auditData.risks || []);
-        setSummary(auditData.summary || '');
-        setActiveAuditId(auditData.id);
-        
-        // Use the saved edited text if available, otherwise use fresh document content
-        const textToUse = auditData.original_text || docContent;
-        setContractText(textToUse);
-        setOriginalAnalyzedText(textToUse);
-        setLoadingDoc(false);
-      } catch (err) {
-        // No audit yet — auto-start analysis
-        setLoadingDoc(false);
-        setAnalyzing(true);
-        // Show fresh document content while analyzing
+        const docRes = await docsApi.getContent(docId);
+        const docContent = docRes.content || '';
         setContractText(docContent);
         setOriginalAnalyzedText(docContent);
+        setBaselineText(docContent);
+        lastSavedTextRef.current = docContent;
+
         try {
-          const data = await auditApi.analyzeDocument(docId);
-          setResults(data.risks || []);
-          setSummary(data.summary || '');
-          setActiveAuditId(data.id || null);
-          
-          if (data.original_text) {
-            setContractText(data.original_text);
-            setOriginalAnalyzedText(data.original_text);
+          const auditData = await auditApi.getDocumentAudit(docId);
+          applyAuditResponse(auditData, docContent, { resetBaseline: true });
+          setLoadingDoc(false);
+        } catch {
+          setLoadingDoc(false);
+          setAnalyzing(true);
+          try {
+            const data = await auditApi.analyzeDocument(docId);
+            applyAuditResponse(data, docContent, { resetBaseline: true });
+          } catch (analyzeErr) {
+            setError(analyzeErr.message || 'Ошибка анализа');
+          } finally {
+            setAnalyzing(false);
           }
-        } catch (analyzeErr) {
-          setError(analyzeErr.message || 'Ошибка анализа');
-        } finally {
-          setAnalyzing(false);
         }
+      } catch (e) {
+        setError(e.message || 'Не удалось открыть документ');
+        setLoadingDoc(false);
       }
-    } catch (e) {
-      setError(e.message);
-      setLoadingDoc(false);
-    }
-  }, []);
+    },
+    [applyAuditResponse],
+  );
 
   useEffect(() => {
     if (saveTimeoutRef.current) {
@@ -117,79 +317,50 @@ export default function DocumentWorkspace() {
     loadDocumentAndAudit(id);
   }, [id, loadDocumentAndAudit]);
 
-  // Auto-save logic
   useEffect(() => {
-    if (loadingDoc || !activeAuditId) return;
-    
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+    setSearchMatchIndex(0);
+  }, [contractSearch]);
+
+  useEffect(() => {
+    if (searchMatchIndex >= searchMatches.length) {
+      setSearchMatchIndex(0);
     }
-    
+  }, [searchMatchIndex, searchMatches.length]);
+
+  useEffect(() => {
+    if (loadingDoc || !activeAuditId || contractText === lastSavedTextRef.current) return undefined;
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    const textToSave = contractText;
     saveTimeoutRef.current = setTimeout(async () => {
       setSavingText(true);
       try {
-        await auditApi.saveText(activeAuditId, contractText);
+        await auditApi.saveText(activeAuditId, textToSave);
+        lastSavedTextRef.current = textToSave;
         setLastSaved(new Date());
       } catch (err) {
-        console.error("Failed to autosave:", err);
+        console.error('Failed to autosave:', err);
       } finally {
         setSavingText(false);
       }
-    }, 1500);
-    
+    }, 1200);
+
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [contractText, activeAuditId, loadingDoc]);
-
-  const handleQuickFix = async (risk, index) => {
-    if (!activeAuditId) return;
-    setFixingRiskIndex(index);
-    try {
-      const data = await auditApi.quickFix(
-        activeAuditId,
-        risk.title,
-        risk.description,
-        risk.recommendation,
-        risk.location || ''
-      );
-      const newText = data.original_text || '';
-      const diffArr = diffLines(contractText, newText);
-      setDiffResult(diffArr);
-      setShowSideBySide(true);
-      
-      setTimeout(() => {
-        const highlightElements = document.querySelectorAll('.diff-highlight');
-        if (highlightElements.length > 0) {
-          highlightElements[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 300);
-      
-      setResults(data.risks || []);
-      setSummary(data.summary || '');
-      setContractText(newText);
-      setOriginalAnalyzedText(newText);
-      setActiveRiskIndex(null);
-      showToast('Пункт договора успешно исправлен ИИ и проверен!', 'success');
-    } catch (err) {
-      showToast('Ошибка исправления: ' + err.message, 'error');
-    } finally {
-      setFixingRiskIndex(null);
-    }
-  };
+  }, [activeAuditId, contractText, loadingDoc]);
 
   const handleAnalyze = async () => {
     if (!id) return;
     setAnalyzing(true);
     setError('');
-    setActiveAuditId(null);
     try {
       const data = await auditApi.analyzeDocument(id);
-      setResults(data.risks || []);
-      setSummary(data.summary || '');
-      setContractText(data.original_text || '');
-      setOriginalAnalyzedText(data.original_text || '');
-      setActiveAuditId(data.id || null);
+      applyAuditResponse(data, '', { resetBaseline: true });
+      setLastFixRange(null);
+      setDiffResult(null);
+      showToast('Аудит документа завершён');
     } catch (err) {
       setError(err.message || 'Ошибка анализа');
     } finally {
@@ -198,515 +369,867 @@ export default function DocumentWorkspace() {
   };
 
   const handleReanalyze = async () => {
-    if (!contractText || !contractText.trim()) {
+    if (!contractText.trim()) {
       showToast('Текст документа пуст', 'error');
       return;
     }
+
     setReanalyzing(true);
     try {
       const data = await auditApi.reanalyze(contractText, 'Редактированный документ.docx', activeAuditId);
-      setResults(data.risks || []);
-      setSummary(data.summary || '');
-      setContractText(data.original_text || '');
-      setOriginalAnalyzedText(data.original_text || '');
-      if (data.id) {
-        setActiveAuditId(data.id);
-      }
-      showToast('Анализ успешно обновлен с учетом ваших правок!', 'success');
+      applyAuditResponse(data, contractText);
+      setDiffResult(null);
+      showToast('Анализ обновлён с учётом ваших правок');
     } catch (err) {
-      showToast('Ошибка анализа правок: ' + err.message, 'error');
+      showToast(`Ошибка повторного анализа: ${err.message}`, 'error');
     } finally {
       setReanalyzing(false);
     }
   };
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
+  const focusTextRange = (start, end, options = {}) => {
+    const textarea = docScrollRef.current;
+    if (!textarea) return;
+
+    const textForScroll = options.text || contractText;
+    const safeStart = Math.max(0, Math.min(start, textForScroll.length));
+    const safeEnd = Math.max(safeStart, Math.min(end, textForScroll.length));
+
+    textarea.focus();
+    textarea.setSelectionRange(safeStart, safeEnd);
+    textarea.scrollTop = getLineScrollTop(textForScroll, safeStart, textarea);
+
+    if (options.highlight) {
+      setLastFixRange({ start: safeStart, end: safeEnd });
+      window.setTimeout(() => setLastFixRange(null), 6000);
+    }
   };
 
-  const levelColors = {
-    high: { bg: 'bg-red-500/10', border: 'border-red-500/40', text: 'text-red-400', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', icon: <AlertTriangle size={14} className="text-red-400"/>, label: 'ВЫСОКИЙ РИСК', marker: 'bg-red-500' },
-    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/40', text: 'text-amber-400', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.3)]', icon: <SlidersHorizontal size={14} className="text-amber-400"/>, label: 'СРЕДНИЙ РИСК', marker: 'bg-amber-500' },
-    low: { bg: 'bg-sky-500/10', border: 'border-sky-500/40', text: 'text-sky-400', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.3)]', icon: <CheckCircle2 size={14} className="text-sky-400"/>, label: 'РЕКОМЕНДАЦИЯ', marker: 'bg-sky-500' },
+  const goToSearchMatch = (direction = 0) => {
+    if (!searchMatches.length) {
+      if (contractSearch.trim()) showToast('Совпадений в договоре не найдено', 'error');
+      return;
+    }
+
+    const nextIndex = (searchMatchIndex + direction + searchMatches.length) % searchMatches.length;
+    setSearchMatchIndex(nextIndex);
+    const match = searchMatches[nextIndex];
+    focusTextRange(match.start, match.end);
   };
+
+  const goToSection = (sectionIndex) => {
+    const section = documentSections[sectionIndex];
+    if (!section) return;
+    focusTextRange(section.start, Math.min(contractText.length, section.start + section.title.length));
+  };
+
+  const handleCompareWithOriginal = () => {
+    if (!hasChanges) return;
+    setDiffResult(diffLines(baselineText, contractText));
+    setShowSideBySide(true);
+  };
+
+  const handleDiffScroll = (source) => {
+    if (isScrollingRef.current !== false && isScrollingRef.current !== source) return;
+    
+    const original = diffOriginalRef.current;
+    const modified = diffModifiedRef.current;
+    if (!original || !modified) return;
+    
+    isScrollingRef.current = source;
+    
+    if (source === 'original') {
+      const percentage = original.scrollTop / Math.max(1, original.scrollHeight - original.clientHeight);
+      modified.scrollTop = percentage * Math.max(1, modified.scrollHeight - modified.clientHeight);
+    } else {
+      const percentage = modified.scrollTop / Math.max(1, modified.scrollHeight - modified.clientHeight);
+      original.scrollTop = percentage * Math.max(1, original.scrollHeight - original.clientHeight);
+    }
+    
+    clearTimeout(window.scrollTimeout);
+    window.scrollTimeout = setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 50);
+  };
+
+  const handleQuickFix = async (risk, index) => {
+    if (!activeAuditId) return;
+    const oldText = contractText;
+    setFixingRiskIndex(index);
+    try {
+      const data = await auditApi.quickFix(
+        activeAuditId,
+        risk.title,
+        risk.description,
+        risk.recommendation,
+        risk.location || '',
+      );
+      const newText = data.original_text || oldText;
+      const changedRange = getFirstChangedRange(oldText, newText);
+      setDiffResult(null);
+      setResults(data.risks || []);
+      setSummary(data.summary || '');
+      setAuditDocType(data.doc_type || auditDocType);
+      setContractText(newText);
+      setOriginalAnalyzedText(newText);
+      lastSavedTextRef.current = newText;
+      setLastSaved(new Date());
+      setActiveRiskIndex(null);
+      showToast('Пункт исправлен прямо в тексте договора');
+
+      window.setTimeout(() => {
+        focusTextRange(changedRange.start, changedRange.end, { highlight: true, text: newText });
+      }, 80);
+    } catch (err) {
+      showToast(`Ошибка исправления: ${err.message}`, 'error');
+    } finally {
+      setFixingRiskIndex(null);
+    }
+  };
+
+  const handleFocusRisk = (risk, index) => {
+    setActiveRiskIndex(index);
+    const location = String(risk.location || '').trim();
+    if (!location) {
+      showToast('У этого риска нет точной привязки к фрагменту', 'error');
+      return;
+    }
+
+    const firstPass = contractText.indexOf(location);
+    const fallbackNeedle = location.slice(0, 80).trim();
+    const start = firstPass >= 0 ? firstPass : contractText.indexOf(fallbackNeedle);
+
+    if (start < 0 || !docScrollRef.current) {
+      showToast('Фрагмент не найден в текущей версии текста', 'error');
+      return;
+    }
+
+    const end = start + (firstPass >= 0 ? location.length : fallbackNeedle.length);
+    focusTextRange(start, end);
+  };
+
+  const handleCopyRecommendation = async (risk) => {
+    try {
+      await navigator.clipboard.writeText(risk.recommendation || risk.description || '');
+      showToast('Рекомендация скопирована');
+    } catch {
+      showToast('Не удалось скопировать рекомендацию', 'error');
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    if (!activeAuditId) return;
+    try {
+      const blob = await auditApi.downloadReport(activeAuditId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_report_${activeAuditId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showToast(`Не удалось скачать отчёт: ${err.message}`, 'error');
+    }
+  };
+
+  const handleGenerateFinal = async () => {
+    if (!riskList.length) return;
+    setGenerating(true);
+    setGenProgress(0);
+
+    const timer = window.setInterval(() => {
+      setGenProgress((prev) => {
+        if (prev >= 90) return 90;
+        if (prev < 40) return prev + 10;
+        if (prev < 70) return prev + 4;
+        return prev + 1;
+      });
+    }, 300);
+
+    try {
+      const docDescription = [
+        'Исправленный договор на основе юридического аудита.',
+        'Сгенерируй финальную версию договора строго на основе текста ниже.',
+        'Устрани перечисленные юридические риски, сохрани структуру и деловой стиль документа.',
+        '',
+        'РИСКИ ДЛЯ УСТРАНЕНИЯ:',
+        riskList
+          .map((risk, index) => `${index + 1}. ${risk.title}: ${risk.description}. Рекомендация: ${risk.recommendation}`)
+          .join('\n'),
+        '',
+        'ТЕКСТ ДОГОВОРА:',
+        contractText,
+      ].join('\n');
+
+      const data = await docsApi.generate('contract', docDescription);
+      const cleanedText = cleanGeneratedContract(data.content);
+      if (data.id) await docsApi.download(data.id);
+
+      window.clearInterval(timer);
+      setGenProgress(100);
+      setContractText(cleanedText);
+      setOriginalAnalyzedText(cleanedText);
+      lastSavedTextRef.current = cleanedText;
+      setResults([]);
+      setSummary('Все найденные риски устранены. Финальная версия сохранена в документах и скачана в DOCX.');
+      setDiffResult(null);
+      showToast('Финальная версия договора создана и скачана');
+    } catch (err) {
+      showToast(`Ошибка генерации финальной версии: ${err.message}`, 'error');
+    } finally {
+      window.clearInterval(timer);
+      setGenerating(false);
+      window.setTimeout(() => setGenProgress(0), 500);
+    }
+  };
+
+  const renderStatusPill = () => {
+    if (savingText) {
+      return (
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-steel-300">
+          <RefreshCw size={13} className="animate-spin" />
+          Сохранение
+        </span>
+      );
+    }
+
+    if (isDirty) {
+      return (
+        <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200">
+          <AlertTriangle size={13} />
+          Есть правки
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200">
+        <Save size={13} />
+        {lastSaved ? `Сохранено ${formatSavedTime(lastSaved)}` : 'Синхронизировано'}
+      </span>
+    );
+  };
+
+  const renderDiffView = () => (
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="inline-flex w-fit rounded-2xl border border-white/10 bg-black/60 p-1">
+          <button
+            onClick={() => setShowSideBySide(true)}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
+              showSideBySide ? 'bg-white text-black' : 'text-steel-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <Columns2 size={15} />
+            Две версии
+          </button>
+          <button
+            onClick={() => setShowSideBySide(false)}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
+              !showSideBySide ? 'bg-white text-black' : 'text-steel-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <FileText size={15} />
+            В строку
+          </button>
+        </div>
+
+        <button
+          onClick={() => {
+            setDiffResult(null);
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-steel-200 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <EyeOff size={15} />
+          Закрыть сравнение
+        </button>
+      </div>
+
+      {showSideBySide ? (
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-950">
+            <div className="flex items-center gap-3 border-b border-white/5 bg-black/60 px-5 py-4">
+              <span className="h-2 w-2 rounded-full bg-red-400" />
+              <span className="text-xs font-semibold text-steel-300">Было</span>
+            </div>
+            <div 
+              ref={diffOriginalRef}
+              onScroll={() => handleDiffScroll('original')}
+              className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-5 text-sm leading-7 text-steel-400"
+            >
+              {diffResult.map((part, index) => {
+                if (part.added) return null;
+                if (part.removed) {
+                  return (
+                    <div key={index} className="diff-highlight my-2 whitespace-pre-wrap rounded-xl border-l-2 border-red-400 bg-red-500/10 px-4 py-2 text-red-200 line-through">
+                      {part.value}
+                    </div>
+                  );
+                }
+                return (
+                  <div key={index} className="whitespace-pre-wrap px-4 opacity-50">
+                    {part.value}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-emerald-500/20 bg-neutral-950 shadow-[0_0_40px_rgba(16,185,129,0.04)]">
+            <div className="flex items-center gap-3 border-b border-emerald-500/10 bg-black/60 px-5 py-4">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="text-xs font-semibold text-emerald-200">Стало</span>
+              <Sparkles size={15} className="ml-auto text-emerald-300" />
+            </div>
+            <div 
+              ref={diffModifiedRef}
+              onScroll={() => handleDiffScroll('modified')}
+              className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-5 text-sm leading-7 text-steel-200"
+            >
+              {diffResult.map((part, index) => {
+                if (part.removed) return null;
+                if (part.added) {
+                  return (
+                    <div key={index} className="diff-highlight my-2 whitespace-pre-wrap rounded-xl border-l-2 border-emerald-400 bg-emerald-500/10 px-4 py-2 text-emerald-100">
+                      {part.value}
+                    </div>
+                  );
+                }
+                return (
+                  <div key={index} className="whitespace-pre-wrap px-4">
+                    {part.value}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-950">
+          <div className="flex items-center gap-3 border-b border-white/5 bg-black/60 px-5 py-4">
+            <SlidersHorizontal size={16} className="text-chrome-300" />
+            <span className="text-xs font-semibold text-steel-300">Изменения от ИИ</span>
+          </div>
+          <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-6 text-sm leading-7 text-steel-200">
+            {diffResult.map((part, index) => {
+              if (part.added) {
+                return (
+                  <span key={index} className="diff-highlight mx-0.5 whitespace-pre-wrap rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-200">
+                    {part.value}
+                  </span>
+                );
+              }
+              if (part.removed) {
+                return (
+                  <span key={index} className="diff-highlight mx-0.5 whitespace-pre-wrap rounded bg-red-500/10 px-1.5 py-0.5 text-red-300 line-through">
+                    {part.value}
+                  </span>
+                );
+              }
+              return (
+                <span key={index} className="whitespace-pre-wrap">
+                  {part.value}
+                </span>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+
+  const renderEmptyState = () => (
+    <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+      <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-white text-black shadow-[0_0_50px_rgba(255,255,255,0.12)]">
+        <FileText size={44} strokeWidth={1.8} />
+      </div>
+      <h2 className="mb-3 text-3xl font-bold text-white">Документ готов к аудиту</h2>
+      <p className="mb-8 max-w-md text-sm leading-6 text-steel-400">
+        Запустим проверку условий, ответственности, сроков, подсудности и спорных формулировок по нормам РК.
+      </p>
+      <button
+        onClick={handleAnalyze}
+        className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-bold text-black transition-colors hover:bg-neutral-200"
+      >
+        <ShieldAlert size={17} />
+        Запустить глубокий аудит
+      </button>
+    </div>
+  );
+
+  const renderLoading = () => (
+    <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+      <div className="relative mb-8 h-28 w-28">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="absolute inset-0 rounded-full border-4 border-white/10 border-t-white"
+        />
+        <div className="absolute inset-4 flex items-center justify-center rounded-full bg-neutral-950 shadow-[0_0_50px_rgba(255,255,255,0.08)]">
+          <ShieldAlert className="text-white" size={36} />
+        </div>
+      </div>
+      <p className="mb-2 text-2xl font-bold text-white">Глубокий анализ документа</p>
+      <p className="max-w-md text-sm leading-6 text-steel-400">
+        Сверяем текст с практикой договорной работы, обязательными условиями и типовыми рисками.
+      </p>
+    </div>
+  );
 
   if (loadingDoc) {
     return createPortal(
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-white/5 bg-transparent flex items-center px-4 sm:px-6">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-xl text-steel-400 hover:text-white hover:bg-white/5 transition-all group">
-            <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+      <div className="fixed inset-0 z-[100] flex h-screen flex-col overflow-hidden bg-black">
+        <header className="flex h-16 items-center border-b border-white/5 px-4 sm:px-6">
+          <button onClick={() => navigate(-1)} className="rounded-xl p-2 text-steel-400 transition-colors hover:bg-white/5 hover:text-white">
+            <X size={22} />
           </button>
         </header>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} className="w-12 h-12 border-4 border-chrome-500 border-t-transparent rounded-full mx-auto mb-4 shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
-            <p className="text-steel-400 text-sm tracking-widest uppercase font-semibold">Загрузка документа...</p>
+            <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-white" />
+            <p className="text-sm font-semibold text-steel-400">Загрузка документа...</p>
           </div>
         </div>
-      </motion.div>,
-      document.body
+      </div>,
+      document.body,
     );
   }
 
   if (error) {
     return createPortal(
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-white/5 bg-transparent flex items-center px-4 sm:px-6">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-xl text-steel-400 hover:text-white hover:bg-white/5 transition-all group">
-            <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+      <div className="fixed inset-0 z-[100] flex h-screen flex-col overflow-hidden bg-black">
+        <header className="flex h-16 items-center border-b border-white/5 px-4 sm:px-6">
+          <button onClick={() => navigate(-1)} className="rounded-xl p-2 text-steel-400 transition-colors hover:bg-white/5 hover:text-white">
+            <X size={22} />
           </button>
-          <h1 className="ml-4 text-white font-semibold">Ошибка</h1>
+          <h1 className="ml-4 font-semibold text-white">Ошибка</h1>
         </header>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl max-w-md text-center">
-            <AlertTriangle className="text-red-400 mx-auto mb-4" size={32} />
-            <p className="text-white mb-2 font-medium">Не удалось загрузить документ</p>
-            <p className="text-steel-400 text-sm">{error}</p>
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="max-w-md rounded-3xl border border-red-500/20 bg-red-500/10 p-7 text-center">
+            <AlertTriangle className="mx-auto mb-4 text-red-300" size={34} />
+            <p className="mb-2 font-semibold text-white">Не удалось открыть аудит</p>
+            <p className="text-sm leading-6 text-steel-400">{error}</p>
           </div>
         </div>
-      </motion.div>,
-      document.body
+      </div>,
+      document.body,
     );
   }
 
-  const renderDiffView = () => {
-    if (!diffResult) return null;
-    if (showSideBySide) {
-      return (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex bg-black rounded-full p-1 border border-white/5 shadow-lg">
-              <button 
-                onClick={() => setShowSideBySide(true)}
-                className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
-              >
-                <Columns2 size={14} /> Side-by-Side
-              </button>
-              <button 
-                onClick={() => setShowSideBySide(false)}
-                className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${!showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
-              >
-                <FileText size={14} /> Inline
-              </button>
-            </div>
-            <button 
-              onClick={() => { setDiffResult(null); setOriginalAnalyzedText(contractText); }} 
-              className="text-[11px] font-bold uppercase tracking-widest bg-obsidian-900 hover:bg-obsidian-800 px-4 py-2 rounded-xl border border-white/5 text-steel-300 transition-all flex items-center gap-2"
-            >
-              <EyeOff size={14} /> Закрыть Diff
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 relative">
-            <div className="bg-[#111] rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex flex-col">
-              <div className="bg-black/80 backdrop-blur-md px-5 py-4 border-b border-white/[0.03] flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-                <span className="text-xs font-bold uppercase tracking-widest text-steel-400">Оригинал (Было)</span>
-              </div>
-              <div className="p-6 font-mono text-[13px] leading-[1.8] text-steel-400 overflow-y-auto max-h-[65vh] custom-scrollbar">
-                {diffResult.map((part, i) => {
-                  if (part.added) return null;
-                  if (part.removed) {
-                    return <div key={i} className="bg-red-500/[0.08] border-l-[3px] border-red-500/40 text-red-300/90 px-4 py-2 my-2 rounded-r-lg line-through decoration-red-500/30 whitespace-pre-wrap diff-highlight">{part.value}</div>;
-                  }
-                  return <div key={i} className="px-4 whitespace-pre-wrap opacity-50 font-sans">{part.value}</div>;
-                })}
-              </div>
-            </div>
-            
-            <div className="bg-[#111] rounded-3xl border border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.05)] overflow-hidden flex flex-col relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
-              <div className="bg-black/80 backdrop-blur-md px-5 py-4 border-b border-emerald-500/10 flex items-center gap-3 relative z-10">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
-                <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">Безопасная версия (Стало)</span>
-                <Sparkles size={14} className="text-emerald-400/50 ml-auto" />
-              </div>
-              <div className="p-6 font-mono text-[13px] leading-[1.8] text-steel-300 overflow-y-auto max-h-[65vh] custom-scrollbar relative z-10">
-                {diffResult.map((part, i) => {
-                  if (part.removed) return null;
-                  if (part.added) {
-                    return <div key={i} className="bg-emerald-500/[0.12] border-l-[3px] border-emerald-400 text-emerald-200 px-4 py-2 my-2 rounded-r-lg whitespace-pre-wrap diff-highlight shadow-[0_0_15px_rgba(52,211,153,0.05)] font-medium">{part.value}</div>;
-                  }
-                  return <div key={i} className="px-4 whitespace-pre-wrap font-sans">{part.value}</div>;
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex bg-black rounded-full p-1 border border-white/5 shadow-lg">
-              <button 
-                onClick={() => setShowSideBySide(true)}
-                className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
-              >
-                <Columns2 size={14} /> Side-by-Side
-              </button>
-              <button 
-                onClick={() => setShowSideBySide(false)}
-                className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-full flex items-center gap-2 transition-all duration-300 ${!showSideBySide ? 'bg-chrome-500 text-obsidian-950 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-steel-400 hover:text-white hover:bg-white/5'}`}
-              >
-                <FileText size={14} /> Inline
-              </button>
-          </div>
-          <button 
-            onClick={() => { setDiffResult(null); setOriginalAnalyzedText(contractText); }} 
-            className="text-[11px] font-bold uppercase tracking-widest bg-obsidian-900 hover:bg-obsidian-800 px-4 py-2 rounded-xl border border-white/5 text-steel-300 transition-all flex items-center gap-2"
-          >
-            <EyeOff size={14} /> Закрыть Diff
-          </button>
-        </div>
-        <div className="bg-[#111] rounded-3xl border border-emerald-500/10 shadow-[0_0_40px_rgba(16,185,129,0.03)] overflow-hidden flex flex-col relative h-[65vh]">
-          <div className="bg-black/80 backdrop-blur-md px-5 py-4 border-b border-white/5 flex items-center gap-3 shrink-0">
-            <SlidersHorizontal size={16} className="text-chrome-400" />
-            <span className="text-xs font-bold uppercase tracking-widest text-chrome-400">Изменения от ИИ (Inline)</span>
-          </div>
-          <div className="p-6 font-mono text-[13px] leading-[1.8] text-steel-300 overflow-y-auto custom-scrollbar flex-1">
-            {diffResult.map((part, i) => {
-              if (part.added) {
-                return <span key={i} className="bg-emerald-500/[0.12] text-emerald-300 px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(16,185,129,0.1)] mx-0.5 font-medium diff-highlight whitespace-pre-wrap">{part.value}</span>;
-              } else if (part.removed) {
-                return <span key={i} className="bg-red-500/[0.08] text-red-400/80 line-through px-1.5 py-0.5 rounded mx-0.5 diff-highlight whitespace-pre-wrap">{part.value}</span>;
-              } else {
-                return <span key={i} className="font-sans whitespace-pre-wrap">{part.value}</span>;
-              }
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return createPortal(
-    <motion.div initial={{ opacity: 0, scale: 0.98, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 10 }} transition={{ duration: 0.3, ease: 'easeOut' }} className="fixed inset-0 z-[100] bg-black flex flex-col h-screen overflow-hidden">
-      {/* Toast Notification */}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.99 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.99 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+      className="fixed inset-0 z-[100] flex h-screen flex-col overflow-hidden bg-black text-white"
+    >
       <AnimatePresence>
         {toast && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl backdrop-blur-md border ${toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-chrome-500/10 border-chrome-500/20 text-chrome-300'}`}
+            exit={{ opacity: 0, y: -16 }}
+            className={`fixed left-1/2 top-5 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border px-5 py-3 text-sm shadow-2xl backdrop-blur-xl ${
+              toast.type === 'error'
+                ? 'border-red-500/30 bg-red-500/10 text-red-200'
+                : 'border-white/10 bg-neutral-900/90 text-white'
+            }`}
           >
             {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
-            <span className="text-sm font-medium tracking-wide">{toast.message}</span>
+            <span>{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header bar */}
-      <header className="h-16 border-b border-white/5 bg-transparent flex items-center px-4 justify-between shrink-0 relative z-10">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-xl text-steel-400 hover:text-white hover:bg-white/10 transition-all group">
-            <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+      <header className="relative z-10 flex min-h-16 items-center justify-between gap-4 border-b border-white/5 bg-black/80 px-4 backdrop-blur-2xl sm:px-6">
+        <div className="flex min-w-0 items-center gap-4">
+          <button onClick={() => navigate(-1)} className="rounded-xl p-2 text-steel-400 transition-colors hover:bg-white/10 hover:text-white">
+            <X size={22} />
           </button>
-          <div className="flex items-center gap-3 pl-4 border-l border-white/10">
-             <FileSearch className="text-chrome-400" size={20} />
-             <h1 className="text-[10px] font-black uppercase tracking-widest text-white">Аудит и редактор</h1>
+          <div className="hidden h-8 w-px bg-white/10 sm:block" />
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+              <FileSearch size={19} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-bold text-white sm:text-base">Аудит договора</h1>
+              <p className="hidden truncate text-xs text-steel-500 sm:block">
+                {auditDocType || 'Редактор, риски и исправления в одном рабочем экране'}
+              </p>
+            </div>
           </div>
         </div>
-        
-        {/* Autosave Status */}
-        <div className="flex items-center gap-2">
-          {savingText ? (
-            <span className="flex items-center gap-1.5 text-xs text-steel-400 font-mono tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-              <RefreshCw size={12} className="animate-spin" /> Сохранение...
-            </span>
-          ) : lastSaved ? (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400/70 font-mono tracking-widest bg-emerald-500/5 px-3 py-1.5 rounded-full border border-emerald-500/10">
-              <Save size={12} /> Сохранено
-            </span>
-          ) : null}
+
+        <div className="flex shrink-0 items-center gap-2">
+          {renderStatusPill()}
+          {hasChanges && (
+            <button
+              onClick={handleCompareWithOriginal}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/15 hover:text-white"
+            >
+              <Columns2 size={14} />
+              Сравнить с оригиналом
+            </button>
+          )}
+          {activeAuditId && (
+            <button
+              onClick={handleDownloadReport}
+              className="hidden items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-steel-200 transition-colors hover:bg-white/10 hover:text-white sm:inline-flex"
+            >
+              <Download size={14} />
+              PDF отчёт
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden p-4 sm:p-6">
-        
-        {(!results && !analyzing) && (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="w-24 h-24 rounded-[2rem] chrome-gradient flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
-                <FileText size={48} className="text-obsidian-950" strokeWidth={1.5} />
-              </div>
-              <h2 className="text-3xl font-bold text-white mb-6">Документ загружен</h2>
-              <MagneticButton as="button" onClick={handleAnalyze}
-                className="btn-primary chrome-gradient text-obsidian-950 px-10 py-4 rounded-xl font-bold tracking-widest text-sm uppercase shadow-[0_0_30px_rgba(255,255,255,0.15)]" strength={0.1}>
-                Запустить глубокий аудит →
-              </MagneticButton>
-            </div>
-        )}
-
-        <AnimatePresence mode="wait">
-          {analyzing && (
-              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-full">
-                  <div className="relative w-32 h-32 mb-8">
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                          className="absolute inset-0 border-4 border-chrome-500/20 border-t-chrome-500 rounded-full" />
-                      <div className="absolute inset-4 bg-obsidian-900 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)]">
-                          <ShieldAlert className="text-chrome-400 animate-pulse" size={40} />
-                      </div>
-                  </div>
-                  <p className="text-2xl font-bold text-white mb-3 tracking-tight">Глубокий анализ документа...</p>
-                  <p className="text-steel-400 text-sm animate-pulse tracking-wide">Проверяем на соответствие ГК РК и нормативным актам</p>
-              </motion.div>
-          )}
-        </AnimatePresence>
+      <main className="min-h-0 flex-1 overflow-hidden p-3 sm:p-5">
+        {!results && !analyzing && renderEmptyState()}
+        {analyzing && renderLoading()}
 
         {results && !analyzing && (
-          <motion.div key="results" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }} className="h-full flex flex-col relative">
-            
-            {diffResult ? (
-              <div className="h-full">
-                {renderDiffView()}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex h-full min-h-0 flex-col gap-4">
+            <section className="grid shrink-0 grid-cols-2 gap-3 md:grid-cols-5">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs text-steel-500">Всего рисков</p>
+                <p className="mt-1 text-2xl font-bold text-white">{riskStats.total}</p>
               </div>
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+                <p className="text-xs text-red-200/70">Высокие</p>
+                <p className="mt-1 text-2xl font-bold text-red-200">{riskStats.high}</p>
+              </div>
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+                <p className="text-xs text-amber-200/70">Средние</p>
+                <p className="mt-1 text-2xl font-bold text-amber-200">{riskStats.medium}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs text-steel-500">Объём</p>
+                <p className="mt-1 text-2xl font-bold text-white">{textStats.pages}</p>
+                <p className="text-xs text-steel-500">стр.</p>
+              </div>
+              <div className="col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:col-span-1">
+                <p className="text-xs text-steel-500">Слов</p>
+                <p className="mt-1 text-2xl font-bold text-white">{textStats.words}</p>
+              </div>
+            </section>
+
+            {diffResult ? (
+              renderDiffView()
             ) : (
-              <div className="flex flex-col xl:flex-row gap-6 h-full">
-                {/* Left Pane: Editor */}
-                <div className="flex-1 flex flex-col bg-[#111] border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden relative">
-                  <div className="h-12 bg-black/80 backdrop-blur-md border-b border-white/5 flex items-center px-5 justify-between shrink-0">
-                    <div className="flex items-center gap-2">
-                      <FileText size={14} className="text-steel-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Редактор документа</span>
+              <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_520px]">
+                <section className="relative flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-950 shadow-2xl">
+                  <div className="border-b border-white/5 bg-black/50 px-5 py-4">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <FileText size={16} className="text-steel-400" />
+                        <span className="text-sm font-semibold text-white">Текст договора</span>
+                      </div>
+                      <div className="hidden items-center gap-3 text-xs text-steel-500 sm:flex">
+                        <span>{textStats.chars.toLocaleString('ru-RU')} знаков</span>
+                        <span>{textStats.words.toLocaleString('ru-RU')} слов</span>
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(220px,280px)]">
+                      <div className="relative">
+                        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-steel-500" />
+                        <input
+                          value={contractSearch}
+                          onChange={(e) => setContractSearch(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') goToSearchMatch(e.shiftKey ? -1 : 0);
+                          }}
+                          placeholder="Поиск по тексту договора"
+                          className="h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-steel-600 focus:border-white/20"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-2">
+                        <button
+                          onClick={() => goToSearchMatch(-1)}
+                          disabled={!searchMatches.length}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-steel-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+                          title="Предыдущее совпадение"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className="min-w-16 text-center text-xs text-steel-400">
+                          {searchMatches.length ? `${searchMatchIndex + 1}/${searchMatches.length}` : '0/0'}
+                        </span>
+                        <button
+                          onClick={() => goToSearchMatch(1)}
+                          disabled={!searchMatches.length}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-steel-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+                          title="Следующее совпадение"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowSections(!showSections)}
+                          className="flex h-10 w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 text-sm text-white outline-none transition-colors hover:bg-white/10 focus:border-white/20"
+                        >
+                          <ListTree size={15} className="absolute left-3 text-steel-500" />
+                          <span className="truncate text-steel-300">Перейти к пункту...</span>
+                          <motion.div animate={{ rotate: showSections ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                            <ChevronDown size={14} className="text-steel-500" />
+                          </motion.div>
+                        </button>
+                        
+                        <AnimatePresence>
+                          {showSections && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 5 }}
+                              className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 flex max-h-[300px] flex-col overflow-y-auto rounded-2xl border border-white/10 bg-[#111] p-2 shadow-2xl custom-scrollbar"
+                            >
+                              {documentSections.length === 0 ? (
+                                <div className="p-3 text-center text-xs text-steel-500">Пункты не найдены</div>
+                              ) : (
+                                documentSections.map((section, sectionIndex) => (
+                                  <button
+                                    key={`${section.start}-${sectionIndex}`}
+                                    onClick={() => {
+                                      goToSection(sectionIndex);
+                                      setShowSections(false);
+                                    }}
+                                    className="flex w-full items-center truncate rounded-lg px-3 py-2.5 text-left text-xs font-medium text-steel-300 transition-colors hover:bg-white/10 hover:text-white"
+                                  >
+                                    <span className="truncate">{section.title}</span>
+                                  </button>
+                                ))
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {lastFixRange && (
+                      <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                        Исправленный фрагмент выделен зелёным в тексте договора.
+                      </div>
+                    )}
                   </div>
+
                   <textarea
                     ref={docScrollRef}
                     value={contractText}
-                    onChange={(e) => setContractText(e.target.value)}
+                    onChange={(e) => {
+                      setContractText(e.target.value);
+                      setLastFixRange(null);
+                    }}
                     placeholder="Текст документа..."
-                    className="flex-1 w-full bg-transparent p-6 font-serif text-[15px] leading-[1.8] text-steel-200 resize-none outline-none custom-scrollbar"
-                    style={{ willChange: 'scroll-position' }}
+                    className={`custom-scrollbar min-h-0 flex-1 resize-none bg-transparent p-5 text-[15px] leading-7 text-steel-200 outline-none placeholder:text-steel-600 sm:p-7 ${
+                      lastFixRange ? 'selection:bg-emerald-500/40 selection:text-white' : 'selection:bg-white/20 selection:text-white'
+                    }`}
                   />
-                  
-                  {/* Floating Re-Analyze Button when Dirty */}
+
                   <AnimatePresence>
                     {isDirty && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
+                      <motion.div
+                        initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        className="absolute bottom-6 left-1/2 -translate-x-1/2"
+                        exit={{ opacity: 0, y: 16 }}
+                        className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2"
                       >
                         <button
                           disabled={reanalyzing}
                           onClick={handleReanalyze}
-                          className="group relative overflow-hidden bg-chrome-500 text-obsidian-950 font-bold px-8 py-3.5 rounded-full shadow-[0_0_40px_rgba(255,255,255,0.2)] flex items-center gap-3 transition-all hover:scale-105 hover:shadow-[0_0_50px_rgba(255,255,255,0.3)]"
+                          className="pointer-events-auto inline-flex items-center gap-3 rounded-full bg-white px-6 py-3 text-xs font-bold text-black shadow-[0_0_40px_rgba(255,255,255,0.18)] transition-colors hover:bg-neutral-200 disabled:opacity-70"
                         >
-                          {reanalyzing ? (
-                            <>
-                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-4 h-4 border-2 border-obsidian-950 border-t-transparent rounded-full" />
-                              <span className="text-xs uppercase tracking-widest">Анализируем...</span>
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-                              <span className="text-xs uppercase tracking-widest">Повторный анализ</span>
-                            </>
-                          )}
+                          {reanalyzing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                          {reanalyzing ? 'Анализируем правки...' : 'Обновить аудит по правкам'}
                         </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
+                </section>
 
-                {/* Right Pane: Risks */}
-                <div className="w-full xl:w-[450px] 2xl:w-[500px] flex flex-col shrink-0">
-                  <div className={`shrink-0 mb-6 p-5 rounded-[2rem] border relative overflow-hidden transition-all duration-300 backdrop-blur-md
-                    ${results.length === 0 
-                      ? 'border-emerald-500/30 bg-emerald-950/10 shadow-[0_0_30px_rgba(16,185,129,0.05)]' 
-                      : 'border-amber-500/30 bg-amber-950/10 shadow-[0_0_30px_rgba(245,158,11,0.05)]'}`}>
-                    <div className="flex gap-4 relative z-10">
-                      <div className={`w-12 h-12 rounded-3xl flex items-center justify-center shrink-0 shadow-inner
-                        ${results.length === 0 ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
-                        {results.length === 0 ? (
-                          <CheckCircle2 size={24} className="text-emerald-400" />
-                        ) : (
-                          <AlertTriangle size={24} className="text-amber-400" />
-                        )}
+                <aside className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-950">
+                  <div className="border-b border-white/5 bg-black/50 p-4">
+                    <div className="mb-4 flex items-start gap-3">
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${riskStats.total ? 'bg-amber-500/10 text-amber-200' : 'bg-emerald-500/10 text-emerald-200'}`}>
+                        {riskStats.total ? <AlertTriangle size={22} /> : <FileCheck2 size={22} />}
                       </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-widest font-black text-white">
-                          {results.length === 0 ? 'Рисков не обнаружено' : `Выявлено ${results.length} рисков`}
-                        </p>
-                        <p className="text-sm text-steel-400 mt-1 leading-relaxed">{summary}</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white">{riskStats.total ? `Найдено ${riskStats.total} рисков` : 'Рисков не обнаружено'}</p>
+                        <p className="mt-1 line-clamp-3 text-sm leading-5 text-steel-400">{summary || 'Анализ завершён.'}</p>
                       </div>
+                    </div>
+
+                    <div className="relative mb-3">
+                      <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-steel-500" />
+                      <input
+                        value={riskSearch}
+                        onChange={(e) => setRiskSearch(e.target.value)}
+                        placeholder="Поиск по рискам"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-steel-600 focus:border-white/20"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {riskFilters.map((filter) => (
+                        <button
+                          key={filter.value}
+                          onClick={() => setRiskFilter(filter.value)}
+                          className={`rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                            riskFilter === filter.value ? 'bg-white text-black' : 'bg-white/5 text-steel-400 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {filter.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
-                    {results.map((risk, i) => {
-                      const colors = levelColors[risk.level] || levelColors.low;
-                      const isActive = activeRiskIndex === i;
-                      
-                      // Highlight matching text logic for the sidebar display
-                      // Find context around the risk location
-                      let contextSnippet = null;
-                      if (risk.location && contractText.includes(risk.location)) {
-                        contextSnippet = risk.location;
-                        if (contextSnippet.length > 150) {
-                          contextSnippet = contextSnippet.substring(0, 150) + "...";
-                        }
-                      }
+                  <div className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                    {filteredRisks.map(({ risk, index }) => {
+                      const level = normalizeRiskLevel(risk.level);
+                      const meta = riskMeta[level];
+                      const Icon = meta.icon;
+                      const isActive = activeRiskIndex === index;
+                      const contextSnippet = risk.location
+                        ? String(risk.location).length > 180
+                          ? `${String(risk.location).slice(0, 180)}...`
+                          : String(risk.location)
+                        : '';
 
                       return (
-                        <motion.div key={i} 
-                          className={`bg-black/60 p-5 rounded-3xl border transition-all duration-300 relative overflow-hidden
-                              ${isActive ? `${colors.border} bg-obsidian-900 shadow-2xl` : 'border-white/5 hover:border-white/10'}`}
-                          initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                          
-                          {/* Risk Header */}
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <h3 className="text-sm font-bold text-white tracking-wide mb-1">{risk.title}</h3>
-                            <span className={`text-[9px] font-bold tracking-widest px-2 py-1 rounded bg-black border ${colors.text} ${colors.border}`}>
-                              {colors.label}
-                            </span>
-                          </div>
-                          
-                          <p className="text-sm text-steel-400 leading-relaxed mb-4">{risk.description}</p>
-                          
-                          {/* Context snippet */}
-                          {contextSnippet && (
-                            <div className="mb-4 bg-[#111] rounded-xl p-3 border border-white/5">
-                              <p className="text-[10px] uppercase font-black tracking-widest text-neutral-500 mb-2">Найдено в тексте:</p>
-                              <p className="text-xs font-mono text-steel-300 italic border-l-2 border-steel-700 pl-2">"{contextSnippet}"</p>
+                        <motion.article
+                          key={`${risk.title}-${index}`}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`rounded-2xl border p-4 transition-colors ${
+                            isActive ? `${meta.border} ${meta.bg}` : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                          }`}
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 gap-3">
+                              <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${meta.bg} ${meta.text}`}>
+                                <Icon size={16} />
+                              </div>
+                              <div className="min-w-0">
+                                <h3 className="text-sm font-semibold leading-5 text-white">{risk.title || 'Риск без названия'}</h3>
+                                <span className={`mt-2 inline-flex rounded-full border px-2 py-1 text-[11px] ${meta.border} ${meta.bg} ${meta.text}`}>
+                                  {meta.label}
+                                </span>
+                              </div>
                             </div>
+                          </div>
+
+                          <p className="mb-4 text-sm leading-6 text-steel-400">{risk.description}</p>
+
+                          {contextSnippet && (
+                            <button
+                              onClick={() => handleFocusRisk(risk, index)}
+                              className="mb-4 w-full rounded-xl border border-white/10 bg-black/35 p-3 text-left transition-colors hover:border-white/20 hover:bg-white/5"
+                            >
+                              <span className="mb-2 flex items-center gap-2 text-xs font-semibold text-steel-400">
+                                <Target size={13} />
+                                Фрагмент в договоре
+                              </span>
+                              <span className="block border-l border-white/10 pl-3 text-xs leading-5 text-steel-300">{contextSnippet}</span>
+                            </button>
                           )}
 
-                          <div className="bg-[#111] rounded-xl p-4 border border-white/5">
-                              <p className="text-[10px] uppercase font-black tracking-widest text-chrome-500 mb-2">Рекомендация ИИ:</p>
-                              <p className="text-sm font-medium text-white mb-4">{risk.recommendation}</p>
-                              
-                              <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-white/5">
-                                {risk.url ? (
-                                  <a href={risk.url} target="_blank" rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 text-[10px] font-mono text-chrome-500 hover:text-chrome-400 transition-colors bg-chrome-500/10 px-2 py-1 rounded-lg">
-                                    <LinkIcon size={12} /> {risk.article}
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] font-mono text-steel-500">{risk.article || 'Норматив не указан'}</span>
-                                )}
+                          <div className="rounded-xl border border-white/10 bg-black/35 p-3">
+                            <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-steel-400">
+                              <Sparkles size={13} />
+                              Рекомендация ИИ
+                            </p>
+                            <p className="text-sm leading-6 text-white">{risk.recommendation}</p>
 
-                                {activeAuditId && (
-                                  <button
-                                    disabled={fixingRiskIndex !== null || generating}
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      await handleQuickFix(risk, i);
-                                    }}
-                                    className={`text-[10px] font-bold px-3 py-2 rounded-xl border transition-all duration-300 uppercase tracking-widest flex items-center gap-2
-                                      ${fixingRiskIndex === i
-                                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                                        : 'bg-chrome-500/10 border-chrome-500/30 hover:border-chrome-500/50 hover:bg-chrome-500/20 text-chrome-400 hover:text-white'
-                                      }`}
-                                  >
-                                    {fixingRiskIndex === i ? (
-                                      <>
-                                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full" />
-                                        <span>Исправление...</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Sparkles size={12} />
-                                        <span>Исправить</span>
-                                      </>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
+                            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+                              {risk.url ? (
+                                <a
+                                  href={risk.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-steel-300 transition-colors hover:bg-white/10 hover:text-white"
+                                >
+                                  <LinkIcon size={13} />
+                                  {risk.article || 'Норма'}
+                                </a>
+                              ) : (
+                                <span className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-steel-500">{risk.article || 'Норма не указана'}</span>
+                              )}
+
+                              <button
+                                onClick={() => handleCopyRecommendation(risk)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-steel-300 transition-colors hover:bg-white/10 hover:text-white"
+                              >
+                                <Clipboard size={13} />
+                                Копировать
+                              </button>
+
+                              {activeAuditId && (
+                                <button
+                                  disabled={fixingRiskIndex !== null || generating}
+                                  onClick={() => handleQuickFix(risk, index)}
+                                  className="ml-auto inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-black transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {fixingRiskIndex === index ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                                  {fixingRiskIndex === index ? 'Исправляем' : 'Исправить'}
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </motion.div>
+                        </motion.article>
                       );
                     })}
 
-                    {/* Auto-Fix All Button */}
-                    {results.length > 0 && (
-                      <div className="pt-4 pb-10">
-                        <MagneticButton as="button"
-                          disabled={generating || isDirty}
-                          onClick={async () => {
-                            setGenerating(true);
-                            setGenProgress(0);
-                            let progressInterval = setInterval(() => {
-                              setGenProgress((prev) => {
-                                if (prev >= 90) return 90;
-                                const increment = prev < 40 ? 10 : prev < 70 ? 3 : 1;
-                                return Math.min(prev + increment, 90);
-                              });
-                            }, 300);
-
-                            try {
-                              let finalContent = "";
-                              const docDescription = `Исправленный договор на основе аудита.\nВНИМАНИЕ: Сгенерируй финальный исправленный договор, СТРОГО основываясь на следующем тексте договора.\nИсправь ВСЕ оставшиеся юридические риски.\n\nОСТАВШИЕСЯ РИСКИ ДЛЯ ИСПРАВЛЕНИЯ:\n${results.map((r, i) => `${i+1}. ${r.title}: ${r.description} (Рекомендация: ${r.recommendation})`).join('\n')}\n\nТЕКСТ ДОГОВОРА ДЛЯ ИСПРАВЛЕНИЯ:\n${contractText}`;
-                              const data = await docsApi.generate('contract', docDescription);
-                              finalContent = data.content || '';
-                              
-                              const savedDoc = await docsApi.saveFixed(`Исправленный договор_${Date.now()}`, finalContent);
-                              await docsApi.download(savedDoc.id);
-                              
-                              clearInterval(progressInterval);
-                              setGenProgress(100);
-                              setTimeout(() => {
-                                showToast("ИИ исправил все оставшиеся риски и скачал финальный DOCX документ!", 'success');
-                                setGenerating(false);
-                                setGenProgress(0);
-                                const cleanedText = finalContent.replace(/> \*\*ВНИМАНИЕ: ДАННЫЙ ШАБЛОН СГЕНЕРИРОВАН ИИ\.\*\*.*?\n\n/g, '');
-                                setContractText(cleanedText);
-                                setOriginalAnalyzedText(cleanedText);
-                                setResults([]);
-                                setSummary("Все риски успешно устранены. Документ безопасен и готов к использованию.");
-                              }, 600);
-                            } catch (e) { 
-                              clearInterval(progressInterval);
-                              setGenerating(false);
-                              setGenProgress(0);
-                              showToast("Ошибка генерации исправленного документа", 'error'); 
-                            }
-                          }}
-                          className={`w-full relative overflow-hidden py-4 text-xs font-bold tracking-widest uppercase transition-all duration-300 rounded-3xl flex items-center justify-center gap-2
-                            ${isDirty ? 'bg-obsidian-800 text-steel-500 cursor-not-allowed border border-white/5' : 'bg-chrome-500 text-obsidian-950 shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(255,255,255,0.25)]'}`}
-                        >
-                          {generating && (
-                            <motion.div 
-                              className="absolute inset-y-0 left-0 bg-emerald-500/30 border-r border-emerald-400/50 z-0 pointer-events-none"
-                              initial={{ width: '0%' }}
-                              animate={{ width: `${genProgress}%` }}
-                              transition={{ ease: 'easeOut', duration: 0.3 }}
-                            />
-                          )}
-                          
-                          <span className="relative z-10 flex items-center gap-2">
-                            {generating ? (
-                              <>
-                                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-4 h-4 border-2 border-obsidian-950 border-t-transparent rounded-full" />
-                                <span>Генерация документа ({Math.round(genProgress)}%)...</span>
-                              </>
-                            ) : isDirty ? (
-                              'Сначала обновите анализ'
-                            ) : (
-                              <>
-                                <Download size={16} />
-                                Сгенерировать и скачать финальную версию
-                              </>
-                            )}
-                          </span>
-                        </MagneticButton>
+                    {!filteredRisks.length && (
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-steel-400">
+                        По текущему фильтру рисков нет.
                       </div>
                     )}
-
                   </div>
-                </div>
+
+                  {riskStats.total > 0 && (
+                    <div className="border-t border-white/5 bg-black/50 p-4">
+                      <button
+                        disabled={generating}
+                        onClick={handleGenerateFinal}
+                        className="relative flex h-12 w-full items-center justify-center overflow-hidden rounded-2xl text-sm font-bold transition-colors bg-white text-black hover:bg-neutral-200"
+                      >
+                        {generating && (
+                          <motion.span
+                            className="absolute inset-y-0 left-0 bg-emerald-400/40"
+                            initial={{ width: '0%' }}
+                            animate={{ width: `${genProgress}%` }}
+                            transition={{ duration: 0.25 }}
+                          />
+                        )}
+                        <span className="relative z-10 flex items-center gap-2">
+                          {generating ? (
+                            <>
+                              <Loader2 size={16} className="animate-spin" />
+                              Генерация {Math.round(genProgress)}%
+                            </>
+                          ) : (
+                            <>
+                              <Download size={16} />
+                              Создать финальную DOCX
+                            </>
+                          )}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </aside>
               </div>
             )}
           </motion.div>
         )}
-      </div>
+      </main>
     </motion.div>,
-    document.body
+    document.body,
   );
 }

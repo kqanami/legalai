@@ -151,11 +151,20 @@ function App() {
           <LanguageProvider>
             <AuthProvider>
               <ToastProvider>
-                <div className="min-h-screen font-sans bg-black text-white selection:bg-white/30 selection:text-white">
-                  <AuthenticatedCommandPalette />
-                  <Suspense fallback={<LoadingUI />}>
-                    <AnimatedRoutes />
-                  </Suspense>
+                <div className="min-h-screen font-sans bg-black text-white selection:bg-white/30 selection:text-white relative overflow-hidden">
+                  {/* Premium Global Ambient Background (Serious/Slate Tone) */}
+                  <div className="fixed inset-0 pointer-events-none z-0">
+                    <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-slate-400/5 blur-[150px]" />
+                    <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-white/5 blur-[150px]" />
+                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.02] mix-blend-overlay" />
+                  </div>
+                  
+                  <div className="relative z-10 h-full w-full">
+                    <AuthenticatedCommandPalette />
+                    <Suspense fallback={<LoadingUI />}>
+                      <AnimatedRoutes />
+                    </Suspense>
+                  </div>
                 </div>
               </ToastProvider>
             </AuthProvider>

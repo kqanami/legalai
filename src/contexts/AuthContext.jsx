@@ -22,6 +22,23 @@ export function AuthProvider({ children }) {
     return () => setAuthFailureHandler(null);
   }, [navigate]);
 
+  // Fetch the latest user info on mount if logged in
+  useEffect(() => {
+    const fetchMe = async () => {
+      if (authApi.isAuthenticated()) {
+        try {
+          const me = await authApi.getMe();
+          setUser(me);
+          localStorage.setItem('auth_user', JSON.stringify(me));
+        } catch (e) {
+          // Failure handler will trigger if it's a 401
+          console.error('Failed to fetch latest user info:', e);
+        }
+      }
+    };
+    fetchMe();
+  }, []);
+
   const sendCode = useCallback(async (phone) => {
     setIsLoading(true);
     try {
@@ -70,8 +87,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateUserLocal = useCallback((updates) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const next = { ...prev, ...updates };
+      localStorage.setItem('auth_user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, sendCode, login, register, registerLawyer, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, sendCode, login, register, registerLawyer, logout, updateUserLocal }}>
       {children}
     </AuthContext.Provider>
   );

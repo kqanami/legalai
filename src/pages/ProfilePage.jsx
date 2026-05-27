@@ -1,25 +1,25 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ShieldCheck, KeyRound, Smartphone, Mail, Globe, LogOut, Briefcase, ArrowUpRight, Zap, Database, Copy, Check } from 'lucide-react';
-import PaymentModal from '../components/PaymentModal';
 import { FadeUp } from '../components/ui/animations';
 
 const plans = {
-  FREEMIUM: { name: 'FREEMIUM', limit: '3 премиум', model: 'Sonnet 3.5' },
-  GO: { name: 'GO', monthlyPrice: '5,000', limit: '20 / день', model: 'Haiku' },
-  ИП: { name: 'ИП', monthlyPrice: '19,990', limit: '15 / мес', model: 'Sonnet' },
-  БИЗНЕС: { name: 'БИЗНЕС', monthlyPrice: '50,000', limit: 'Безлимит', model: 'Opus' }
+  freemium: { name: 'FREEMIUM', limit: '3 премиум', model: 'Sonnet 3.5' },
+  go: { name: 'GO', monthlyPrice: '5,000', limit: '20 / день', model: 'Haiku' },
+  ip: { name: 'ИП', monthlyPrice: '19,990', limit: '15 / мес', model: 'Sonnet' },
+  business: { name: 'БИЗНЕС', monthlyPrice: '50,000', limit: 'Безлимит', model: 'Opus' }
 };
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
-  const currentPlan = user?.plan ? plans[user.plan.toUpperCase()] || plans.FREEMIUM : plans.FREEMIUM;
+  const currentPlan = user?.plan ? plans[user.plan.toLowerCase()] || plans.freemium : plans.freemium;
 
   const handleCopyApi = () => {
     navigator.clipboard.writeText('sk-live-a7F9x0qP2mN4vB8cE1wR5tY');
@@ -73,7 +73,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <button 
-                onClick={() => setIsPaymentOpen(true)}
+                onClick={() => navigate('/pricing')}
                 className="px-4 py-2 rounded-lg bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-colors shadow-sm"
               >
                 Улучшить
@@ -213,12 +213,6 @@ export default function ProfilePage() {
 
       </div>
 
-      <PaymentModal 
-        isOpen={isPaymentOpen} 
-        onClose={() => setIsPaymentOpen(false)} 
-        selectedPlan={plans.БИЗНЕС}
-        isYearly={false}
-      />
     </div>
   );
 }

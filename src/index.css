@@ -763,32 +763,26 @@
   50% { background-position: 100% 50%; }
 }
 
+/* Chat input bottom glow sweep — CSS loop avoids Framer re-mount flicker */
+@keyframes glowSweep {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* Skeleton shimmer for lawyer cards */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 #root {
   min-height: 100vh;
 }
 
-/* ======= Streaming Cursor Optimization ======= */
-.streaming-message p:last-child::after,
-.streaming-message li:last-child::after,
-.streaming-message h1:last-child::after,
-.streaming-message h2:last-child::after,
-.streaming-message h3:last-child::after,
-.streaming-message td:last-child::after,
-.streaming-message pre code::after {
-  content: '▋';
-  display: inline-block;
-  margin-left: 6px;
-  vertical-align: baseline;
-  color: #cbd5e1; /* chrome-300 */
-  text-shadow: 0 0 8px rgba(203, 213, 225, 0.4);
-  animation: cursor-blink 0.8s steps(2, start) infinite;
-  will-change: opacity;
-}
-
-@keyframes cursor-blink {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
+/* Streaming cursor — handled by React <StreamCursor /> component now */
+/* CSS fallback removed to avoid double cursor */
 
 /* ======= Premium Word Streaming Animation (Optimized to be extremely snappy) ======= */
 @keyframes word-fade-in-up {
@@ -808,6 +802,28 @@
   display: inline-block;
   animation: word-fade-in-up 0.06s ease-out forwards;
   will-change: transform, opacity, filter;
+}
+
+/* ======= Vapour Materialize Animation ======= */
+@keyframes vapour-materialize {
+  0% {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(4px) scale(0.95);
+  }
+  40% {
+    opacity: 0.5;
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-vapour {
+  animation: vapour-materialize 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .white-space-segment {

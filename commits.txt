@@ -1,0 +1,20 @@
+b15142b chore: save current workspace state
+6066952 fix: resolve gigantic black bar by adding -mt-[50vh] to overlap sticky container correctly
+087996d fix: resolve gap on mobile scroll and remove duplicate kinetic background to improve performance
+35e8fe4 feat: turn main hero text into sticky intro reveal, and chat mockup into slide-up section
+95673ac style: replace intro image with massive typography reveal
+2e7ae13 fix: remove duplicate heroRef declaration
+5ac63b1 feat: add sticky cinematic intro reveal image on page load
+9a016e1 fix: resolve landing_cta_main missing key and redesign hero chat mockup for premium feel
+bd33b0d style: add parallax floating badges and deeper glow to Hero section
+a2d9e7c fix: resolve flickering markdown during text streaming in chat
+8802b9f feat: max out landing page visual wow factor with Marquee and Spotlight Cards
+0e9da83 feat: complete visual redesign of landing page, dashboard, and chat UI
+cca5684 feat: improve visual aesthetics, stabilize word streaming, resolve chat history loss, and add robust language check
+0943b1a big update all system
+1f399d7 small interface changes, upgraded bd
+ce8fb93 feat: premium chat animations, streaming optimization, and auto-language detection (RU/KZ)
+d87fee0 docs: add Docker launch instructions and update readme
+a218f00 feat: stabilize APIs, fix ChromaDB, and make counterparty check maximally working
+25f3784 feat: finalize docker configuration, stabilize RAG pipeline, and update legal assistant UI
+1d4d444 Hardened RAG, fixed language glitches, added chat deletion and documentation

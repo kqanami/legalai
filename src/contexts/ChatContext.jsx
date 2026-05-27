@@ -46,6 +46,7 @@ export function ChatProvider({ children }) {
         attached_document_id: m.attached_document_id,
         attached_document_name: m.attached_document_name,
         timestamp: m.timestamp,
+        isHistory: true,
       })));
       if (msgs.length > 0) {
         const lastAi = [...msgs].reverse().find(m => m.segment);
@@ -124,6 +125,7 @@ export function ChatProvider({ children }) {
             m.id === aiMsgId ? {
               ...m,
               id: finalData.id?.toString() || aiMsgId,
+              tempId: aiMsgId,
               content: finalData.content || fullContent,
               segment: finalData.segment,
               references: finalData.references,
@@ -149,6 +151,7 @@ export function ChatProvider({ children }) {
             m.id === aiMsgId ? {
               ...m,
               id: response.id?.toString() || fallbackId,
+              tempId: aiMsgId,
               content: response.content,
               segment: response.segment,
               references: response.references,

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -72,6 +73,7 @@ export default function AdminDashboard() {
   const [systemLogs, setSystemLogs] = useState([]);
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
 
+  const { user: currentUser, updateUserLocal } = useAuth();
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -180,6 +182,9 @@ export default function AdminDashboard() {
     try {
       await adminApi.updateUser(userId, { plan: newPlan });
       setUsers(users.map(u => u.id === userId ? { ...u, plan: newPlan } : u));
+      if (currentUser && currentUser.id === userId) {
+        updateUserLocal({ plan: newPlan });
+      }
       addToast(`Тариф пользователя #${userId} изменен на ${newPlan.toUpperCase()}`, 'success');
     } catch (e) {
       addToast('Ошибка изменения тарифа: ' + e.message, 'error');
