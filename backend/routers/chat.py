@@ -12,6 +12,8 @@ from schemas import CreateSessionRequest, SendMessageRequest, MessageResponse, S
 from auth import get_current_user
 from services.gemini_service import gemini_service
 from services.agent_orchestrator import orchestrator
+from services.document_parser import extract_text
+from models import Document
 from datetime import datetime, time, timezone
 from sqlalchemy import func as sqla_func
 
@@ -111,7 +113,12 @@ async def send_message(session_id: int, req: SendMessageRequest, request: Reques
         if daily_msgs >= 50:
             raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
 
-    user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
+    user_msg = ChatMessage(
+        session_id=session_id, 
+        role="user", 
+        content=req.content,
+        attached_document_id=req.attached_document_id
+    )
     db.add(user_msg)
     db.commit()
 
@@ -121,8 +128,17 @@ async def send_message(session_id: int, req: SendMessageRequest, request: Reques
     ).order_by(ChatMessage.created_at).all()
     history = [{"role": m.role, "content": m.content} for m in prev_messages]
 
+    # ── Document Context ──
+    ai_query = req.content
+    if getattr(req, "attached_document_id", None):
+        doc = db.query(Document).filter(Document.id == req.attached_document_id, Document.user_id == user.id).first()
+        if doc and os.path.exists(doc.file_path):
+            doc_text = extract_text(doc.file_path)
+            if doc_text:
+                ai_query = f"[ВЛОЖЕННЫЙ ДОКУМЕНТ: {doc.name}]\n{doc_text[:15000]}\n\n[ЗАПРОС ПОЛЬЗОВАТЕЛЯ]: {req.content}"
+
     lang_header = request.headers.get("x-app-language")
-    ai_response = await orchestrator.process_chat_query(req.content, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header)
+    ai_response = await orchestrator.process_chat_query(ai_query, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header)
 
     # Server-side escalation safety net: force escalation for explicit lawyer requests
     forced_esc = _detect_lawyer_request(req.content)
@@ -159,6 +175,7 @@ async def send_message(session_id: int, req: SendMessageRequest, request: Reques
         references=ai_response.get("references", []), 
         escalation=ai_response.get("escalation"), 
         suggestions=ai_response.get("suggestions"), 
+        attached_document_id=ai_msg.attached_document_id,
         timestamp=ai_msg.created_at.isoformat()
     )
 
@@ -183,7 +200,12 @@ async def stream_message(session_id: int, req: SendMessageRequest, request: Requ
         if daily_msgs >= 50:
             raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
 
-    user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
+    user_msg = ChatMessage(
+        session_id=session_id, 
+        role="user", 
+        content=req.content,
+        attached_document_id=req.attached_document_id
+    )
     db.add(user_msg)
     db.commit()
 
@@ -201,11 +223,20 @@ async def stream_message(session_id: int, req: SendMessageRequest, request: Requ
     user_role = user.role
     user_plan = user.plan
 
+    # ── Document Context ──
+    ai_query = req.content
+    if getattr(req, "attached_document_id", None):
+        doc = db.query(Document).filter(Document.id == req.attached_document_id, Document.user_id == user.id).first()
+        if doc and os.path.exists(doc.file_path):
+            doc_text = extract_text(doc.file_path)
+            if doc_text:
+                ai_query = f"[ВЛОЖЕННЫЙ ДОКУМЕНТ: {doc.name}]\n{doc_text[:15000]}\n\n[ЗАПРОС ПОЛЬЗОВАТЕЛЯ]: {req.content}"
+
     async def generate():
         full_content = ""
         try:
             lang_header = request.headers.get("x-app-language")
-            async for chunk in orchestrator.process_chat_query_stream(req.content, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header):
+            async for chunk in orchestrator.process_chat_query_stream(ai_query, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header):
                 if not chunk:
                     continue
                 full_content += chunk
@@ -278,6 +309,12 @@ def get_messages(session_id: int, user: User = Depends(get_current_user), db: Se
             except (json.JSONDecodeError, TypeError) as e:
                 logger.warning(f"Failed to parse suggestions for message {m.id}: {e}")
 
+        doc_name = None
+        if m.attached_document_id:
+            doc = db.query(Document).filter(Document.id == m.attached_document_id).first()
+            if doc:
+                doc_name = doc.name
+
         result.append(MessageResponse(
             id=m.id, 
             role=m.role, 
@@ -285,7 +322,9 @@ def get_messages(session_id: int, user: User = Depends(get_current_user), db: Se
             segment=m.segment, 
             references=refs if refs else None, 
             escalation=escalation, 
-            suggestions=suggestions if suggestions else None, 
+            suggestions=suggestions if suggestions else None,
+            attached_document_id=m.attached_document_id,
+            attached_document_name=doc_name,
             timestamp=m.created_at.isoformat()
         ))
     return result

@@ -72,15 +72,21 @@
   }
 
   .glass-card-hover {
-    @apply glass-card transition-all duration-500 cursor-default;
+    @apply glass-card cursor-pointer;
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .glass-card-hover:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) scale(1.01);
     box-shadow:
       0 12px 40px rgba(0, 0, 0, 0.6),
       0 0 30px rgba(255, 255, 255, 0.02),
       inset 0 1px 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-card-hover:active {
+    transform: scale(0.98);
+    transition-duration: 0.1s;
   }
 
   .glass-card-hover:hover::after {
@@ -95,6 +101,7 @@
       0 8px 32px rgba(0, 0, 0, 0.5),
       0 0 60px rgba(255, 255, 255, 0.01),
       inset 0 1px 1px rgba(255, 255, 255, 0.03);
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .glass-premium::after {
@@ -108,14 +115,20 @@
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
-    transition: background 0.5s ease;
+    transition: background 0.3s ease;
   }
 
   .glass-premium:hover {
+    transform: translateY(-2px) scale(1.01);
     box-shadow:
       0 16px 48px rgba(0, 0, 0, 0.7),
       0 0 80px rgba(255, 255, 255, 0.03),
       inset 0 1px 1px rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-premium:active {
+    transform: scale(0.98);
+    transition-duration: 0.1s;
   }
 
   .glass-premium:hover::after {
@@ -144,19 +157,21 @@
 
   /* ======= Buttons ======= */
   .btn-primary {
-    @apply px-6 py-3 rounded-xl font-semibold text-obsidian-950 transition-all duration-300 relative overflow-hidden;
+    @apply px-6 py-3 rounded-xl font-semibold text-obsidian-950 relative overflow-hidden;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
     background: linear-gradient(135deg, #94A3B8 0%, #E2E8F0 50%, #64748B 100%);
     background-size: 200% 200%;
     animation: chrome-shimmer 4s ease infinite;
   }
 
+  .btn-primary:active {
+    transform: scale(0.96);
+    transition-duration: 0.1s;
+  }
+
   .btn-primary:hover {
     @apply scale-[1.02];
     box-shadow: 0 8px 32px rgba(255, 255, 255, 0.15), 0 0 40px rgba(255, 255, 255, 0.05);
-  }
-
-  .btn-primary:active {
-    @apply scale-[0.98];
   }
 
   .btn-secondary {
@@ -196,18 +211,19 @@
     @apply text-white bg-obsidian-800/70;
   }
 
-  /* ======= Chat Bubbles ======= */
   .chat-bubble-user {
-    @apply max-w-[80%] px-5 py-4 rounded-2xl rounded-br-sm text-obsidian-950 font-medium relative overflow-hidden;
-    background: linear-gradient(135deg, #CBD5E1 0%, #94A3B8 100%);
-    box-shadow: 0 8px 32px rgba(203, 213, 225, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.4);
+    @apply max-w-[80%] px-5 py-4 rounded-2xl rounded-br-sm text-white font-medium relative overflow-hidden;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   }
 
   .chat-bubble-user::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%);
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%);
     pointer-events: none;
   }
 
@@ -377,12 +393,13 @@
     transform: translateY(-2px);
   }
 
-  /* ======= Landing Page — Capability Cards ======= */
+  /* ======= Landing Page - Capability Cards ======= */
   .landing-capability-card {
-    @apply relative rounded-2xl p-7 sm:p-8 transition-all duration-500 overflow-hidden;
-    background: rgba(9, 10, 15, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(24px);
+    @apply relative rounded-3xl p-8 sm:p-10 transition-all duration-700 overflow-hidden;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.01) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(60px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.02);
   }
 
   .landing-capability-card::after {
@@ -391,24 +408,26 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 50%, rgba(255, 255, 255, 0.02));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 40%, rgba(255, 255, 255, 0.05));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s ease;
+    opacity: 0.3;
+    transition: opacity 0.7s ease, background 0.7s ease;
   }
 
   .landing-capability-card:hover {
-    border-color: rgba(255, 255, 255, 0.08);
-    background: rgba(11, 13, 20, 0.7);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 40px rgba(255, 255, 255, 0.05);
+    transform: translateY(-4px) scale(1.01);
+    z-index: 50;
   }
 
   .landing-capability-card:hover::after {
     opacity: 1;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), transparent 50%, rgba(255, 255, 255, 0.1));
   }
 
   /* ======= Landing Page — Pricing Cards ======= */
@@ -463,6 +482,192 @@
 
   .landing-pricing-popular:hover::after {
     background: linear-gradient(135deg, rgba(203, 213, 225, 0.25), rgba(255, 255, 255, 0.03) 50%, rgba(203, 213, 225, 0.15));
+  }
+
+  /* ======= Landing Page - Audience Cards ======= */
+  .landing-audience-card {
+    @apply relative rounded-3xl p-8 sm:p-10 transition-all duration-700 overflow-hidden;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.01) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(60px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.02);
+  }
+
+  .landing-audience-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 40%, rgba(255, 255, 255, 0.05));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.3;
+    transition: opacity 0.7s ease, background 0.7s ease;
+  }
+
+  .landing-audience-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 40px rgba(255, 255, 255, 0.05);
+    transform: translateY(-4px) scale(1.01);
+    z-index: 50;
+  }
+
+  .landing-audience-card:hover::after {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), transparent 50%, rgba(255, 255, 255, 0.1));
+  }
+
+  .landing-audience-card .audience-icon {
+    @apply w-16 h-16 rounded-[20px] flex items-center justify-center mb-6 transition-all duration-700;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .landing-audience-card:hover .audience-icon {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.06);
+    transform: scale(1.1);
+  }
+
+  /* ======= Landing Page — Testimonial Cards ======= */
+  .landing-testimonial-card {
+    @apply relative rounded-2xl p-7 sm:p-8 transition-all duration-500;
+    background: rgba(9, 10, 15, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px);
+  }
+
+  .landing-testimonial-card:hover {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(11, 13, 20, 0.7);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+    transform: translateY(-3px);
+  }
+
+  .landing-testimonial-card .testimonial-stars {
+    @apply flex items-center gap-1 mb-4;
+  }
+
+  .landing-testimonial-card blockquote {
+    @apply text-sm sm:text-base text-steel-300 leading-relaxed mb-6 italic;
+  }
+
+  /* ======= Pricing Toggle ======= */
+  .pricing-toggle-container {
+    @apply flex items-center justify-center gap-4 mb-12;
+  }
+
+  .pricing-toggle-track {
+    @apply relative w-14 h-7 rounded-full cursor-pointer transition-all duration-300;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .pricing-toggle-track.active {
+    background: rgba(203, 213, 225, 0.15);
+    border-color: rgba(203, 213, 225, 0.3);
+  }
+
+  .pricing-toggle-thumb {
+    @apply absolute top-0.5 left-0.5 w-6 h-6 rounded-full transition-transform duration-300;
+    background: linear-gradient(135deg, #CBD5E1, #F8FAFC, #94A3B8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .pricing-toggle-track.active .pricing-toggle-thumb {
+    transform: translateX(28px);
+  }
+
+  .pricing-save-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: #34d399;
+  }
+
+  /* ======= Trust Badges (Hero) ======= */
+  .trust-badge {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] text-steel-400 font-medium transition-all duration-300;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .trust-badge:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #E5E7EB;
+  }
+
+  .trust-badge .trust-icon {
+    @apply text-chrome-500 opacity-60;
+  }
+
+  /* ======= Mobile Nav ======= */
+  .mobile-nav-overlay {
+    @apply fixed inset-0 z-[110] transition-opacity duration-300;
+    background: rgba(5, 5, 8, 0.85);
+    backdrop-filter: blur(20px);
+  }
+
+  .mobile-nav-panel {
+    @apply fixed top-0 right-0 w-[80%] max-w-sm h-full z-[120] flex flex-col p-8;
+    background: rgba(9, 10, 15, 0.95);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(40px);
+    box-shadow: -20px 0 60px rgba(0, 0, 0, 0.8);
+  }
+
+  .mobile-nav-link {
+    @apply block py-4 text-lg font-semibold text-steel-300 border-b border-white/[0.04] transition-colors duration-200;
+  }
+
+  .mobile-nav-link:hover {
+    @apply text-white;
+  }
+
+  /* ======= Newsletter Input ======= */
+  .newsletter-container {
+    @apply flex items-center gap-2 mt-4;
+  }
+
+  .newsletter-input {
+    @apply flex-1 px-4 py-3 rounded-xl text-sm text-white placeholder-steel-500 outline-none transition-all duration-300;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .newsletter-input:focus {
+    border-color: rgba(203, 213, 225, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 3px rgba(203, 213, 225, 0.05);
+  }
+
+  .newsletter-btn {
+    @apply px-4 py-3 rounded-xl transition-all duration-300 flex items-center justify-center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #CBD5E1;
+  }
+
+  .newsletter-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+
+  /* ======= Pricing Popular Scale Effect ======= */
+  .landing-pricing-popular-scaled {
+    @apply landing-pricing-popular;
+    transform: scale(1.03);
+  }
+
+  @media (max-width: 1024px) {
+    .landing-pricing-popular-scaled {
+      transform: scale(1);
+    }
   }
 }
 
@@ -676,5 +881,15 @@
   }
   100% {
     background-image: conic-gradient(from 360deg, transparent 40%, rgba(255,255,255,0.4) 50%, transparent 60%);
+  }
+}
+
+@layer utilities {
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

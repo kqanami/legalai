@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, Search, Download, Plus, Filter, Clock, Star } from 'lucide-react';
+import { FileText, Search, Download, Plus, Filter, Clock, Star, Sparkles } from 'lucide-react';
 import MagneticButton from '../components/MagneticButton';
 
 const templates = [
@@ -14,6 +15,7 @@ const templates = [
 
 export default function LawyerTemplates() {
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   const filtered = templates.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
 
@@ -74,9 +76,18 @@ export default function LawyerTemplates() {
                   <Clock size={12} /> {t.downloads} скачиваний
                 </div>
               </div>
-              <button className="mt-4 w-full py-2 bg-obsidian-800 hover:bg-chrome-500 hover:text-obsidian-950 rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2">
-                <Download size={14} /> Скачать .DOCX
-              </button>
+                            <div className="mt-4 flex gap-2">
+                <button 
+                  onClick={() => navigate(`/documents?generate=contract&desc=${encodeURIComponent(t.title)}`)}
+                  className="flex-1 py-2 bg-chrome-500/10 text-chrome-400 hover:bg-chrome-500 hover:text-obsidian-950 rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2 border border-chrome-500/20"
+                  title="Заполнить через AI"
+                >
+                  <Sparkles size={14} /> AI
+                </button>
+                <button className="flex-1 py-2 bg-obsidian-800 hover:bg-white hover:text-obsidian-950 rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2">
+                  <Download size={14} /> .DOCX
+                </button>
+              </div>
             </motion.div>
           ))}
         </div>

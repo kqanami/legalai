@@ -133,72 +133,84 @@ export default function LawyerCases() {
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+
+      <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar pb-4 mt-4">
         {loading ? (
           <div className="text-steel-400 text-center py-10">Загрузка дел...</div>
-        ) : filteredCases.length > 0 ? (
-          <div className="space-y-4">
-            {filteredCases.map((c, i) => (
-              <motion.div 
-                key={c.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="glass-card p-6 flex flex-col md:flex-row md:items-center justify-between hover:border-chrome-500/50 transition-colors group relative overflow-hidden gap-4"
-              >
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-chrome-400 to-obsidian-800 opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full border ${getStatusColor(c.status)} transition-colors`}>
-                      {getStatusText(c.status)}
-                    </span>
-                    <span className="text-xs font-medium text-steel-500 px-2 py-0.5 bg-obsidian-800 rounded-md border border-obsidian-700">
-                      {c.category || 'Без категории'}
-                    </span>
-                  </div>
-                  
-                  <h3 className="text-lg font-bold text-white mb-2">{c.title}</h3>
-                  <p className="text-sm text-steel-400 line-clamp-2 max-w-2xl">{c.description || 'Нет описания'}</p>
-                </div>
-                
-                <div className="flex flex-col md:items-end gap-3 min-w-[200px]">
-                  <div className="flex items-center gap-2 text-sm text-chrome-200 bg-obsidian-800/50 px-3 py-1.5 rounded-lg border border-obsidian-700/50 w-fit">
-                    <User size={14} className="text-steel-400" />
-                    <span className="font-medium truncate max-w-[150px]">{c.client?.name}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-2">
-                    {c.status !== 'won' && (
-                      <button 
-                        onClick={() => updateCaseStatus(c.id, 'won')}
-                        className="p-2 text-steel-400 hover:text-yellow-500 hover:bg-yellow-500/10 rounded-lg transition-all border border-transparent hover:border-yellow-500/20"
-                        title="Отметить как выигранное"
-                      >
-                        <Trophy size={18} />
-                      </button>
-                    )}
-                    {c.status !== 'closed' && c.status !== 'won' && (
-                      <button 
-                        onClick={() => updateCaseStatus(c.id, 'closed')}
-                        className="p-2 text-steel-400 hover:text-white hover:bg-obsidian-700 rounded-lg transition-colors border border-transparent hover:border-obsidian-600"
-                        title="Закрыть дело"
-                      >
-                        <X size={18} />
-                      </button>
-                    )}
-                    <button className="flex items-center gap-1 text-sm text-chrome-400 hover:text-chrome-300 font-medium group-hover:translate-x-1 transition-transform ml-2">
-                      Подробнее <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
         ) : (
-          <div className="text-steel-500 text-center py-20 border border-dashed border-obsidian-700 rounded-2xl flex flex-col items-center gap-4">
-            <AlertCircle size={48} className="text-obsidian-600" />
-            <p>{searchQuery ? 'Дела не найдены' : 'У вас пока нет активных дел. Создайте новое!'}</p>
+          <div className="flex gap-6 h-full min-w-max">
+            {['pending', 'active', 'won', 'closed'].map(colStatus => {
+              const colCases = filteredCases.filter(c => c.status === colStatus);
+              return (
+                <div 
+                  key={colStatus} 
+                  className="w-80 flex flex-col bg-obsidian-900/20 rounded-2xl border border-obsidian-700/50"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('bg-obsidian-800/40');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('bg-obsidian-800/40');
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('bg-obsidian-800/40');
+                    const caseIdStr = e.dataTransfer.getData('caseId');
+                    if (caseIdStr) {
+                      updateCaseStatus(parseInt(caseIdStr), colStatus);
+                    }
+                  }}
+                >
+                  <div className="p-4 border-b border-obsidian-700/50 flex items-center justify-between">
+                    <h3 className="text-white font-bold tracking-wide flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor(colStatus).split(' ')[0].replace('/10','')}`} />
+                      {getStatusText(colStatus)}
+                    </h3>
+                    <span className="text-xs font-mono text-steel-500 bg-obsidian-800 px-2 py-0.5 rounded-md border border-obsidian-700">{colCases.length}</span>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                    {colCases.map((c, i) => (
+                      <motion.div 
+                        key={c.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('caseId', c.id.toString());
+                          e.currentTarget.classList.add('opacity-50');
+                        }}
+                        onDragEnd={(e) => {
+                          e.currentTarget.classList.remove('opacity-50');
+                        }}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="glass-card p-4 flex flex-col hover:border-chrome-500/50 transition-colors group relative cursor-grab active:cursor-grabbing bg-obsidian-900/60"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                           <span className="text-[10px] font-medium text-steel-500 px-2 py-0.5 bg-obsidian-800 rounded-md border border-obsidian-700">
+                             {c.category || 'Без категории'}
+                           </span>
+                           {c.client && (
+                             <div className="flex items-center gap-1 text-[10px] text-chrome-200">
+                               <User size={10} />
+                               <span className="truncate max-w-[80px]">{c.client.name}</span>
+                             </div>
+                           )}
+                        </div>
+                        <h4 className="text-sm font-bold text-white mb-1 leading-snug">{c.title}</h4>
+                        <p className="text-xs text-steel-400 line-clamp-2 mb-3">{c.description || 'Нет описания'}</p>
+                        
+                        <div className="flex items-center gap-2 mt-auto pt-2 border-t border-obsidian-800">
+                           <button className="text-[10px] text-chrome-400 hover:text-chrome-300 font-medium flex items-center gap-1 transition-colors">
+                             Подробнее <ChevronRight size={12} />
+                           </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

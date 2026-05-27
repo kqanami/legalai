@@ -205,14 +205,14 @@ class LegalAgentOrchestrator:
                 
         return text.strip()
 
-    async def process_contract_audit(self, contract_text: str) -> Dict[str, Any]:
+    async def process_contract_audit(self, contract_text: str, doc_type: str = "Юридический документ (Общий)") -> Dict[str, Any]:
         """Multi-agent workflow for contract auditing."""
-        logger.info("Agent 1: Heuristic Risk Scorer running...")
+        logger.info(f"Agent 1: Heuristic Risk Scorer running for doc_type: {doc_type}...")
         heuristic_risks = self.scorer.calculate_risk(contract_text)
         
         logger.info("Agent 2: Dynamic RAG Retrieval...")
         # Dynamic query for contract audit
-        audit_queries = await self.generate_search_queries(f"Риски в договоре: {contract_text[:500]}", [])
+        audit_queries = await self.generate_search_queries(f"Риски в договоре ({doc_type}): {contract_text[:500]}", [])
         
         combined_context = ""
         for q in audit_queries[:2]:
@@ -226,12 +226,14 @@ class LegalAgentOrchestrator:
         logger.info(f"Compressed contract text for LLM from {len(contract_text)} to {len(compressed_text)} chars.")
         
         enriched_prompt = f"""
+ТИП ДОГОВОРА: {doc_type}
+
 ОБНАРУЖЕННЫЕ АЛГОРИТМИЧЕСКИЕ РИСКИ:
 Уровень риска: {heuristic_risks['level'].upper()} (Score: {heuristic_risks['score']}/100)
 Триггеры: {', '.join([t['trigger'] for t in heuristic_risks['found_triggers']])}
 
 ИЗВЛЕЧЕННАЯ БАЗА ЗНАНИЙ (RAG):
-{combined_context if combined_context else "Опирайся на общие нормы ГК РК."}
+{combined_context if combined_context else f"Опирайся на нормы ГК РК и применимое законодательство для данного типа договора ({doc_type})."}
 
 ТЕКСТ ДОГОВОРА:
 {compressed_text}

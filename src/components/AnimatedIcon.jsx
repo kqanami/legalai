@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { MessageSquareText, FileText, FileClock, ShieldCheck, Search, User } from 'lucide-react';
+import { MessageSquareText, FileText, FileClock, ShieldCheck, Search, User, Briefcase } from 'lucide-react';
 
 const icons = {
   chat: {
@@ -31,6 +31,11 @@ const icons = {
     component: () => <User size={20} strokeWidth={1.5} />,
     hover: { scale: 1.1, y: [0, -2, 0] },
     transition: { duration: 0.4 }
+  },
+  lawyers: {
+    component: () => <Briefcase size={20} strokeWidth={1.5} />,
+    hover: { scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] },
+    transition: { duration: 0.5 }
   }
 };
 

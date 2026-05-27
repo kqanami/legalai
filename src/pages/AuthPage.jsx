@@ -3,10 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Scale, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
-import KineticBackground from '../components/KineticBackground';
-import MagneticButton from '../components/MagneticButton';
+import { Spotlight } from '../components/ui/spotlight';
+import { FadeUp } from '../components/ui/animations';
 import CustomSelect from '../components/CustomSelect';
 
 export default function AuthPage() {
@@ -73,40 +73,27 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-obsidian-950 flex items-center justify-center px-4 relative overflow-hidden">
-      {/* 3D Kinetic background */}
-      <div className="fixed inset-0 z-0">
-        <KineticBackground variant="landing" />
-      </div>
+    <div className="min-h-screen bg-black flex items-center justify-center px-4 relative overflow-hidden font-sans text-neutral-200">
+      <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
 
-      <motion.div
-        className="w-full max-w-md relative z-10"
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-      >
+      <FadeUp className="w-full max-w-md relative z-10" delay={0.1}>
         {/* Logo */}
-        <Link to="/" className="flex items-center justify-center gap-3 mb-8">
-          <motion.div
-            className="w-16 h-16 rounded-2xl chrome-gradient flex items-center justify-center shadow-2xl shadow-chrome-500/20 box-border border-t-2 border-l-2 border-white/40"
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Scale className="text-obsidian-950" size={32} strokeWidth={2.5} />
-          </motion.div>
-        </Link>
+        <div className="absolute top-8 left-8 flex items-center gap-3 pointer-events-none z-10">
+          <div className="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center font-black text-lg shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+            L
+          </div>
+          <div>
+            <span className="text-white font-bold text-lg tracking-wide">Legal</span>
+            <span className="text-neutral-500 font-bold text-lg tracking-wide">Ai</span>
+          </div>
+        </div>
 
-        <motion.div
-          className="glass-card p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] relative overflow-hidden backdrop-blur-3xl border-t border-chrome-600/30 border-l border-chrome-600/20"
-          initial={{ scale: 0.95 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          {/* Animated cold glow */}
+        <div className="bg-neutral-950/50 backdrop-blur-3xl border border-white/5 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
+          {/* Subtle Glow */}
           <motion.div
-            className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-30 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.1), transparent)' }}
-            animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+            className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-20 pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.15), transparent)' }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
             transition={{ duration: 5, repeat: Infinity }}
           />
 
@@ -119,7 +106,7 @@ export default function AuthPage() {
           <AnimatePresence mode="wait">
             {mode !== 'otp' && (
               <motion.div
-                className="flex gap-1 bg-obsidian-800/80 rounded-xl p-1 mb-8 relative z-10 border border-obsidian-600/50 shadow-inner"
+                className="flex gap-1 bg-black rounded-xl p-1 mb-8 relative z-10 border border-white/5"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -128,13 +115,13 @@ export default function AuthPage() {
                   <button
                     key={m}
                     onClick={() => { setMode(m); setError(''); }}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-                      mode === m ? 'text-obsidian-950 text-shadow-none' : 'text-steel-400 hover:text-white'
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all relative ${
+                      mode === m ? 'text-black' : 'text-neutral-500 hover:text-white'
                     }`}
                   >
                     {mode === m && (
                       <motion.div
-                        className="absolute inset-0 rounded-lg chrome-gradient"
+                        className="absolute inset-0 rounded-lg bg-white"
                         layoutId="auth-tab"
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                       />
@@ -158,18 +145,18 @@ export default function AuthPage() {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <label className="block text-sm text-steel-400 mb-2 font-medium">{t('auth_name')}</label>
-                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('auth_name_placeholder')} className="input-field shadow-inner mb-4" />
+                  <label className="block text-sm text-neutral-400 mb-2 font-medium">{t('auth_name')}</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('auth_name_placeholder')} className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-white/30 transition-colors mb-4 shadow-inner" />
                   
-                  <div className="flex items-center gap-3 mb-4 bg-obsidian-800/50 p-3 rounded-xl border border-obsidian-600/50">
+                  <div className="flex items-center gap-3 mb-4 bg-black/50 p-3 rounded-xl border border-white/5">
                     <input 
                       type="checkbox" 
                       id="isLawyer" 
                       checked={isLawyer} 
                       onChange={(e) => setIsLawyer(e.target.checked)}
-                      className="w-4 h-4 rounded border-obsidian-600 text-chrome-500 focus:ring-chrome-500 bg-obsidian-900"
+                      className="w-4 h-4 rounded border-neutral-700 bg-black text-white focus:ring-0"
                     />
-                    <label htmlFor="isLawyer" className="text-sm text-steel-300 font-medium cursor-pointer">
+                    <label htmlFor="isLawyer" className="text-sm text-neutral-300 font-medium cursor-pointer">
                       Я юрист (создать профиль специалиста)
                     </label>
                   </div>
@@ -183,15 +170,15 @@ export default function AuthPage() {
                         className="space-y-4 mb-4"
                       >
                         <div>
-                          <label className="block text-xs text-steel-400 mb-1">ИИН</label>
-                          <input type="text" maxLength={12} value={iin} onChange={(e) => setIin(e.target.value.replace(/\D/g, ''))} placeholder="12 цифр" className="input-field text-sm py-2 shadow-inner" />
+                          <label className="block text-xs text-neutral-400 mb-1">ИИН</label>
+                          <input type="text" maxLength={12} value={iin} onChange={(e) => setIin(e.target.value.replace(/\D/g, ''))} placeholder="12 цифр" className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-white/30 transition-colors shadow-inner text-sm" />
                         </div>
                         <div>
-                          <label className="block text-xs text-steel-400 mb-1">Номер лицензии</label>
-                          <input type="text" value={license} onChange={(e) => setLicense(e.target.value)} placeholder="Номер гос. лицензии" className="input-field text-sm py-2 shadow-inner" />
+                          <label className="block text-xs text-neutral-400 mb-1">Номер лицензии</label>
+                          <input type="text" value={license} onChange={(e) => setLicense(e.target.value)} placeholder="Номер гос. лицензии" className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-white/30 transition-colors shadow-inner text-sm" />
                         </div>
                         <div>
-                          <label className="block text-xs text-steel-400 mb-1">Специализация</label>
+                          <label className="block text-xs text-neutral-400 mb-1">Специализация</label>
                           <CustomSelect 
                             value={specialization} 
                             onChange={(e) => setSpecialization(e.target.value)} 
@@ -208,8 +195,8 @@ export default function AuthPage() {
               {/* Phone */}
               {mode !== 'otp' && (
                 <motion.div key="phone" className="mb-4" layout>
-                  <label className="block text-sm text-steel-400 mb-2 font-medium">{t('auth_phone')}</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('auth_phone_placeholder')} className="input-field text-lg tracking-wider font-medium shadow-inner" />
+                  <label className="block text-sm text-neutral-400 mb-2 font-medium">{t('auth_phone')}</label>
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('auth_phone_placeholder')} className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 text-lg tracking-wider font-medium focus:outline-none focus:border-white/30 transition-colors shadow-inner" />
                 </motion.div>
               )}
 
@@ -224,16 +211,16 @@ export default function AuthPage() {
                 >
                   <div className="text-center mb-8 mt-2">
                     <motion.div
-                      className="mb-4 text-chrome-400 flex justify-center"
-                      animate={{ y: [0, -5, 0], filter: ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] }}
+                      className="mb-4 text-white flex justify-center"
+                      animate={{ y: [0, -5, 0], opacity: [0.7, 1, 0.7] }}
                       transition={{ duration: 3, repeat: Infinity }}
                     >
                       <ShieldCheck size={48} strokeWidth={1.5} />
                     </motion.div>
-                    <p className="text-sm text-steel-400">Код отправлен на номер</p>
+                    <p className="text-sm text-neutral-400">Код отправлен на номер</p>
                     <p className="text-white font-semibold tracking-wider mt-1">{phone}</p>
                   </div>
-                  <label className="block text-sm text-center text-steel-400 mb-4">{t('auth_otp')}</label>
+                  <label className="block text-sm text-center text-neutral-400 mb-4">{t('auth_otp')}</label>
                   <div className="flex gap-2 justify-center mb-6">
                     {[...Array(6)].map((_, i) => (
                       <motion.input
@@ -247,7 +234,7 @@ export default function AuthPage() {
                           setOtp(newOtp.join(''));
                           if (e.target.value && e.target.nextSibling) e.target.nextSibling.focus();
                         }}
-                        className="w-12 h-14 text-center text-xl font-bold rounded-xl bg-obsidian-800/80 border-b-2 border-r border-obsidian-600/50 text-white outline-none transition-all duration-300 focus:border-chrome-400 focus:bg-obsidian-700/80 focus:shadow-[0_0_20px_rgba(255,255,255,0.1)] shadow-inner"
+                        className="w-12 h-14 text-center text-xl font-bold rounded-xl bg-black border-b-2 border-r border-white/10 text-white outline-none transition-all duration-300 focus:border-white/40 focus:bg-neutral-900 shadow-inner"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05 }}
@@ -274,16 +261,15 @@ export default function AuthPage() {
             </AnimatePresence>
 
             {/* Submit */}
-            <MagneticButton
+            <button
               type="submit"
               disabled={isLoading}
-              className="btn-primary w-full py-4 text-base tracking-wide font-bold shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] disabled:opacity-50 disabled:cursor-not-allowed"
-              strength={0.2}
+              className="w-full py-4 rounded-xl text-sm font-bold flex items-center justify-center transition-colors bg-white text-black hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <motion.svg
-                    className="w-5 h-5 text-obsidian-900"
+                    className="w-5 h-5 text-black"
                     viewBox="0 0 24 24"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -294,18 +280,18 @@ export default function AuthPage() {
                   {t('common_loading')}
                 </span>
               ) : mode === 'otp' ? t('auth_verify') : t('auth_send_code')}
-            </MagneticButton>
+            </button>
 
             {mode === 'otp' && (
-              <button type="button" onClick={() => setMode('login')} className="w-full mt-4 text-sm text-steel-500 hover:text-white transition-colors">
+              <button type="button" onClick={() => setMode('login')} className="w-full mt-4 text-sm text-neutral-500 hover:text-white transition-colors">
                 ← Изменить номер
               </button>
             )}
           </form>
-        </motion.div>
+        </div>
 
-        <p className="text-xs text-steel-600 text-center mt-8 tracking-wide font-medium">{t('footer_disclaimer')}</p>
-      </motion.div>
+        <p className="text-xs text-neutral-600 text-center mt-8 tracking-wide font-medium">{t('footer_disclaimer')}</p>
+      </FadeUp>
     </div>
   );
 }

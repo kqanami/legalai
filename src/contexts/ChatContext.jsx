@@ -43,6 +43,8 @@ export function ChatProvider({ children }) {
         references: m.references,
         escalation: m.escalation,
         suggestions: m.suggestions,
+        attached_document_id: m.attached_document_id,
+        attached_document_name: m.attached_document_name,
         timestamp: m.timestamp,
       })));
       if (msgs.length > 0) {
@@ -54,12 +56,14 @@ export function ChatProvider({ children }) {
     }
   }, []);
 
-  const sendMessage = useCallback(async (text) => {
+  const sendMessage = useCallback(async (text, attachedDocumentId = null, attachedDocumentName = null) => {
     // Add user message to UI immediately
     const userMsg = {
       id: Date.now().toString(),
       role: 'user',
       content: text,
+      attached_document_id: attachedDocumentId,
+      attached_document_name: attachedDocumentName,
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
@@ -112,7 +116,7 @@ export function ChatProvider({ children }) {
           } else if (data.error) {
             throw new Error(data.error);
           }
-        });
+        }, attachedDocumentId);
 
         // Update with final data (refs, segment, real ID)
         if (aiMsgId) {
@@ -137,7 +141,7 @@ export function ChatProvider({ children }) {
         // Fallback to non-streaming
         console.warn('Streaming failed, falling back:', streamError);
 
-        const response = await chatApi.sendMessage(currentSessionId, text);
+        const response = await chatApi.sendMessage(currentSessionId, text, attachedDocumentId);
         const fallbackId = (Date.now() + 2).toString();
 
         if (aiMsgId) {

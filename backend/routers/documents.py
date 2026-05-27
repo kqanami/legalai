@@ -1,7 +1,7 @@
 import os
 import uuid
 import logging
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import get_db
@@ -20,8 +20,51 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
+
+async def run_auto_audit(doc_id: int, user_id: int, file_path: str, original_filename: str):
+    from database import SessionLocal
+    from routers.audit import extract_text_from_file, classify_document
+    from services.agent_orchestrator import orchestrator
+    from models import AuditResult
+    import json
+    
+    db = SessionLocal()
+    try:
+        contract_text = extract_text_from_file(file_path, original_filename)
+        if not contract_text.strip():
+            return
+            
+        doc_type = classify_document(contract_text)
+        if doc_type == "personal":
+            risks = []
+            summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+            total_risks = 0
+            logger.info(f"Document {doc_id} classified as personal — skipping auto-audit.")
+        else:
+            result = await orchestrator.process_contract_audit(contract_text, doc_type)
+            risks = result.get("risks", [])
+            summary = result.get("summary", "")
+            total_risks = result.get("totalRisks", len(risks))
+        
+        audit_record = AuditResult(
+            user_id=user_id,
+            document_id=doc_id,
+            filename=original_filename,
+            original_text=contract_text,
+            risks_json=json.dumps(risks, ensure_ascii=False),
+            summary=summary,
+            total_risks=total_risks
+        )
+        db.add(audit_record)
+        db.commit()
+    except Exception as e:
+        logger.error(f"Auto-audit background task failed: {e}")
+    finally:
+        db.close()
+
+
 @router.post("/upload", response_model=DocumentResponse)
-async def upload_document(file: UploadFile = File(...), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def upload_document(file: UploadFile = File(...), user: User = Depends(get_current_user), db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     """Upload a document (PDF, DOCX, DOC, TXT)."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
@@ -44,6 +87,8 @@ async def upload_document(file: UploadFile = File(...), user: User = Depends(get
     db.add(doc)
     db.commit()
     db.refresh(doc)
+    if background_tasks:
+        background_tasks.add_task(run_auto_audit, doc.id, user.id, doc.file_path, doc.original_filename)
 
     return DocumentResponse(id=doc.id, name=doc.name, original_filename=doc.original_filename, file_size=doc.file_size, doc_type=doc.doc_type, created_at=doc.created_at.isoformat())
 
@@ -83,13 +128,35 @@ def delete_document(doc_id: int, user: User = Depends(get_current_user), db: Ses
         raise HTTPException(status_code=404, detail="Document not found")
     if os.path.exists(doc.file_path):
         os.remove(doc.file_path)
+    
+    from models import AuditResult
+    db.query(AuditResult).filter(AuditResult.document_id == doc.id).delete()
+    
     db.delete(doc)
     db.commit()
     return {"success": True}
 
 
+@router.get("/{doc_id}/content")
+def get_document_content(doc_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Extract and return text content of a document."""
+    doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not os.path.exists(doc.file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+        
+    from routers.audit import extract_text_from_file
+    try:
+        content = extract_text_from_file(doc.file_path, doc.original_filename)
+        return {"id": doc.id, "content": content}
+    except Exception as e:
+        logger.error(f"Failed to extract content: {e}")
+        raise HTTPException(status_code=500, detail="Failed to extract document text")
+
+
 @router.post("/generate")
-async def generate_document(req: GenerateDocRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def generate_document(req: GenerateDocRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     """Generate a legal document using AI."""
     doc_content = await gemini_service.generate_document(req.doc_type, req.description)
 
@@ -106,6 +173,8 @@ async def generate_document(req: GenerateDocRequest, user: User = Depends(get_cu
     db.add(doc)
     db.commit()
     db.refresh(doc)
+    if background_tasks:
+        background_tasks.add_task(run_auto_audit, doc.id, user.id, doc.file_path, doc.original_filename)
 
     return {"id": doc.id, "name": doc.name, "content": doc_content, "doc_type": "generated"}
 

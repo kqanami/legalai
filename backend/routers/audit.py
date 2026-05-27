@@ -3,16 +3,73 @@ import json
 import logging
 import tempfile
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import get_current_user
-from models import User, AuditResult
+from models import User, AuditResult, Document
 from schemas import AuditResponse, AuditHistoryItem, ReanalyzeRequest, SaveTextRequest, QuickFixRequest
 from services.gemini_service import gemini_service
 from services.agent_orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/audit", tags=["audit"])
+
+import re as _re
+
+def classify_document(text: str) -> str:
+    """Classify a document by its type for targeted legal audit.
+    
+    Returns specific contract types or 'personal' for non-legal docs.
+    """
+    if not text or len(text.strip()) < 50:
+        return "personal"
+    
+    sample = text[:3000].lower()
+    
+    # Personal document indicators
+    personal_keywords = [
+        "резюме", "curriculum vitae", "опыт работы", "образование",
+        "хобби", "личные данные", "дневник", "заметк",
+        "рецепт", "инструкция по применению", "список покупок",
+        "дорогой друг", "дорогая", "привет", "с любовью",
+        "фотограф", "путешеств", "кулинар",
+    ]
+    
+    if sum(1 for kw in personal_keywords if kw in sample) >= 2:
+        return "personal"
+
+    # Contract types
+    if any(kw in sample for kw in ["договор аренды", "субаренды", "арендодатель", "арендатор", "жалдау шарты"]):
+        return "Договор аренды"
+    if any(kw in sample for kw in ["трудовой договор", "работодатель", "работник", "заработная плата", "еңбек шарты"]):
+        return "Трудовой договор"
+    if any(kw in sample for kw in ["договор оказания услуг", "договор возмездного оказания услуг", "заказчик", "исполнитель", "қызмет көрсету шарты"]):
+        return "Договор оказания услуг"
+    if any(kw in sample for kw in ["договор поставки", "поставщик", "покупатель", "товар", "накладная", "жеткізу шарты"]):
+        return "Договор поставки"
+    if any(kw in sample for kw in ["договор займа", "заимодавец", "заемщик", "проценты за пользование", "қарыз шарты"]):
+        return "Договор займа"
+    if any(kw in sample for kw in ["договор подряда", "подрядчик", "смета", "мердігерлік шарт"]):
+        return "Договор подряда"
+    if any(kw in sample for kw in ["договор купли-продажи", "передача товара", "сатып алу-сату шарты"]):
+        return "Договор купли-продажи"
+    if any(kw in sample for kw in ["соглашение о конфиденциальности", "коммерческая тайна", "nda", "нераспространении"]):
+        return "Соглашение о конфиденциальности (NDA)"
+    if any(kw in sample for kw in ["исковое заявление", "истец", "ответчик", "суд", "прошу суд", "талап арыз"]):
+        return "Исковое заявление"
+
+    legal_keywords = [
+        "договор", "контракт", "соглашение", "стороны именуемые",
+        "предмет договора", "права и обязанности", "ответственность сторон",
+        "форс-мажор", "срок действия", "порядок расчетов",
+        "расторжение договора", "реквизиты сторон", "подписи сторон",
+        "шарт", "келісім", "тараптар"
+    ]
+    if sum(1 for kw in legal_keywords if kw in sample) >= 2:
+        return "Юридический документ (Общий)"
+        
+    return "personal"
 
 
 def sanitize_extracted_doc_text(text: str) -> str:
@@ -257,10 +314,16 @@ async def analyze_contract(file: UploadFile = File(...), user: User = Depends(ge
         if not contract_text.strip():
             raise HTTPException(status_code=400, detail="Не удалось извлечь текст из документа")
 
-        result = await orchestrator.process_contract_audit(contract_text)
-        risks = result.get("risks", [])
-        summary = result.get("summary", "Анализ завершён")
-        total = result.get("totalRisks", len(risks))
+        doc_type = classify_document(contract_text)
+        if doc_type == "personal":
+            risks = []
+            summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+            total = 0
+        else:
+            result = await orchestrator.process_contract_audit(contract_text, doc_type)
+            risks = result.get("risks", [])
+            summary = result.get("summary", "Анализ завершён")
+            total = result.get("totalRisks", len(risks))
 
         audit_record = AuditResult(
             user_id=user.id,
@@ -268,7 +331,8 @@ async def analyze_contract(file: UploadFile = File(...), user: User = Depends(ge
             original_text=contract_text,
             risks_json=json.dumps(risks, ensure_ascii=False),
             summary=summary,
-            total_risks=total
+            total_risks=total,
+            doc_type=doc_type
         )
         db.add(audit_record)
         db.commit()
@@ -279,10 +343,81 @@ async def analyze_contract(file: UploadFile = File(...), user: User = Depends(ge
             risks=risks,
             summary=summary,
             totalRisks=total,
-            original_text=contract_text
+            original_text=contract_text,
+            doc_type=doc_type
         )
     finally:
         os.unlink(tmp_path)
+
+
+@router.post("/analyze_document/{doc_id}", response_model=AuditResponse)
+async def analyze_existing_document(doc_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Analyze an existing document by ID."""
+    doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    contract_text = extract_text_from_file(doc.file_path, doc.original_filename)
+    if not contract_text.strip():
+        raise HTTPException(status_code=400, detail="Не удалось извлечь текст из документа")
+
+    # Classify document before running expensive audit
+    doc_type = classify_document(contract_text)
+    
+    if doc_type == "personal":
+        # Skip audit for personal/informational documents
+        risks = []
+        summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+        total = 0
+        logger.info(f"Document {doc_id} classified as personal — skipping audit.")
+    else:
+        result = await orchestrator.process_contract_audit(contract_text, doc_type)
+        risks = result.get("risks", [])
+        summary = result.get("summary", "Анализ завершён")
+        total = result.get("totalRisks", len(risks))
+
+    audit_record = AuditResult(
+        user_id=user.id,
+        document_id=doc.id,
+        filename=doc.original_filename,
+        original_text=contract_text,
+        risks_json=json.dumps(risks, ensure_ascii=False),
+        summary=summary,
+        total_risks=total,
+            doc_type=doc_type
+        )
+    db.add(audit_record)
+    db.commit()
+    db.refresh(audit_record)
+
+    return AuditResponse(
+        id=audit_record.id,
+        risks=risks,
+        summary=summary,
+        totalRisks=total,
+        original_text=contract_text,
+            doc_type=doc_type
+        )
+
+
+@router.get("/document/{doc_id}", response_model=AuditResponse)
+def get_audit_for_document(doc_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get the latest audit result for a document."""
+    audit = db.query(AuditResult).filter(AuditResult.document_id == doc_id, AuditResult.user_id == user.id).order_by(AuditResult.created_at.desc()).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Анализ не найден")
+    try:
+        risks = json.loads(audit.risks_json) if audit.risks_json else []
+    except (json.JSONDecodeError, TypeError):
+        risks = []
+    return AuditResponse(
+        id=audit.id,
+        risks=risks,
+        summary=audit.summary or "",
+        totalRisks=audit.total_risks,
+        original_text=audit.original_text,
+            doc_type=audit.doc_type
+        )
 
 
 @router.get("/history", response_model=list[AuditHistoryItem])
@@ -313,8 +448,29 @@ def get_audit_detail(audit_id: int, user: User = Depends(get_current_user), db: 
         risks=risks,
         summary=audit.summary or "",
         totalRisks=audit.total_risks,
-        original_text=audit.original_text
-    )
+        original_text=audit.original_text,
+            doc_type=audit.doc_type
+        )
+
+
+
+@router.get("/history/{audit_id}/report", response_class=FileResponse)
+def download_audit_report(audit_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Download the audit report as a PDF file."""
+    audit = db.query(AuditResult).filter(AuditResult.id == audit_id, AuditResult.user_id == user.id).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Аудит не найден")
+        
+    try:
+        pdf_path = generate_audit_pdf(audit)
+        return FileResponse(
+            path=pdf_path,
+            filename=f"Audit_Report_{audit.id}.pdf",
+            media_type="application/pdf"
+        )
+    except Exception as e:
+        logger.error(f"Error generating PDF: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка при генерации отчета")
 
 
 @router.delete("/history")
@@ -342,10 +498,16 @@ async def reanalyze_contract_text(req: ReanalyzeRequest, user: User = Depends(ge
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Текст документа пуст")
 
-    result = await orchestrator.process_contract_audit(req.text)
-    risks = result.get("risks", [])
-    summary = result.get("summary", "Анализ завершён")
-    total = result.get("totalRisks", len(risks))
+    doc_type = classify_document(req.text)
+    if doc_type == "personal":
+        risks = []
+        summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+        total = 0
+    else:
+        result = await orchestrator.process_contract_audit(req.text, doc_type)
+        risks = result.get("risks", [])
+        summary = result.get("summary", "Анализ завершён")
+        total = result.get("totalRisks", len(risks))
 
     if req.audit_id:
         # Update existing record
@@ -365,8 +527,9 @@ async def reanalyze_contract_text(req: ReanalyzeRequest, user: User = Depends(ge
                 original_text=req.text,
                 risks_json=json.dumps(risks, ensure_ascii=False),
                 summary=summary,
-                total_risks=total
-            )
+                total_risks=total,
+            doc_type=doc_type
+        )
             db.add(audit_record)
             db.commit()
             db.refresh(audit_record)
@@ -378,7 +541,8 @@ async def reanalyze_contract_text(req: ReanalyzeRequest, user: User = Depends(ge
             original_text=req.text,
             risks_json=json.dumps(risks, ensure_ascii=False),
             summary=summary,
-            total_risks=total
+            total_risks=total,
+            doc_type=doc_type
         )
         db.add(audit_record)
         db.commit()
@@ -389,8 +553,9 @@ async def reanalyze_contract_text(req: ReanalyzeRequest, user: User = Depends(ge
         risks=risks,
         summary=summary,
         totalRisks=total,
-        original_text=audit_record.original_text
-    )
+        original_text=audit_record.original_text,
+            doc_type=audit_record.doc_type
+        )
 
 
 @router.put("/history/{audit_id}")
@@ -447,5 +612,6 @@ async def quick_fix_contract_risk(req: QuickFixRequest, user: User = Depends(get
         risks=risks,
         summary=summary,
         totalRisks=total,
-        original_text=fixed_text
+        original_text=fixed_text,
+        doc_type=audit.doc_type
     )

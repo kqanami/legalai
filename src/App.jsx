@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -8,47 +8,31 @@ import { ChatProvider } from './contexts/ChatContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import CommandPalette from './components/CommandPalette';
 import { Scale } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// Strict Metallic Suspense Loader
+// Minimalist Loading UI
 const LoadingUI = () => (
-  <div className="flex h-screen w-screen items-center justify-center bg-obsidian-950 overflow-hidden relative">
+  <div className="flex h-screen w-screen items-center justify-center bg-black overflow-hidden relative">
     <motion.div
-      className="relative w-24 h-24"
-      animate={{ y: [0, -10, 0] }}
-      transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      className="relative w-16 h-16 flex items-center justify-center bg-white rounded-2xl shadow-[0_0_40px_rgba(255,255,255,0.2)]"
+      animate={{ scale: [0.95, 1.05, 0.95] }}
+      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
     >
-      <div className="absolute inset-0 rounded-3xl chrome-gradient shadow-[0_0_40px_rgba(255,255,255,0.1)] opacity-70" />
-      <div className="absolute inset-[2px] rounded-[22px] bg-obsidian-900 flex items-center justify-center border border-obsidian-700">
-        <motion.span
-          className="text-white"
-          animate={{ scale: [1, 1.1, 1], filter: ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <Scale size={32} strokeWidth={1.5} />
-        </motion.span>
-      </div>
-      <motion.div
-        className="absolute -inset-4 rounded-full border border-chrome-500/20 border-dashed"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-      />
+      <Scale size={32} className="text-black" strokeWidth={2} />
     </motion.div>
-    <div className="absolute bottom-1/3 text-chrome-400 text-xs font-bold tracking-[0.3em] uppercase animate-pulse">
-      Инициализация систем
-    </div>
   </div>
 );
 
 // Lazy Load Pages for Performance
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
+const DocumentWorkspace = lazy(() => import('./pages/DocumentWorkspace'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const CounterpartyPage = lazy(() => import('./pages/CounterpartyPage'));
-const AuditPage = lazy(() => import('./pages/AuditPage'));
 const DashboardLayout = lazy(() => import('./layouts/DashboardLayout'));
 const LawyerLayout = lazy(() => import('./layouts/LawyerLayout'));
 const LawyerDashboard = lazy(() => import('./pages/LawyerDashboard'));
@@ -80,56 +64,74 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-// Command palette wrapper — only renders when authenticated
+// Command palette wrapper
 const AuthenticatedCommandPalette = () => {
   const { user } = useAuth();
   if (!user) return null;
   return <CommandPalette />;
 };
 
-// Lazy loaded placeholders for unfinished routes (Fallback)
 const Placeholder = ({ title }) => (
-  <div className="flex items-center justify-center h-full text-steel-400 text-lg font-light tracking-wide">
-    Модуль: <span className="text-chrome-200 font-bold ml-2">{title}</span> <span className="ml-2 opacity-50 text-sm">(В разработке)</span>
+  <div className="flex items-center justify-center h-full text-neutral-500 text-lg font-medium tracking-wide">
+    {title} <span className="ml-2 opacity-50 text-sm">(В разработке)</span>
   </div>
 );
 
-function AppRoutes() {
+// Page transition wrapper
+const PageWrapper = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
+    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+    exit={{ opacity: 0, y: -10, filter: 'blur(10px)' }}
+    transition={{ duration: 0.3, ease: 'easeOut' }}
+    className="h-full w-full"
+  >
+    {children}
+  </motion.div>
+);
+
+function AnimatedRoutes() {
+  const location = useLocation();
+  
   return (
-    <Suspense fallback={<LoadingUI />}>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
-        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-        <Route path="/lawyers" element={<LawyerMarketplace />} />
-        <Route path="/lawyers/rankings" element={<Placeholder title="Глобальный рейтинг юристов" />} />
-        <Route path="/lawyers/:id" element={<LawyerPublicProfile />} />
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname.split('/')[1] || '/'}>
+        <Route path="/" element={<PageWrapper><LandingPage /></PageWrapper>} />
+        <Route path="/pricing" element={<PageWrapper><PricingPage /></PageWrapper>} />
+        <Route path="/auth" element={<PageWrapper><PublicRoute><AuthPage /></PublicRoute></PageWrapper>} />
+        <Route path="/admin" element={<PageWrapper><AdminRoute><AdminDashboard /></AdminRoute></PageWrapper>} />
+        <Route path="/lawyers" element={<PageWrapper><LawyerMarketplace /></PageWrapper>} />
+        <Route path="/lawyers/rankings" element={<PageWrapper><Placeholder title="Глобальный рейтинг юристов" /></PageWrapper>} />
+        <Route path="/lawyers/:id" element={<PageWrapper><LawyerPublicProfile /></PageWrapper>} />
         
         <Route path="/dashboard" element={
-          <PrivateRoute>
-            <ChatProvider>
-              <DashboardLayout />
-            </ChatProvider>
-          </PrivateRoute>
+          <PageWrapper>
+            <PrivateRoute>
+              <ChatProvider>
+                <DashboardLayout />
+              </ChatProvider>
+            </PrivateRoute>
+          </PageWrapper>
         }>
           <Route index element={<ChatPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="history" element={<HistoryPage />} />
+          <Route path="documents/:id" element={<DocumentWorkspace />} />
           <Route path="counterparty" element={<CounterpartyPage />} />
-          <Route path="audit" element={<AuditPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         <Route path="/lawyer" element={
-          <PrivateRoute>
-            <ChatProvider>
-              <LawyerLayout />
-            </ChatProvider>
-          </PrivateRoute>
+          <PageWrapper>
+            <PrivateRoute>
+              <ChatProvider>
+                <LawyerLayout />
+              </ChatProvider>
+            </PrivateRoute>
+          </PageWrapper>
         }>
           <Route index element={<LawyerDashboard />} />
           <Route path="leads" element={<LawyerLeads />} />
-          <Route path="audit" element={<AuditPage />} />
           <Route path="clients" element={<LawyerClients />} />
           <Route path="cases" element={<LawyerCases />} />
           <Route path="templates" element={<LawyerTemplates />} />
@@ -137,7 +139,7 @@ function AppRoutes() {
           <Route path="profile" element={<LawyerProfile />} />
         </Route>
       </Routes>
-    </Suspense>
+    </AnimatePresence>
   );
 }
 
@@ -149,9 +151,11 @@ function App() {
           <LanguageProvider>
             <AuthProvider>
               <ToastProvider>
-                <div className="min-h-screen font-inter bg-obsidian-950 text-white selection:bg-chrome-500/30 selection:text-white">
+                <div className="min-h-screen font-sans bg-black text-white selection:bg-white/30 selection:text-white">
                   <AuthenticatedCommandPalette />
-                  <AppRoutes />
+                  <Suspense fallback={<LoadingUI />}>
+                    <AnimatedRoutes />
+                  </Suspense>
                 </div>
               </ToastProvider>
             </AuthProvider>

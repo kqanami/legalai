@@ -1,6 +1,0 @@
-{
-  "maintenanceMode": false,
-  "activeRouting": "groq",
-  "ragMinSimilarity": 0.35,
-  "llmTemperature": 0.1
-}

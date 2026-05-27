@@ -1,58 +1,49 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { MessageSquare, ChevronRight, Plus, Trash2, Crown, Scale } from 'lucide-react';
+import { Plus, Crown } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
-import { useToast } from './Toast';
-
 
 const navItems = [
   { path: '/dashboard', key: 'nav_chat', exact: true, anim: 'chat' },
   { path: '/dashboard/documents', key: 'nav_documents', anim: 'document' },
-  { path: '/dashboard/audit', key: 'nav_audit', anim: 'audit' },
   { path: '/dashboard/history', key: 'nav_history', anim: 'history' },
   { path: '/dashboard/counterparty', key: 'nav_counterparty', anim: 'search' },
-  { path: '/lawyers', key: 'nav_lawyers', anim: 'profile' }, // New marketplace link
+  { path: '/lawyers', key: 'nav_lawyers', anim: 'lawyers' },
   { path: '/dashboard/profile', key: 'nav_profile', anim: 'profile' },
 ];
 
-const sidebarVariants = {
-  hidden: { x: -288 },
-  visible: {
-    x: 0,
-    transition: { type: 'spring', damping: 25, stiffness: 200 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, x: -20 },
-  visible: (i) => ({
-    opacity: 1,
-    x: 0,
-    transition: { delay: i * 0.05, duration: 0.3 },
-  }),
-};
-
 export default function Sidebar({ isOpen, onClose }) {
   const { t } = useLanguage();
-  const { currentSegment, chatHistory, loadSession, sessionId, clearMessages, deleteSession } = useChat();
+  const { currentSegment, clearMessages } = useChat();
   const { user } = useAuth();
-  const { addToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
-  const segmentColor = currentSegment === 'b2b' ? '#D1D5DB' : currentSegment === 'b2c' ? '#E5E7EB' : '#F3F4F6';
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // On desktop, it expands on hover. On mobile, it's fully expanded if open.
+  const expanded = isDesktop ? isHovered : true;
+  const width = expanded ? '260px' : '72px';
+  const translateX = isDesktop ? 0 : (isOpen ? 0 : '-100%');
 
   return (
     <>
       {/* Mobile overlay */}
       <AnimatePresence>
-        {isOpen && (
+        {!isDesktop && isOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/80 backdrop-blur-md z-40 lg:hidden"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -61,135 +52,114 @@ export default function Sidebar({ isOpen, onClose }) {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
       <motion.aside
-        className="fixed top-16 lg:top-0 left-0 bottom-0 w-72 z-40 bg-obsidian-950/95 backdrop-blur-2xl border-r border-obsidian-700/60 lg:translate-x-0"
-        variants={sidebarVariants}
-        initial="hidden"
-        animate={isOpen ? 'visible' : 'hidden'}
-        style={{ translateX: undefined }}
-        data-open={isOpen}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="fixed top-6 bottom-6 left-6 z-50 rounded-3xl bg-neutral-900/60 backdrop-blur-3xl border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col pointer-events-auto"
+        initial={false}
+        animate={{ width, x: translateX }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
       >
-        <style>{`
-          @media (min-width: 1024px) {
-            [data-open] { transform: translateX(0) !important; }
-          }
-        `}</style>
-
-        <div className="flex flex-col h-full p-5">
-          {/* Logo at the top on desktop */}
-          <div className="hidden lg:flex items-center gap-3 mb-6 pb-6 border-b border-obsidian-850/80">
-            <div className="w-10 h-10 rounded-xl chrome-gradient flex items-center justify-center shadow-lg shadow-white/5 border border-white/20">
-              <Scale className="text-obsidian-950" size={20} strokeWidth={2.5} />
+        <div className="flex flex-col h-full py-6 px-3">
+          {/* Logo Area */}
+          <div className="flex items-center mb-8 h-10 overflow-hidden whitespace-nowrap shrink-0">
+            <div className="w-[48px] shrink-0 flex items-center justify-center">
+              <div className={`flex items-center justify-center font-black transition-all ${expanded ? 'w-10 h-10 rounded-2xl bg-white text-black text-xl shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'w-10 h-10 text-white text-2xl'}`}>
+                L
+              </div>
             </div>
-            <div>
-              <span className="text-white font-bold text-base tracking-wide">AI-<span className="metal-text">{t('landing_title_accent')}</span></span>
-              <div className="text-[9px] tracking-widest text-steel-500 font-bold mt-0.5 uppercase">Legal Engine</div>
-            </div>
+            <motion.div 
+              initial={false}
+              animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }}
+              className="flex flex-col ml-2 overflow-hidden"
+            >
+              <span className="text-white font-bold text-xl tracking-tighter leading-none whitespace-nowrap">Legal<span className="text-neutral-500">Ai</span></span>
+              <span className="text-[8px] tracking-widest text-neutral-500 font-bold uppercase mt-1 leading-none whitespace-nowrap">Engine v3.1</span>
+            </motion.div>
           </div>
 
-          {/* Minimalistic AI Status Indicator & Plan Badge */}
-          <div className="flex items-center justify-between mb-8 px-2">
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-3 h-3">
-                <span className={`absolute inset-0 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-500/40' : currentSegment === 'b2b' ? 'bg-amber-500/40' : 'bg-emerald-500/40'} animate-ping`}></span>
-                <span className={`relative w-1.5 h-1.5 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-400' : currentSegment === 'b2b' ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
-              </div>
-              <span className="text-[10px] font-mono font-medium tracking-wider text-steel-400 uppercase">
-                {currentSegment ? (currentSegment === 'b2c' ? 'C2C Mode' : 'B2B Mode') : 'AI System Active'}
-              </span>
-            </div>
-            
-            {/* Plan Badge */}
-            {user?.plan && (
-              <div className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/[0.03] flex items-center gap-1.5 shadow-sm">
-                <Crown size={10} className={user.plan === 'business' ? 'text-amber-400' : user.plan === 'ip' ? 'text-chrome-300' : 'text-chrome-500'} />
-                <span className="text-[9px] font-bold text-white uppercase tracking-widest">{user.plan}</span>
-              </div>
-            )}
-          </div>
-          
           {/* New Chat Button */}
-          <button
-            onClick={() => { clearMessages(); navigate('/dashboard'); onClose(); }}
-            className="btn-primary mb-6 w-full py-4 text-xs uppercase tracking-widest group flex items-center justify-center gap-2"
-          >
-            <Plus size={16} /> {t('new_chat')}
-          </button>
+          <div className="mb-6 shrink-0">
+            <button
+              onClick={() => { clearMessages(); navigate('/dashboard'); onClose(); }}
+              className={`w-full h-12 rounded-2xl flex items-center text-sm font-bold transition-colors overflow-hidden whitespace-nowrap ${expanded ? 'bg-white text-black hover:bg-neutral-200' : 'text-white hover:bg-white/10'}`}
+            >
+              <div className="w-[48px] shrink-0 flex items-center justify-center">
+                <Plus size={22} className="shrink-0" />
+              </div>
+              <motion.span 
+                initial={false}
+                animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }}
+                className="tracking-widest uppercase text-xs overflow-hidden block"
+              >
+                {t('new_chat')}
+              </motion.span>
+            </button>
+          </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1.5">
-            {navItems.map((item, i) => {
-              const isActive = item.exact
-                ? location.pathname === item.path
-                : location.pathname.startsWith(item.path);
-
+          {/* Nav Items */}
+          <nav className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+            {navItems.map((item) => {
+              const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
               return (
-                <motion.div
+                <NavLink
                   key={item.path}
-                  variants={itemVariants}
-                  initial="hidden"
-                  animate="visible"
-                  custom={i}
+                  to={item.path}
+                  onClick={() => { if (!isDesktop) onClose(); }}
+                  className={`group relative flex items-center h-12 rounded-2xl transition-all overflow-hidden whitespace-nowrap ${
+                    isActive ? (expanded ? 'bg-white/10 text-white shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]' : 'text-white') : 'text-neutral-500 hover:text-white hover:bg-white/5'
+                  }`}
                 >
-                  <NavLink
-                    to={item.path}
-                    onClick={onClose}
-                    className={`sidebar-link group relative overflow-hidden tracking-wide text-sm font-medium ${isActive ? 'active' : ''}`}
+                  {isActive && (
+                    <motion.div
+                      className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] z-10"
+                      layoutId="active-indicator"
+                    />
+                  )}
+                  <div className="w-[48px] shrink-0 flex items-center justify-center relative z-0">
+                    <AnimatedIcon type={item.anim}>
+                      <span className={`text-xl ${isActive ? 'grayscale-0' : 'grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100'}`}>
+                        {item.icon}
+                      </span>
+                    </AnimatedIcon>
+                  </div>
+                  <motion.span 
+                    initial={false}
+                    animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }}
+                    className="font-medium text-sm tracking-wide overflow-hidden block"
                   >
-                    {/* Active strictly metallic indicator */}
-                    {isActive && (
-                      <>
-                        <motion.div
-                          className="absolute inset-0 bg-chrome-100/5 rounded-xl border border-chrome-500/20"
-                          layoutId="active-nav-bg"
-                          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        />
-                        <motion.div
-                          className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-full bg-chrome-200 shadow-[0_0_10px_#fff]"
-                          layoutId="active-nav-line"
-                        />
-                      </>
-                    )}
-
-                    <span className="relative z-10 flex items-center gap-4 w-full px-2">
-                      <AnimatedIcon type={item.anim}>
-                        <span className={`text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${isActive ? 'grayscale-0' : 'grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100'}`}>{item.icon}</span>
-                      </AnimatedIcon>
-                      <span>{t(item.key)}</span>
-                      {isActive && (
-                        <div className="ml-auto flex gap-1">
-                           <span className="w-1 h-1 rounded-full bg-chrome-300 animate-pulse-light"></span>
-                           <span className="w-1 h-1 rounded-full bg-chrome-500"></span>
-                        </div>
-                      )}
-                    </span>
-                  </NavLink>
-                </motion.div>
+                    {t(item.key)}
+                  </motion.span>
+                </NavLink>
               );
             })}
           </nav>
-          
 
-
-          {/* System version */}
-          <div className="mt-4 flex items-center justify-center px-3 py-2 rounded-xl bg-obsidian-900/40 border border-obsidian-700/40">
-            <span className="text-[11px] text-steel-500 font-medium tracking-wide uppercase">LegalAI • v3.1</span>
-          </div>
-
-          {/* Bottom info */}
-          <div className="mt-4 border-t border-obsidian-700/60 pt-5 text-center bg-obsidian-900/50 rounded-xl p-4 shadow-inner">
-            <p className="text-[10px] uppercase tracking-widest text-steel-500 font-bold mb-1">{t('footer_powered')}</p>
-            <p className="text-[9px] text-obsidian-400 mb-3">{t('footer_disclaimer')}</p>
-            <a
-              href="https://adilet.zan.kz"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex flex-col items-center justify-center text-[10px] font-bold text-chrome-400 hover:text-white transition-colors uppercase tracking-widest gap-1"
-            >
-              <span className="w-full h-px bg-chrome-700/50 mb-1"></span>
-              {t('footer_source')}
-            </a>
+          {/* Bottom Area: AI Status */}
+          <div className="mt-auto pt-6 shrink-0">
+            <div className={`flex items-center h-12 rounded-2xl border transition-all overflow-hidden whitespace-nowrap ${expanded ? 'bg-black/50 border-white/5' : 'bg-transparent border-transparent'}`}>
+              <div className="w-[48px] shrink-0 flex items-center justify-center">
+                <div className="relative flex items-center justify-center w-3 h-3">
+                  <span className={`absolute inset-0 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-500/40' : currentSegment === 'b2b' ? 'bg-amber-500/40' : 'bg-emerald-500/40'} animate-ping`}></span>
+                  <span className={`relative w-1.5 h-1.5 rounded-full ${currentSegment === 'b2c' ? 'bg-indigo-400' : currentSegment === 'b2b' ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+                </div>
+              </div>
+              <motion.div 
+                initial={false}
+                animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }}
+                className="flex flex-col overflow-hidden"
+              >
+                <span className="text-[10px] font-mono font-bold tracking-wider text-white uppercase leading-none mb-1">
+                  {currentSegment ? (currentSegment === 'b2c' ? 'C2C Mode' : 'B2B Mode') : 'System Active'}
+                </span>
+                {user?.plan && (
+                  <span className="text-[9px] font-bold text-neutral-500 uppercase flex items-center gap-1 leading-none">
+                    <Crown size={10} className={user.plan === 'business' ? 'text-amber-400' : user.plan === 'ip' ? 'text-chrome-300' : 'text-chrome-500'} /> 
+                    {user.plan}
+                  </span>
+                )}
+              </motion.div>
+            </div>
           </div>
         </div>
       </motion.aside>

@@ -39,6 +39,7 @@ class CreateSessionRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str
+    attached_document_id: Optional[int] = None
 
 class ReferenceItem(BaseModel):
     title: str
@@ -60,6 +61,8 @@ class MessageResponse(BaseModel):
     references: Optional[List[ReferenceItem]] = None
     escalation: Optional[EscalationData] = None
     suggestions: Optional[List[str]] = None
+    attached_document_id: Optional[int] = None
+    attached_document_name: Optional[str] = None
     timestamp: datetime
 
 class SessionResponse(BaseModel):
@@ -135,6 +138,7 @@ class AuditResponse(BaseModel):
     summary: str
     totalRisks: int
     original_text: Optional[str] = None
+    doc_type: Optional[str] = None
 
 class AuditHistoryItem(BaseModel):
     id: int

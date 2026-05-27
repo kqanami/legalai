@@ -4,7 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useChat } from '../contexts/ChatContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
-import { History, MessageSquare, Home, Building2, ChevronRight, Clock, Search, X, Trash2 } from 'lucide-react';
+import { History, MessageSquare, Home, Building2, ChevronRight, Clock, Search, X, Trash2, Zap } from 'lucide-react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -45,105 +45,132 @@ export default function HistoryPage() {
   const grouped = groupByDate(filteredHistory);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8 mt-4 pb-20">
+    <div className="max-w-6xl mx-auto p-4 sm:p-8 mt-4 pb-20">
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
         
         {/* Header */}
-        <motion.div variants={itemVariants} className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-                <History className="text-chrome-400" />
+        <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+                <History className="text-white" size={20} />
+              </div>
+              <h1 className="text-3xl font-extrabold text-white tracking-tight">
                 {t('history_title')}
               </h1>
-              <p className="text-steel-400 text-sm mt-1 tracking-wide">Ваши прошлые правовые консультации и анализ документов.</p>
             </div>
+            <p className="text-neutral-400 text-sm tracking-wide">Архив ваших сессий и документов. AI Engine 3.1.</p>
           </div>
+
           {/* Search */}
-          <div className="relative">
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-steel-500" />
+          <div className="relative w-full md:w-80">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('common_search')}
-              className="input-field pl-11 pr-10"
+              className="w-full bg-neutral-900/50 border border-white/10 rounded-2xl pl-11 pr-10 py-3 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:bg-neutral-900 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-steel-500 hover:text-white transition-colors">
-                <X size={18} />
+              <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors">
+                <X size={16} />
               </button>
             )}
           </div>
-          {searchQuery && (
-            <p className="text-steel-500 text-xs">Найдено: {filteredHistory.length} из {chatHistory.length}</p>
-          )}
         </motion.div>
 
         {chatHistory.length === 0 ? (
-          <motion.div variants={itemVariants} className="glass-card p-16 text-center border-dashed border-obsidian-600/50 flex flex-col items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-obsidian-800 flex items-center justify-center text-steel-500 mb-6 drop-shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-obsidian-600">
+          <motion.div variants={itemVariants} className="bg-neutral-900/20 backdrop-blur-xl rounded-[2rem] border border-white/5 p-16 text-center flex flex-col items-center justify-center shadow-2xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent opacity-50 pointer-events-none" />
+            <div className="w-20 h-20 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center text-neutral-500 mb-6 shadow-[0_0_30px_rgba(255,255,255,0.02)]">
               <Clock size={32} />
             </div>
-            <p className="text-white text-lg font-medium mb-2 tracking-wide">{t('history_empty')}</p>
-            <p className="text-steel-500 text-sm font-light mb-8 max-w-sm">Задайте первый вопрос в чате, и он будет бережно сохранен в вашей локальной истории.</p>
-            <button onClick={() => navigate('/dashboard')} className="btn-primary px-8 py-3 text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-              {t('landing_cta')} →
+            <p className="text-white text-xl font-bold mb-3 tracking-wide">{t('history_empty')}</p>
+            <p className="text-neutral-500 text-sm font-medium mb-8 max-w-sm leading-relaxed">Задайте первый вопрос в чате, и он будет сохранен в вашей истории сессий.</p>
+            <button onClick={() => navigate('/dashboard')} className="px-8 py-3 bg-white text-black font-bold text-sm rounded-xl hover:bg-neutral-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+              {t('new_chat')} →
             </button>
           </motion.div>
         ) : (
-          Object.entries(grouped).map(([date, items], idx) => (
-            <motion.div variants={itemVariants} key={date} className="relative mb-8 pt-4">
+          Object.entries(grouped).map(([date, items]) => (
+            <motion.div variants={itemVariants} key={date} className="relative mb-12">
               <div className="flex items-center gap-4 mb-6 relative z-10">
-                <span className="text-[11px] font-mono tracking-widest text-steel-400 uppercase bg-obsidian-900 border border-obsidian-700/50 px-3 py-1 rounded-full shadow-inner">{date}</span>
-                <span className="flex-1 h-px bg-obsidian-700/50" />
+                <span className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase bg-black border border-white/10 px-4 py-1.5 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.03)]">
+                  {date}
+                </span>
+                <span className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
               </div>
-              <div className="space-y-4">
+
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
                 {items.map((item) => (
-                  <div key={item.id} className="glass-card p-5 flex items-center gap-5 cursor-pointer group bg-obsidian-900/40 hover:bg-obsidian-800 border border-obsidian-700 transition-all shadow-md hover:shadow-[0_5px_20px_rgba(0,0,0,0.5)]" onClick={() => { loadSession(item.id); navigate('/dashboard'); }}>
-                    {/* Icon Box */}
-                    <div className="w-12 h-12 rounded-xl chrome-gradient flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.05)] text-obsidian-950">
-                      <MessageSquare size={20} className="opacity-80 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    
-                    {/* Topic */}
-                    <div className="flex-1 min-w-0 pr-4 border-r border-obsidian-700/50 mr-2">
-                      <p className="text-white font-medium truncate group-hover:text-chrome-300 transition-colors text-sm tracking-wide leading-relaxed">
-                        {item.preview}
-                      </p>
-                    </div>
+                  <motion.div 
+                    variants={itemVariants} 
+                    key={item.id} 
+                    className="relative group bg-neutral-900/30 hover:bg-neutral-800/50 backdrop-blur-xl border border-white/5 hover:border-white/20 rounded-2xl p-5 flex flex-col justify-between cursor-pointer transition-all shadow-lg hover:shadow-[0_10px_40px_rgba(255,255,255,0.03)] h-40 overflow-hidden" 
+                    onClick={async () => { await loadSession(item.id); navigate('/dashboard'); }}
+                  >
+                    {/* Hover Glow Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                    {/* Metadata */}
-                    <div className="flex flex-col items-end gap-2 w-24 flex-shrink-0">
-                      <span className={item.segment === 'b2c' ? 'segment-b2c flex gap-1 items-center justify-center w-full' : 'segment-b2b flex gap-1 items-center justify-center w-full'} style={{ fontSize: '10px', padding: '4px 8px' }}>
-                        {item.segment === 'b2c' ? <><Home size={10} /> B2C</> : <><Building2 size={10} /> B2B</>}
-                      </span>
-                      <span className="text-[10px] text-steel-500 font-mono flex items-center gap-1 group-hover:text-chrome-400 transition-colors">
-                        <Clock size={10} />
-                        {new Date(item.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
+                    <div className="flex items-start justify-between relative z-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-black border border-white/10 flex items-center justify-center flex-shrink-0 text-white shadow-[0_0_15px_rgba(255,255,255,0.02)]">
+                          <MessageSquare size={16} />
+                        </div>
+                        <div className="flex gap-2">
+                          {/* AI Model Badge */}
+                          <div className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 flex items-center gap-1">
+                            <Zap size={10} className="text-white" />
+                            <span className="text-[9px] font-bold text-white uppercase tracking-widest">Opus 3</span>
+                          </div>
+                          {/* Segment Badge */}
+                          <div className={`px-2 py-0.5 rounded-md border flex items-center gap-1 ${item.segment === 'b2c' ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-400' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'}`}>
+                            {item.segment === 'b2c' ? <Home size={10} /> : <Building2 size={10} />}
+                            <span className="text-[9px] font-bold uppercase tracking-widest">{item.segment === 'b2c' ? 'B2C' : 'B2B'}</span>
+                          </div>
+                        </div>
+                      </div>
 
-                    {/* Arrow Next & Delete */}
-                    <div className="flex items-center gap-2">
+                      {/* Delete Button */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteSession(item.id);
                           addToast('Чат удален', 'info');
                         }}
-                        className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 text-steel-600 transition-all z-10"
+                        className="p-2 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400 transition-all z-20"
                         title="Удалить чат"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
-                      <div className="text-obsidian-600 group-hover:text-chrome-300 transition-colors transform group-hover:translate-x-1 duration-300">
-                        <ChevronRight size={20} />
+                    </div>
+                    
+                    {/* Topic */}
+                    <div className="mt-4 flex-1 relative z-10">
+                      <p className="text-white font-medium text-sm leading-snug line-clamp-2">
+                        {item.preview || 'Пустой чат'}
+                      </p>
+                    </div>
+
+                    {/* Metadata */}
+                    <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3 relative z-10">
+                      <span className="text-[10px] text-neutral-500 font-mono flex items-center gap-1">
+                        <Clock size={10} />
+                        {new Date(item.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <div className="text-neutral-500 group-hover:text-white transition-colors transform group-hover:translate-x-1 duration-300">
+                        <ChevronRight size={14} />
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </motion.div>
           ))
         )}

@@ -78,6 +78,13 @@ async function requestBlob(path, options = {}) {
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
+  if (res.status === 401) {
+    clearToken();
+    localStorage.removeItem('auth_user');
+    if (_onAuthFailure) _onAuthFailure();
+    throw new Error('Unauthorized');
+  }
+
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.blob();
 }
@@ -153,16 +160,21 @@ export const chatApi = {
     return request(`/chat/sessions${query ? '?' + query : ''}`);
   },
 
-  async sendMessage(sessionId, content) {
+  async sendMessage(sessionId, content, attachedDocumentId = null) {
+    const body = { content };
+    if (attachedDocumentId) body.attached_document_id = attachedDocumentId;
     return request(`/chat/sessions/${sessionId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(body),
     });
   },
 
-  async streamMessage(sessionId, content, onChunk) {
+  async streamMessage(sessionId, content, onChunk, attachedDocumentId = null) {
     const token = getToken();
     const appLang = localStorage.getItem('app_lang') || 'ru';
+    const body = { content };
+    if (attachedDocumentId) body.attached_document_id = attachedDocumentId;
+
     const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
       method: 'POST',
       headers: {
@@ -170,7 +182,7 @@ export const chatApi = {
         'Authorization': `Bearer ${token}`,
         'X-App-Language': appLang,
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -267,6 +279,10 @@ export const docsApi = {
     URL.revokeObjectURL(url);
   },
 
+  async getContent(docId) {
+    return request(`/documents/${docId}/content`);
+  },
+
   getDownloadUrl(docId) {
     return `${API_BASE}/documents/${docId}/download`;
   },
@@ -315,12 +331,26 @@ export const auditApi = {
     });
   },
 
+  async analyzeDocument(docId) {
+    return request(`/audit/analyze_document/${docId}`, {
+      method: 'POST'
+    });
+  },
+
+  async getDocumentAudit(docId) {
+    return request(`/audit/document/${docId}`);
+  },
+
   async getHistory() {
     return request('/audit/history');
   },
 
   async getDetail(auditId) {
     return request(`/audit/history/${auditId}`);
+  },
+  
+  async downloadReport(auditId) {
+    return requestBlob(`/audit/history/${auditId}/report`);
   },
 
   async deleteItem(auditId) {

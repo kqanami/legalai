@@ -58,6 +58,7 @@ class ChatMessage(Base):
     references_json = Column(Text, nullable=True)  # JSON string of references
     escalation_json = Column(Text, nullable=True)  # JSON escalation data from AI
     suggestions_json = Column(Text, nullable=True)  # JSON list of suggested next questions/chips
+    attached_document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     session = relationship("ChatSession", back_populates="messages")
@@ -100,11 +101,13 @@ class AuditResult(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
     filename = Column(String(500), nullable=False)
     original_text = Column(Text, nullable=True)  # Store original analyzed document text
     risks_json = Column(Text, nullable=False)  # JSON array of risks
     summary = Column(Text, nullable=True)
     total_risks = Column(Integer, default=0)
+    doc_type = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="audit_results")
@@ -307,3 +310,13 @@ class DocumentTemplate(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     lawyer = relationship("LawyerProfile", back_populates="templates")
+
+
+
+class AICache(Base):
+    __tablename__ = "ai_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    query_hash = Column(String(64), unique=True, index=True, nullable=False)
+    response_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

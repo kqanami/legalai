@@ -85,10 +85,10 @@ function RadarChart({ scores, size = 220 }) {
 
   return (
     <svg
-      viewBox={`-50 -50 ${size + 100} ${size + 100}`}
+      viewBox={`-75 -60 ${size + 150} ${size + 120}`}
       width="100%"
       height="100%"
-      className="select-none max-w-[280px]"
+      className="select-none max-w-[320px]"
       style={{ filter: `drop-shadow(0 0 18px ${isLowRisk ? 'rgba(16,185,129,0.15)' : 'rgba(248,113,113,0.15)'})` }}
     >
       <defs>
@@ -130,10 +130,10 @@ function RadarChart({ scores, size = 220 }) {
       {/* Labels + score */}
       {labels.map((l) => (
         <g key={l.key}>
-          <text x={l.x} y={l.y - 5} textAnchor={l.anchor} fill="#94a3b8" fontSize="10" fontWeight="600" fontFamily="ui-monospace, monospace">
+          <text x={l.x} y={l.y - 6} textAnchor={l.anchor} fill="#94a3b8" fontSize="11" fontWeight="600" fontFamily="'Inter', sans-serif" letterSpacing="0.02em" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
             {l.label}
           </text>
-          <text x={l.x} y={l.y + 9} textAnchor={l.anchor} fill={accentColor} fontSize="11" fontWeight="700" fontFamily="ui-monospace, monospace">
+          <text x={l.x} y={l.y + 10} textAnchor={l.anchor} fill={accentColor} fontSize="13" fontWeight="800" fontFamily="'Inter', sans-serif" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
             {l.score}
           </text>
         </g>
@@ -229,7 +229,7 @@ export default function CounterpartyPage() {
             </motion.div>
 
             {/* Search Form */}
-            <motion.div variants={itemVariants} className="glass-card p-2 sm:p-2 overflow-hidden shadow-2xl">
+            <motion.div variants={itemVariants} className="bg-neutral-900/30 backdrop-blur-xl border border-white/10 p-2 sm:p-2 rounded-[2rem] overflow-hidden shadow-2xl relative">
               <AnimatePresence>
                 {bin.length > 0 && !result && (
                   <motion.div
@@ -247,7 +247,7 @@ export default function CounterpartyPage() {
                     type="text" value={bin}
                     onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 12); setBin(val); if (result) setResult(null); }}
                     placeholder={t('counterparty_placeholder')}
-                    className="w-full bg-obsidian-950/50 border border-obsidian-800 focus:border-chrome-500/50 rounded-xl py-6 pl-16 pr-16 text-xl tracking-[0.2em] font-mono text-white placeholder-obsidian-700 outline-none transition-all shadow-inner focus:shadow-[inset_0_2px_10px_rgba(0,0,0,0.5),0_0_15px_rgba(255,255,255,0.05)]"
+                    className="w-full bg-black/50 border border-white/5 focus:border-white/20 rounded-xl py-6 pl-16 pr-16 text-xl tracking-[0.2em] font-mono text-white placeholder-neutral-600 outline-none transition-all shadow-inner focus:shadow-[inset_0_2px_10px_rgba(0,0,0,0.5),0_0_15px_rgba(255,255,255,0.02)]"
                   />
                   <span className={`absolute right-6 text-xs font-mono font-bold tracking-widest ${bin.length === 12 ? 'text-emerald-400' : 'text-steel-600'}`}>
                     {bin.length}/12
@@ -256,8 +256,8 @@ export default function CounterpartyPage() {
                 <MagneticButton type="submit" disabled={bin.length !== 12 || loading}
                   className={`h-auto px-10 rounded-xl flex items-center justify-center border font-bold tracking-widest text-sm uppercase transition-all duration-300
                     ${bin.length === 12 && !loading 
-                      ? 'btn-primary chrome-gradient text-obsidian-950 shadow-[0_0_20px_rgba(255,255,255,0.15)]' 
-                      : 'bg-obsidian-800 border-obsidian-700/50 text-steel-500 cursor-not-allowed opacity-50 grayscale'}`}
+                      ? 'bg-white text-black border-white hover:bg-neutral-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
+                      : 'bg-neutral-900 border-white/5 text-neutral-600 cursor-not-allowed'}`}
                   strength={0.2}>
                   {loading ? (
                     <span className="flex items-center gap-3">
@@ -269,16 +269,15 @@ export default function CounterpartyPage() {
               </form>
             </motion.div>
 
-            {/* Loading */}
             <AnimatePresence>
               {loading && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className="glass-card p-8 border border-chrome-500/30 bg-obsidian-900 shadow-[inset_0_0_50px_rgba(255,255,255,0.02)] flex flex-col items-center justify-center text-center overflow-hidden">
-                  <div className="w-16 h-1 rounded-full bg-obsidian-800 overflow-hidden mb-6 relative">
-                    <motion.div className="absolute left-0 top-0 bottom-0 bg-chrome-400 shadow-[0_0_10px_#fff]"
+                  className="bg-neutral-900/40 backdrop-blur-xl p-8 border border-white/10 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center overflow-hidden">
+                  <div className="w-16 h-1 rounded-full bg-neutral-800 overflow-hidden mb-6 relative">
+                    <motion.div className="absolute left-0 top-0 bottom-0 bg-white shadow-[0_0_10px_#fff]"
                       animate={{ width: ['0%', '100%'] }} transition={{ duration: 2, ease: "easeInOut" }} />
                   </div>
-                  <p className="font-mono text-chrome-400 text-sm tracking-widest animate-pulse">ОБРАЩЕНИЕ К БАЗЕ ДАННЫХ...</p>
+                  <p className="font-mono text-white text-sm tracking-widest animate-pulse">ОБРАЩЕНИЕ К БАЗЕ ДАННЫХ...</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -295,43 +294,43 @@ export default function CounterpartyPage() {
               {result && !loading && (
                 <motion.div initial={{ opacity: 0, y: 40, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ type: 'spring', damping: 20, stiffness: 100 }}>
-                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-obsidian-700">
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
                     <h2 className="text-xl font-bold text-white flex items-center gap-3">
                       <CheckCircle2 className="text-emerald-400" /> {t('counterparty_result')}
                     </h2>
-                    <span className="segment-b2b flex items-center gap-1"><Building2 size={12}/> B2B</span>
+                    <span className="px-2 py-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest"><Building2 size={10}/> B2B</span>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-6 mb-6">
-                    <div className="glass-card p-6 shadow-xl">
-                      <h3 className="text-xs text-steel-500 uppercase tracking-widest font-bold mb-5 flex items-center gap-2">
-                        <Building2 size={14} className="text-chrome-400" /> Основная информация
+                    <div className="bg-neutral-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl hover:border-white/10 transition-colors">
+                      <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-5 flex items-center gap-2">
+                        <Building2 size={14} className="text-white" /> Основная информация
                       </h3>
                       <div className="space-y-4">
                         {[['Наименование', result.companyName], ['БИН', result.bin],
                           ['Статус', result.status, result.status === 'Действующее' ? 'text-emerald-400' : 'text-amber-400'],
                           ['Дата регистрации', result.registrationDate], ['Руководитель', result.director],
                         ].map(([label, value, colorClass]) => (
-                          <div key={label} className="flex justify-between items-center border-b border-obsidian-800/50 pb-2">
-                            <span className="text-xs text-steel-500">{label}</span>
-                            <span className={`text-sm font-medium ${colorClass || 'text-chrome-100'} text-right max-w-[60%]`}>{value}</span>
+                          <div key={label} className="flex justify-between items-center border-b border-white/5 pb-2">
+                            <span className="text-xs text-neutral-500">{label}</span>
+                            <span className={`text-sm font-medium ${colorClass || 'text-white'} text-right max-w-[60%]`}>{value}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="glass-card p-6 shadow-xl">
-                      <h3 className="text-xs text-steel-500 uppercase tracking-widest font-bold mb-5 flex items-center gap-2">
-                        <BarChart3 size={14} className="text-chrome-400" /> Детали компании
+                    <div className="bg-neutral-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl hover:border-white/10 transition-colors">
+                      <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-5 flex items-center gap-2">
+                        <BarChart3 size={14} className="text-white" /> Детали компании
                       </h3>
                       <div className="space-y-4">
                         {[['Адрес', result.address], ['Вид деятельности', result.activity],
                           ['Кол-во сотрудников', result.employees],
                           ['Налоговая задолженность', result.taxDebt, result.taxDebt === '0 ₸' ? 'text-emerald-400' : 'text-red-400'],
                         ].map(([label, value, colorClass]) => (
-                          <div key={label} className="flex flex-col sm:flex-row justify-between sm:items-center gap-1 border-b border-obsidian-800/50 pb-2">
-                            <span className="text-xs text-steel-500">{label}</span>
-                            <span className={`text-sm font-medium ${colorClass || 'text-chrome-100'} sm:text-right max-w-[80%]`}>{value}</span>
+                          <div key={label} className="flex flex-col sm:flex-row justify-between sm:items-center gap-1 border-b border-white/5 pb-2">
+                            <span className="text-xs text-neutral-500">{label}</span>
+                            <span className={`text-sm font-medium ${colorClass || 'text-white'} sm:text-right max-w-[80%]`}>{value}</span>
                           </div>
                         ))}
                       </div>
@@ -343,10 +342,10 @@ export default function CounterpartyPage() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ type: 'spring', damping: 22, stiffness: 90, delay: 0.25 }}
-                    className="glass-premium p-6 border border-emerald-500/10 shadow-[0_0_50px_rgba(16,185,129,0.02)] relative overflow-hidden"
+                    className="bg-neutral-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-emerald-500/10 shadow-[0_0_50px_rgba(16,185,129,0.02)] relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-                    <h3 className="text-xs text-steel-500 uppercase tracking-widest font-bold mb-6 flex items-center gap-2">
+                    <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-6 flex items-center gap-2">
                       <ShieldCheck size={14} className="text-emerald-400" /> AI Оценка рисков
                     </h3>
 
@@ -368,9 +367,9 @@ export default function CounterpartyPage() {
                           {(() => {
                             const s = computeRadarScores(result);
                             return RADAR_AXES.map((axis, i) => (
-                              <div key={axis.key} className="flex items-center gap-2 bg-obsidian-900/60 rounded-lg px-3 py-2 border border-obsidian-800/60">
+                              <div key={axis.key} className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2 border border-white/5">
                                 <span className={`text-lg font-bold font-mono ${s[i] >= 65 ? 'text-emerald-400' : s[i] >= 45 ? 'text-amber-400' : 'text-red-400'}`}>{s[i]}</span>
-                                <span className="text-[10px] text-steel-500 leading-tight">{axis.label}</span>
+                                <span className="text-[10px] text-neutral-500 leading-tight">{axis.label}</span>
                               </div>
                             ));
                           })()}
@@ -403,9 +402,9 @@ export default function CounterpartyPage() {
 
         {/* History sidebar */}
         <div className="w-full lg:w-72 flex-shrink-0">
-          <div className="glass-card p-5 sticky top-24 shadow-2xl">
-            <h3 className="text-xs text-steel-500 uppercase tracking-widest font-bold mb-4 flex items-center gap-2">
-              <Clock size={14} className="text-chrome-400" /> История проверок
+          <div className="bg-neutral-900/30 backdrop-blur-xl border border-white/5 rounded-2xl p-5 sticky top-24 shadow-2xl">
+            <h3 className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-4 flex items-center gap-2">
+              <Clock size={14} className="text-white" /> История проверок
             </h3>
             {historyLoading ? (
               <p className="text-xs text-steel-600 animate-pulse">Загрузка...</p>
@@ -415,15 +414,15 @@ export default function CounterpartyPage() {
               <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
                 {history.map((item) => (
                   <button key={item.id} onClick={() => loadFromHistory(item)}
-                    className="w-full text-left p-3 rounded-xl bg-obsidian-800/40 hover:bg-obsidian-800/80 border border-transparent hover:border-obsidian-600/50 transition-all duration-200 group">
+                    className="w-full text-left p-3 rounded-xl bg-black/20 hover:bg-black/50 border border-transparent hover:border-white/10 transition-all duration-200 group">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-mono text-chrome-300 tracking-wider">{item.bin_number}</span>
-                      <ChevronRight size={12} className="text-steel-600 group-hover:text-chrome-400 transition-colors" />
+                      <span className="text-xs font-mono text-white tracking-wider">{item.bin_number}</span>
+                      <ChevronRight size={12} className="text-neutral-600 group-hover:text-white transition-colors" />
                     </div>
-                    <p className="text-xs text-steel-400 truncate">{item.company_name || 'Компания'}</p>
+                    <p className="text-xs text-neutral-400 truncate">{item.company_name || 'Компания'}</p>
                     <div className="flex items-center justify-between mt-1">
                       <span className={`text-[10px] font-bold ${riskColor(item.risk_level)}`}>{item.risk_level || '—'}</span>
-                      <span className="text-[10px] text-steel-600">{new Date(item.created_at).toLocaleDateString('ru')}</span>
+                      <span className="text-[10px] text-neutral-600">{new Date(item.created_at).toLocaleDateString('ru')}</span>
                     </div>
                   </button>
                 ))}

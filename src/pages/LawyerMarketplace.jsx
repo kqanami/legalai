@@ -9,14 +9,13 @@ import CustomSelect from '../components/CustomSelect';
 /* ── Animated Background ── */
 const BackgroundEffects = memo(() => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-    <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-chrome-500/5 blur-[120px]" />
-    <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-amber-500/5 blur-[120px]" />
-    <div className="absolute top-[40%] left-[60%] w-[30vw] h-[30vw] rounded-full bg-emerald-500/5 blur-[100px]" />
+    <div className="absolute top-0 left-[20%] w-[40vw] h-[40vw] rounded-full bg-chrome-500/5 blur-[120px]" />
+    <div className="absolute bottom-0 right-[20%] w-[40vw] h-[40vw] rounded-full bg-emerald-500/5 blur-[120px]" />
   </div>
 ));
 
 /* ── Win Rate Ring ── */
-const WinRateRing = memo(({ rate, size = 60 }) => {
+const WinRateRing = memo(({ rate, size = 52 }) => {
   const radius = (size - 6) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (rate / 100) * circumference;
@@ -24,13 +23,11 @@ const WinRateRing = memo(({ rate, size = 60 }) => {
 
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      {/* Glow effect behind ring */}
-      <div className="absolute inset-0 rounded-full opacity-20 blur-md" style={{ backgroundColor: color }} />
-      
+      <div className="absolute inset-0 rounded-full opacity-10 blur-sm" style={{ backgroundColor: color }} />
       <svg width={size} height={size} className="-rotate-90 relative z-10">
-        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="3" />
         <motion.circle
-          cx={size/2} cy={size/2} r={radius} fill="none" stroke={color} strokeWidth="4"
+          cx={size/2} cy={size/2} r={radius} fill="none" stroke={color} strokeWidth="3"
           strokeLinecap="round" strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
@@ -38,7 +35,7 @@ const WinRateRing = memo(({ rate, size = 60 }) => {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-        <span className="text-[13px] font-black text-white leading-none tracking-tight">{rate}%</span>
+        <span className="text-[11px] font-bold text-white tracking-tight">{rate}%</span>
       </div>
     </div>
   );
@@ -47,116 +44,103 @@ const WinRateRing = memo(({ rate, size = 60 }) => {
 /* ── Badges ── */
 const TopRatedBadge = () => (
   <motion.div
-    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest"
+    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide"
     style={{
-      background: 'linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(234,179,8,0.05) 100%)',
-      border: '1px solid rgba(245,158,11,0.3)',
-      color: '#F59E0B',
-      boxShadow: '0 0 15px rgba(245,158,11,0.15)',
+      background: 'rgba(245,158,11,0.1)',
+      border: '1px solid rgba(245,158,11,0.2)',
+      color: '#FBBF24',
     }}
-    animate={{ boxShadow: ['0 0 15px rgba(245,158,11,0.15)', '0 0 25px rgba(245,158,11,0.3)', '0 0 15px rgba(245,158,11,0.15)'] }}
-    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+    whileHover={{ scale: 1.05 }}
   >
-    <Trophy size={10} className="text-amber-400" /> ТОП ЮРИСТ
+    <Trophy size={10} className="text-amber-400" /> ТОП
   </motion.div>
 );
 
 const VerifiedBadge = () => (
-  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
     <CheckCircle2 size={10} /> PRO
   </span>
 );
 
 /* ── Lawyer Card ── */
-const LawyerCard = memo(({ lawyer, index }) => {
+const LawyerCard = memo(({ lawyer }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: index * 0.05, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="group"
     >
       <Link to={`/lawyers/${lawyer.id}`} className="block h-full">
-        <div className="h-full relative group rounded-2xl overflow-hidden transition-all duration-500" style={{
-          background: 'linear-gradient(145deg, rgba(11,13,20,0.8) 0%, rgba(11,13,20,0.4) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          {/* Hover glowing border & background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-chrome-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-          <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-chrome-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ maskImage: 'linear-gradient(white, white)', maskComposite: 'exclude', WebkitMaskImage: 'linear-gradient(white, white)', WebkitMaskComposite: 'xor', padding: '1px' }} />
+        <div className="h-full relative rounded-3xl overflow-hidden transition-all duration-500 bg-obsidian-900/40 border border-white/[0.04] hover:bg-obsidian-900/60 hover:border-chrome-500/30 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+          {/* Subtle top glare */}
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
-          <div className="p-6 relative z-10 flex flex-col h-full">
-            {/* Header: Avatar, Info, Ring */}
-            <div className="flex items-start gap-4 mb-5">
-              <div className="relative flex-shrink-0">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-chrome-500/20 to-obsidian-800 border border-chrome-500/30 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                  {lawyer.name?.charAt(0) || '?'}
+          <div className="p-6 sm:p-7 relative z-10 flex flex-col h-full">
+            {/* Header: Avatar & Info */}
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-obsidian-800 to-obsidian-900 border border-white/[0.08] flex items-center justify-center text-white font-bold text-xl shadow-inner group-hover:border-chrome-500/50 transition-colors duration-500">
+                    {lawyer.name?.charAt(0) || '?'}
+                  </div>
+                  {/* Online Indicator */}
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-obsidian-950 rounded-full flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                  </div>
                 </div>
-                {/* Online Indicator */}
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-obsidian-950 rounded-full flex items-center justify-center">
-                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                </div>
-              </div>
-              
-              <div className="flex-1 min-w-0 pt-1">
-                <h3 className="text-lg font-bold text-white truncate group-hover:text-chrome-300 transition-colors">
-                  {lawyer.name}
-                </h3>
-                <p className="text-xs text-chrome-500/80 mt-0.5 mb-2 truncate">
-                  {lawyer.specialization || 'Юрист широкого профиля'}
-                </p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {lawyer.is_top_rated && <TopRatedBadge />}
-                  {lawyer.verified && <VerifiedBadge />}
+                <div>
+                  <h3 className="text-lg font-semibold text-white tracking-tight group-hover:text-chrome-300 transition-colors">
+                    {lawyer.name}
+                  </h3>
+                  <p className="text-sm text-steel-400 mt-0.5">
+                    {lawyer.specialization || 'Общая практика'}
+                  </p>
                 </div>
               </div>
-              
-              <WinRateRing rate={lawyer.win_rate || 0} />
-            </div>
-
-            {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-2 mt-2 mb-4">
-              <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="flex items-center gap-1 text-sm font-bold text-white">
-                  <Star size={12} className="text-amber-400" fill="currentColor" />
-                  {lawyer.rating?.toFixed(1) || '0.0'}
-                </div>
-                <div className="text-[10px] text-steel-500 font-medium uppercase tracking-wider mt-0.5">Рейтинг</div>
-              </div>
-              <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="text-sm font-bold text-emerald-400">{lawyer.cases_won || 0}</div>
-                <div className="text-[10px] text-steel-500 font-medium uppercase tracking-wider mt-0.5">Побед</div>
-              </div>
-              <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="text-sm font-bold text-white">{lawyer.review_count || 0}</div>
-                <div className="text-[10px] text-steel-500 font-medium uppercase tracking-wider mt-0.5">Отзывов</div>
+              <div className="flex flex-col items-end gap-2">
+                {lawyer.is_top_rated && <TopRatedBadge />}
+                {lawyer.verified && <VerifiedBadge />}
               </div>
             </div>
 
-            {/* Bio Snippet */}
-            {lawyer.description && (
-              <p className="text-sm text-steel-400 line-clamp-2 mb-5 leading-relaxed">
-                {lawyer.description}
-              </p>
-            )}
+            {/* Description */}
+            <p className="text-sm text-steel-400/90 line-clamp-2 leading-relaxed mb-6">
+              {lawyer.description || "Опытный специалист, готовый помочь в решении ваших юридических вопросов."}
+            </p>
 
-            {/* Footer with Action Button */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-auto pt-5 border-t border-white/[0.04]">
-              <div className="flex items-center gap-4 text-xs font-medium text-steel-400">
-                {lawyer.city && (
-                  <span className="flex items-center gap-1.5">
-                    <MapPin size={14} className="text-chrome-500" /> {lawyer.city}
-                  </span>
-                )}
-                {lawyer.experience_years > 0 && (
-                  <span className="flex items-center gap-1.5">
-                    <Clock size={14} className="text-chrome-500" /> {lawyer.experience_years} лет
-                  </span>
-                )}
+            {/* Stats (Minimalist) */}
+            <div className="flex items-center justify-between mt-auto pt-5 border-t border-white/[0.04]">
+              <div className="flex items-center gap-5">
+                <div className="flex items-center gap-2">
+                  <Star size={14} className="text-amber-400" fill="currentColor" />
+                  <span className="text-sm font-semibold text-white">{lawyer.rating?.toFixed(1) || '0.0'}</span>
+                  <span className="text-xs text-steel-500">({lawyer.review_count || 0})</span>
+                </div>
+                <div className="w-px h-4 bg-white/[0.06]" />
+                <div className="flex items-center gap-2">
+                  <Trophy size={14} className="text-emerald-400" />
+                  <span className="text-sm font-semibold text-white">{lawyer.cases_won || 0}</span>
+                  <span className="text-xs text-steel-500">дел</span>
+                </div>
               </div>
-              <div className="px-5 py-2.5 rounded-xl bg-chrome-500/10 text-chrome-400 font-bold text-sm text-center group-hover:bg-chrome-500 group-hover:text-white transition-all duration-300">
-                Связаться
-              </div>
+              <WinRateRing rate={lawyer.win_rate || 0} size={42} />
+            </div>
+            
+            {/* Location & Exp */}
+            <div className="flex items-center gap-4 mt-5 pt-5 border-t border-white/[0.04] text-xs font-medium text-steel-500">
+              {lawyer.city && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin size={14} className="text-steel-400" /> {lawyer.city}
+                </span>
+              )}
+              {lawyer.experience_years > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Clock size={14} className="text-steel-400" /> Стаж {lawyer.experience_years} лет
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -231,204 +215,183 @@ export default function LawyerMarketplace() {
   const activeFiltersCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <div className="min-h-screen bg-obsidian-950 relative selection:bg-chrome-500/30 selection:text-white">
+    <div className="min-h-screen bg-obsidian-950 relative selection:bg-chrome-500/30 selection:text-white pb-20">
       <BackgroundEffects />
       
-      {/* ── Top Header ── */}
-      <div className="sticky top-0 z-30 border-b border-white/[0.04] bg-obsidian-950/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-obsidian-950/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          {/* Navigation & Title */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <button 
-              onClick={() => navigate(user?.role === 'lawyer' ? '/lawyer' : user ? '/dashboard' : '/')} 
-              className="flex items-center gap-2 text-sm font-medium text-steel-400 hover:text-white transition-colors w-fit"
-            >
-              <div className="w-8 h-8 rounded-full bg-white/[0.03] border border-white/[0.05] flex items-center justify-center">
-                <ArrowLeft size={16} />
-              </div>
-              Вернуться
-            </button>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-chrome-500 to-chrome-600 flex items-center justify-center shadow-[0_0_20px_rgba(14,165,233,0.3)]">
-                <Scale size={20} className="text-white" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Маркетплейс <span className="text-transparent bg-clip-text bg-gradient-to-r from-chrome-400 to-chrome-200">Юристов</span>
-              </h1>
-            </div>
-            <div className="hidden sm:block w-32" /> {/* Spacer */}
+      {/* ── Apple-like Top Header ── */}
+      <div className="sticky top-0 z-40 bg-obsidian-950/60 backdrop-blur-3xl supports-[backdrop-filter]:bg-obsidian-950/40 border-b border-white/[0.04]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <button 
+            onClick={() => navigate(user?.role === 'lawyer' ? '/lawyer' : user ? '/dashboard' : '/')} 
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.03] hover:bg-white/[0.08] transition-colors group"
+          >
+            <ArrowLeft size={18} className="text-steel-400 group-hover:text-white transition-colors" />
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <Scale size={20} className="text-chrome-400" />
+            <span className="text-sm font-bold text-white tracking-wide">Каталог Юристов</span>
           </div>
-
-          {/* Search & Quick Filters */}
-          <div className="flex flex-col gap-4">
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <div className="flex-1 relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-chrome-500/20 to-transparent rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
-                <div className="relative flex items-center bg-obsidian-900 border border-white/[0.08] rounded-xl overflow-hidden focus-within:border-chrome-500/50 transition-colors">
-                  <Search size={18} className="absolute left-4 text-steel-400" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Поиск юриста по имени..."
-                    className="w-full bg-transparent text-sm text-white placeholder-steel-500 pl-12 pr-4 py-3.5 focus:outline-none"
-                  />
-                </div>
-              </div>
-              
-              <button
-                type="button"
-                onClick={() => setShowFilters(!showFilters)}
-                className={`relative px-4 sm:px-5 rounded-xl border flex items-center justify-center gap-2 text-sm font-bold transition-all duration-300 ${
-                  showFilters || activeFiltersCount > 0 
-                    ? 'bg-chrome-500/10 border-chrome-500/30 text-chrome-400' 
-                    : 'bg-white/[0.02] border-white/[0.06] text-steel-300 hover:bg-white/[0.05]'
-                }`}
-              >
-                <Filter size={16} />
-                <span className="hidden sm:inline">Фильтры</span>
-                {activeFiltersCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-chrome-500 text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(14,165,233,0.5)]">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-              
-              <button type="submit" className="px-6 rounded-xl bg-gradient-to-r from-chrome-600 to-chrome-500 text-white text-sm font-bold shadow-[0_0_20px_rgba(14,165,233,0.2)] hover:shadow-[0_0_25px_rgba(14,165,233,0.4)] transition-all active:scale-95">
-                Найти
-              </button>
-            </form>
-
-            {/* Quick Category Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              <span className="text-[10px] font-bold text-steel-500 uppercase tracking-wider pr-2">Популярное:</span>
-              {quickCategories.map(cat => {
-                const isActive = filters.specialization === cat;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setQuickCategory(cat)}
-                    className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 border ${
-                      isActive 
-                        ? 'bg-chrome-500 text-white border-chrome-400 shadow-[0_0_15px_rgba(14,165,233,0.3)]' 
-                        : 'bg-white/[0.03] text-steel-400 border-white/[0.05] hover:bg-white/[0.08] hover:text-white'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Expanded Filters Panel */}
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0, y: -10 }}
-                  animate={{ height: 'auto', opacity: 1, y: 0 }}
-                  exit={{ height: 0, opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-2 pb-4">
-                    <div className="p-5 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent border border-white/[0.05] flex flex-wrap gap-5 items-end">
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="block text-[10px] text-steel-400 font-bold mb-2 uppercase tracking-wider">Город</label>
-                        <CustomSelect
-                          value={filters.city}
-                          onChange={(e) => setFilters({...filters, city: e.target.value})}
-                          options={[
-                            { value: '', label: 'Все города Казахстана' },
-                            ...cities.map(c => ({ value: c, label: c }))
-                          ]}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="block text-[10px] text-steel-400 font-bold mb-2 uppercase tracking-wider">Специализация</label>
-                        <CustomSelect
-                          value={filters.specialization}
-                          onChange={(e) => setFilters({...filters, specialization: e.target.value})}
-                          options={[
-                            { value: '', label: 'Все направления' },
-                            ...specializations.map(s => ({ value: s.name_ru, label: s.name_ru }))
-                          ]}
-                        />
-                      </div>
-                      {activeFiltersCount > 0 && (
-                        <button 
-                          onClick={() => {
-                            setFilters({ city: '', specialization: '' });
-                            loadLawyers({ city: '', specialization: '' });
-                          }} 
-                          className="px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-bold transition-colors flex items-center gap-1.5 h-[42px]"
-                        >
-                          <X size={14} /> Сбросить фильтры
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          
+          <div className="w-10" /> {/* Spacer for centering */}
         </div>
       </div>
 
+      {/* ── Hero / Spotlight Search ── */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16 relative z-30 text-center">
+        <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight mb-4">
+          Найдите своего <span className="text-transparent bg-clip-text bg-gradient-to-r from-chrome-400 to-emerald-400">эксперта</span>
+        </h1>
+        <p className="text-steel-400 text-lg mb-10 max-w-2xl mx-auto">
+          Проверенные юристы и адвокаты для решения любых правовых задач.
+        </p>
+
+        {/* Spotlight Search Bar */}
+        <form onSubmit={handleSearch} className="relative group max-w-2xl mx-auto shadow-2xl">
+          <div className="absolute inset-0 bg-chrome-500/20 blur-xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-700" />
+          <div className="relative flex items-center bg-obsidian-900/80 backdrop-blur-xl border border-white/[0.08] rounded-3xl p-2 focus-within:border-chrome-500/50 transition-colors">
+            <div className="pl-4 pr-2">
+              <Search size={22} className="text-steel-400 group-focus-within:text-chrome-400 transition-colors" />
+            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Имя, фамилия или специализация..."
+              className="flex-1 bg-transparent text-lg text-white placeholder-steel-500 py-3 focus:outline-none"
+            />
+            
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-3 rounded-2xl transition-colors ${showFilters || activeFiltersCount > 0 ? 'bg-chrome-500/10 text-chrome-400' : 'text-steel-400 hover:bg-white/[0.05]'}`}
+            >
+              <Filter size={20} />
+            </button>
+            
+            <button type="submit" className="ml-2 px-6 py-3 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-steel-300 hover:text-white border border-white/[0.05] font-semibold transition-colors">
+              Найти
+            </button>
+          </div>
+        </form>
+
+        {/* Quick Pills */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          {quickCategories.map(cat => {
+            const isActive = filters.specialization === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setQuickCategory(cat)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  isActive 
+                    ? 'bg-chrome-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.3)]' 
+                    : 'bg-white/[0.04] text-steel-400 hover:bg-white/[0.08] hover:text-white'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Expanded Filters */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-6 text-left max-w-2xl mx-auto z-50 relative"
+            >
+              <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-xl">
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-semibold text-steel-400 uppercase tracking-wider mb-2">Город</label>
+                    <CustomSelect
+                      value={filters.city}
+                      onChange={(e) => setFilters({...filters, city: e.target.value})}
+                      options={[
+                        { value: '', label: 'Все города' },
+                        ...cities.map(c => ({ value: c, label: c }))
+                      ]}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-steel-400 uppercase tracking-wider mb-2">Специализация</label>
+                    <CustomSelect
+                      value={filters.specialization}
+                      onChange={(e) => setFilters({...filters, specialization: e.target.value})}
+                      options={[
+                        { value: '', label: 'Все направления' },
+                        ...specializations.map(s => ({ value: s.name_ru, label: s.name_ru }))
+                      ]}
+                    />
+                  </div>
+                </div>
+                {activeFiltersCount > 0 && (
+                  <div className="mt-6 flex justify-end">
+                    <button 
+                      onClick={() => {
+                        setFilters({ city: '', specialization: '' });
+                        loadLawyers({ city: '', specialization: '' });
+                      }} 
+                      className="px-4 py-2 rounded-xl text-red-400 hover:bg-red-400/10 text-sm font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <X size={16} /> Сбросить фильтры
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* ── Main Content Grid ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-[220px] rounded-2xl bg-white/[0.02] border border-white/[0.04] p-6 relative overflow-hidden">
+              <div key={i} className="h-[280px] rounded-3xl bg-white/[0.02] border border-white/[0.04] p-6 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
                 <div className="flex gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-2xl bg-white/[0.04]" />
+                  <div className="w-14 h-14 rounded-2xl bg-white/[0.04]" />
                   <div className="flex-1 pt-2 space-y-3">
                     <div className="h-4 bg-white/[0.04] rounded w-3/4" />
                     <div className="h-3 bg-white/[0.04] rounded w-1/2" />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="h-14 bg-white/[0.03] rounded-xl" />
-                  <div className="h-14 bg-white/[0.03] rounded-xl" />
-                  <div className="h-14 bg-white/[0.03] rounded-xl" />
+                <div className="space-y-2 mt-10">
+                  <div className="h-3 bg-white/[0.04] rounded w-full" />
+                  <div className="h-3 bg-white/[0.04] rounded w-5/6" />
                 </div>
               </div>
             ))}
           </div>
         ) : lawyers.length === 0 ? (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center text-center py-20 px-4"
           >
-            <div className="relative mb-8">
-              <div className="absolute inset-0 bg-chrome-500/20 blur-2xl rounded-full" />
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-obsidian-800 to-obsidian-900 border border-white/[0.08] flex items-center justify-center relative z-10 shadow-xl">
-                <Search size={40} className="text-steel-400" />
-              </div>
+            <div className="w-20 h-20 rounded-full bg-white/[0.03] flex items-center justify-center mb-6">
+              <Search size={32} className="text-steel-500" />
             </div>
-            <h3 className="text-2xl font-black text-white mb-3">Специалисты не найдены</h3>
-            <p className="text-steel-400 text-sm max-w-md">
-              По вашему запросу не найдено юристов. Попробуйте изменить параметры фильтрации или выбрать другой город.
+            <h3 className="text-xl font-bold text-white mb-2">Ничего не найдено</h3>
+            <p className="text-steel-400 text-sm max-w-sm">
+              По вашим критериям не найдено ни одного юриста. Попробуйте смягчить фильтры.
             </p>
-            {activeFiltersCount > 0 && (
-              <button onClick={() => {
-                setSearch('');
-                setFilters({ city: '', specialization: '' });
-                loadLawyers({ city: '', specialization: '', q: '' });
-              }} className="mt-8 px-6 py-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-white text-sm font-bold border border-white/[0.05] transition-colors">
-                Сбросить все фильтры
-              </button>
-            )}
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {lawyers.map((lawyer, i) => (
-              <LawyerCard key={lawyer.id} lawyer={lawyer} index={i} />
-            ))}
-          </div>
+          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <AnimatePresence mode="popLayout">
+              {lawyers.map((lawyer) => (
+                <LawyerCard key={lawyer.id} lawyer={lawyer} />
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
     </div>
