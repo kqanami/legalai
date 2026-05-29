@@ -10,8 +10,37 @@ export default function LawyerLayout() {
   const outlet = useOutlet();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && isSidebarOpen) {
+      setSidebarOpen(false);
+    }
+    if (isRightSwipe && !isSidebarOpen && touchStart < 40) {
+      setSidebarOpen(true);
+    }
+  };
+
   return (
-    <div className="flex h-[100dvh] bg-black text-white overflow-hidden lg:p-4 lg:gap-4 font-sans relative">
+    <div 
+      className="flex h-[100dvh] bg-black text-white overflow-hidden lg:p-4 lg:gap-4 font-sans relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEndHandler}
+    >
       
       {/* Mobile overlay */}
       <AnimatePresence>

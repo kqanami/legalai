@@ -16,6 +16,30 @@ export default function DashboardLayout() {
   const location = useLocation();
   const outlet = useOutlet(); // Fixed framer-motion Outlet issue
 
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && isSidebarOpen) {
+      setSidebarOpen(false);
+    }
+    if (isRightSwipe && !isSidebarOpen && touchStart < 40) {
+      setSidebarOpen(true);
+    }
+  };
+
   // Strict metallic glowing background transitions based on segment
   const bgGradient = currentSegment === 'b2b' 
     ? 'rgba(209, 213, 219, 0.05)' // chrome
@@ -24,7 +48,12 @@ export default function DashboardLayout() {
       : 'rgba(255, 255, 255, 0.01)'; // neutral obsidian
       
   return (
-    <div className="flex h-[100dvh] bg-black overflow-hidden relative">
+    <div 
+      className="flex h-[100dvh] bg-black overflow-hidden relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEndHandler}
+    >
       
       {/* Subtle segment ambient lighting */}
       <div 
