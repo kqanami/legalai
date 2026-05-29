@@ -21,7 +21,7 @@ export default function ThemeToggle({ className = '' }) {
           isDark ? 'bg-obsidian-500' : 'bg-white'
         }`}
         animate={{ x: isDark ? 2 : 26 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
       >
         {isDark ? (
           <Moon size={14} className="text-blue-300" />

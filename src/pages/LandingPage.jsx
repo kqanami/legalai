@@ -118,17 +118,17 @@ function Hero({ user }) {
               AI Legal Engine v1.0
             </div>
             
-            <h1 className="text-5xl md:text-[5.5rem] font-bold text-white leading-[1.05] tracking-tight mb-8">
+            <h1 className="text-4xl sm:text-5xl md:text-[5.5rem] font-bold text-white leading-[1.05] tracking-tight mb-6 md:mb-8">
               Правовой интеллект <br />
               <span className="text-neutral-500">нового поколения.</span>
             </h1>
             
-            <p className="text-lg text-neutral-400 max-w-xl mb-10 leading-relaxed">
+            <p className="text-base sm:text-lg text-neutral-400 max-w-xl mb-8 md:mb-10 leading-relaxed">
               Первая интеллектуальная правовая система Казахстана. Автоматизируйте рутину, анализируйте риски и принимайте решения в 10 раз быстрее.
             </p>
 
-            <div className="flex items-center gap-6">
-               <Link to={user ? '/dashboard' : '/auth'} className="bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-neutral-200 transition-colors flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
+               <Link to={user ? '/dashboard' : '/auth'} className="bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2">
                  {user ? 'В панель' : 'Начать работу'} <ArrowRight size={18} />
                </Link>
             </div>
@@ -159,8 +159,8 @@ function Metrics() {
              { value: "1000+", label: "Алгоритмов права" },
           ].map((m, i) => (
              <FadeUp key={i} delay={i * 0.1} className="flex flex-col md:pl-8 first:pl-0">
-               <span className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">{m.value}</span>
-               <span className="text-neutral-500 font-medium">{m.label}</span>
+               <span className="text-4xl md:text-5xl font-bold text-white mb-1 md:mb-2 tracking-tight">{m.value}</span>
+               <span className="text-xs md:text-sm text-neutral-500 font-medium">{m.label}</span>
              </FadeUp>
           ))}
         </div>
@@ -183,7 +183,7 @@ function Capabilities() {
         </FadeUp>
 
         {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[300px]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-auto md:auto-rows-[300px]">
           {/* Card 1 */}
           <FadeUp delay={0.1} className="md:col-span-2 relative">
             <TiltCard>
@@ -242,11 +242,11 @@ function FinalCta({ user }) {
     <section className="relative z-10 py-32 bg-neutral-950 border-t border-white/5 text-center">
       <div className="max-w-3xl mx-auto px-6">
         <FadeUp>
-          <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">Начните работу прямо сейчас.</h2>
-          <p className="text-neutral-400 text-lg mb-10 leading-relaxed">
+          <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">Начните работу прямо сейчас.</h2>
+          <p className="text-neutral-400 text-base sm:text-lg mb-10 leading-relaxed">
             Присоединяйтесь к передовым юристам и предпринимателям, которые уже оптимизировали свою работу с помощью ИИ.
           </p>
-          <Link to={user ? '/dashboard' : '/auth'} className="inline-flex bg-white text-black px-10 py-5 rounded-full font-bold hover:bg-neutral-200 transition-colors items-center gap-2">
+          <Link to={user ? '/dashboard' : '/auth'} className="flex sm:inline-flex justify-center w-full sm:w-auto bg-white text-black px-8 sm:px-10 py-4 sm:py-5 rounded-full font-bold hover:bg-neutral-200 transition-colors items-center gap-2">
             Создать аккаунт бесплатно <ArrowRight size={18} />
           </Link>
         </FadeUp>

@@ -10,7 +10,7 @@ import { GenerativeArtScene } from '../components/ui/generative-art-scene';
 import {
   Scale, Link2, Search, ExternalLink, BookOpen, Loader2,
   Paperclip, X, FileText, Users, ShoppingBag, Building, Book,
-  PenTool, GitCompare, Command, Shield, Mic, MicOff, ArrowUp,
+  PenTool, GitCompare, Command, Shield, Mic, MicOff, ArrowUp, Zap
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -26,8 +26,6 @@ function useTypewriter(text, { speed = 120, enabled = true } = {}) {
   useEffect(() => {
     if (!enabled) { setDisplayed(text); setDone(true); return; }
     
-    // We do NOT reset indexRef to 0 here.
-    // Because if text is streaming (growing), we want to continue typing from where we left off.
     setDone(false);
 
     const tick = (timestamp) => {
@@ -70,7 +68,7 @@ function CitationTooltip({ text, reference }) {
   return (
     <span className="relative inline-block" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       <span
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md text-xs font-semibold cursor-pointer transition-all duration-200 bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/30"
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-0.5 rounded-md text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-200 bg-white/10 text-white hover:bg-white/20"
         onClick={() => reference?.url && window.open(reference.url, '_blank')}
       >
         <BookOpen size={10} className="flex-shrink-0" />{text}
@@ -83,24 +81,24 @@ function CitationTooltip({ text, reference }) {
             className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-72 pointer-events-auto"
             onMouseEnter={handleEnter} onMouseLeave={handleLeave}
           >
-            <div className="bg-neutral-900 border border-white/10 rounded-xl p-3.5 shadow-2xl">
-              <div className="flex items-start gap-2.5 mb-2">
-                <div className="w-7 h-7 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <BookOpen size={13} className="text-white" />
+            <div className="bg-[#050505] border border-white/10 rounded-2xl p-4 shadow-2xl">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={14} className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-white leading-snug mb-0.5">{reference.title}</p>
-                  {reference.snippet && <p className="text-[10px] text-neutral-400 leading-relaxed line-clamp-3">{reference.snippet}</p>}
+                  <p className="text-xs font-bold text-white leading-snug mb-1">{reference.title}</p>
+                  {reference.snippet && <p className="text-[10px] text-white/40 leading-relaxed line-clamp-3">{reference.snippet}</p>}
                 </div>
               </div>
               {reference.url && (
                 <a href={reference.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] font-bold text-white/70 hover:text-white transition-colors pt-2 border-t border-white/10">
-                  <ExternalLink size={10} />Открыть на adilet.zan.kz
+                  className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors pt-3 border-t border-white/5">
+                  <ExternalLink size={10} />adilet.zan.kz
                 </a>
               )}
             </div>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-3 h-3 bg-neutral-900 border-r border-b border-white/10 rotate-45" />
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-3 h-3 bg-[#050505] border-r border-b border-white/10 rotate-45" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -109,9 +107,9 @@ function CitationTooltip({ text, reference }) {
 }
 
 const msgVariants = {
-  hidden: { opacity: 0, y: 10, scale: 0.98 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] } },
-  exit: { opacity: 0, transition: { duration: 0.2 } },
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+  exit: { opacity: 0, transition: { duration: 0.3 } },
 };
 
 const suggestionVariants = {
@@ -127,19 +125,19 @@ function EscalationBanner({ escalation }) {
   const category = escalation.category || 'Юридическая консультация';
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="mt-6 w-full max-w-sm rounded-2xl bg-neutral-900 border border-white/10 p-5 shadow-xl">
-      <div className="flex items-start gap-4 mb-4">
-        <div className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center flex-shrink-0">
+      className="mt-8 w-full max-w-lg rounded-[2rem] bg-white/[0.02] border border-white/10 p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center gap-6 justify-between">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center flex-shrink-0">
           <Scale size={20} />
         </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-bold text-white mb-1">Рекомендуется помощь адвоката</h4>
-          <p className="text-xs text-neutral-400 leading-relaxed">{escalation.reason}</p>
+        <div>
+          <h4 className="text-sm font-bold text-white mb-1">Требуется адвокат</h4>
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/40 leading-relaxed">{escalation.reason}</p>
         </div>
       </div>
       <button onClick={() => navigate(`/lawyers?specialization=${encodeURIComponent(category)}`)}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white text-black text-xs font-bold rounded-xl hover:bg-neutral-200 transition-colors">
-        <Search size={14} />Найти юриста
+        className="shrink-0 flex items-center justify-center gap-2 h-12 px-6 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-neutral-200 transition-colors">
+        <Search size={14} />Найти
       </button>
     </motion.div>
   );
@@ -149,7 +147,7 @@ function LawyerSearchChip({ category }) {
   const navigate = useNavigate();
   return (
     <motion.button onClick={() => navigate(`/lawyers?specialization=${encodeURIComponent(category || '')}`)}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 text-white hover:bg-neutral-700 transition-colors border border-white/5">
+      className="inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-black hover:bg-neutral-200 transition-colors">
       <Search size={12} />Найти адвоката
     </motion.button>
   );
@@ -189,23 +187,23 @@ const MarkdownRenderer = memo(({ content, isStreaming = false, references = [] }
     };
 
     return {
-      p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed text-[15px]"><WithCitations>{children}</WithCitations></p>,
-      li: ({ children }) => <li className="mb-1 leading-relaxed"><WithCitations>{children}</WithCitations></li>,
-      ul: ({ children }) => <ul className="list-disc pl-5 mb-4 marker:text-neutral-600">{children}</ul>,
-      ol: ({ children }) => <ol className="list-decimal pl-5 mb-4 marker:text-neutral-600">{children}</ol>,
-      strong: ({ children }) => <strong className="font-semibold text-white"><WithCitations>{children}</WithCitations></strong>,
-      em: ({ children }) => <em className="text-neutral-400 not-italic"><WithCitations>{children}</WithCitations></em>,
-      h1: ({ children }) => <h1 className="text-xl font-bold text-white mt-6 mb-3 tracking-tight"><WithCitations>{children}</WithCitations></h1>,
+      p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed text-[15px] text-white/90"><WithCitations>{children}</WithCitations></p>,
+      li: ({ children }) => <li className="mb-2 leading-relaxed text-[15px] text-white/90"><WithCitations>{children}</WithCitations></li>,
+      ul: ({ children }) => <ul className="list-disc pl-5 mb-4 marker:text-white/40"><WithCitations>{children}</WithCitations></ul>,
+      ol: ({ children }) => <ol className="list-decimal pl-5 mb-4 marker:text-white/40"><WithCitations>{children}</WithCitations></ol>,
+      strong: ({ children }) => <strong className="font-bold text-white"><WithCitations>{children}</WithCitations></strong>,
+      em: ({ children }) => <em className="text-white/40 not-italic"><WithCitations>{children}</WithCitations></em>,
+      h1: ({ children }) => <h1 className="text-xl font-bold text-white mt-6 mb-4 tracking-tight"><WithCitations>{children}</WithCitations></h1>,
       h2: ({ children }) => <h2 className="text-lg font-bold text-white mt-5 mb-3 tracking-tight"><WithCitations>{children}</WithCitations></h2>,
-      h3: ({ children }) => <h3 className="text-base font-bold text-white mt-4 mb-2 tracking-tight"><WithCitations>{children}</WithCitations></h3>,
-      pre: ({ children }) => <pre className="bg-neutral-900 border border-white/10 rounded-xl p-4 my-4 overflow-x-auto text-sm">{children}</pre>,
-      code: ({ children, inline }) => inline ? <code className="bg-neutral-900 px-1.5 py-0.5 rounded text-sm text-neutral-300 font-mono border border-white/5">{children}</code> : <code>{children}</code>,
-      a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer" className="text-neutral-300 underline underline-offset-4 decoration-neutral-600 hover:text-white transition-colors">{children}</a>,
-      blockquote: ({ children }) => <blockquote className="border-l-2 border-neutral-700 pl-4 my-4 text-neutral-400 italic"><WithCitations>{children}</WithCitations></blockquote>,
+      h3: ({ children }) => <h3 className="text-[15px] font-bold text-white mt-4 mb-2 tracking-tight"><WithCitations>{children}</WithCitations></h3>,
+      pre: ({ children }) => <pre className="bg-[#050505] border border-white/5 rounded-2xl p-4 my-4 overflow-x-auto text-sm custom-scrollbar">{children}</pre>,
+      code: ({ children, inline }) => inline ? <code className="bg-[#050505] px-1.5 py-0.5 rounded-md text-[13px] text-white/80 font-mono border border-white/5">{children}</code> : <code>{children}</code>,
+      a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer" className="text-white underline underline-offset-4 decoration-white/20 hover:decoration-white transition-colors">{children}</a>,
+      blockquote: ({ children }) => <blockquote className="border-l-2 border-white/20 pl-4 my-4 text-white/60 italic font-medium"><WithCitations>{children}</WithCitations></blockquote>,
     };
   }, [isStreaming, references]);
   return (
-    <div className={`text-neutral-300 ${isStreaming ? 'streaming-message' : ''}`}>
+    <div className={`text-white/80 font-medium ${isStreaming ? 'streaming-message' : ''}`}>
       <ReactMarkdown components={components}>
         {isStreaming ? autoCloseMarkdown(cleanText(content)) : cleanText(content)}
       </ReactMarkdown>
@@ -224,22 +222,23 @@ const StreamCursor = () => (
   <motion.span
     animate={{ filter: ['blur(4px)', 'blur(2px)', 'blur(4px)'], opacity: [0.5, 1, 0.5], scale: [0.8, 1.3, 0.8] }}
     transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-    className="inline-block w-2 h-2 bg-white ml-1 align-middle rounded-full shadow-[0_0_15px_6px_rgba(255,255,255,0.4)]"
+    className="inline-block w-3 h-3 bg-white ml-2 align-middle rounded-full shadow-[0_0_20px_8px_rgba(255,255,255,0.4)]"
     aria-hidden
   />
 );
 
 /* ── Wrapper that uses typewriter for history msgs, cursor for streaming ── */
 const TypewriterMarkdown = memo(({ msg, isStreaming, sendMessage, isTyping, user }) => {
-  // Disable typewriter if message is from history
+  // Fix for F5 re-animating: use isHistory prop explicitly passed or assume false if it's new
+  const isHistoryLoaded = msg.isHistory === true;
   const { displayed, done } = useTypewriter(msg.content, {
-    speed: 120,
-    enabled: !msg.isHistory,
+    speed: 160,
+    enabled: !isHistoryLoaded,
   });
 
   const shownContent = displayed;
   const showCursor = isStreaming || !done;
-  const showExtras = done || msg.isHistory; // Show buttons only when fully typed or if from history
+  const showExtras = done || isHistoryLoaded; 
 
   return (
     <div className="relative">
@@ -252,20 +251,20 @@ const TypewriterMarkdown = memo(({ msg, isStreaming, sendMessage, isTyping, user
       <AnimatePresence>
         {showExtras && (
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="flex flex-col"
+            className="flex flex-col mt-6"
           >
             {/* Escalation Banner directly after text */}
             {msg.escalation?.needed && <EscalationBanner escalation={msg.escalation} />}
 
             {/* Show References */}
             {msg.references?.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap gap-2">
                 {msg.references.map((ref, i) => (
                   <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 border border-white/5 text-[11px] text-neutral-400 hover:text-white transition-colors">
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/5 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/[0.05] transition-all">
                     <Link2 size={10} /><span>{ref.title}</span>
                   </a>
                 ))}
@@ -274,11 +273,11 @@ const TypewriterMarkdown = memo(({ msg, isStreaming, sendMessage, isTyping, user
 
             {/* Show Suggestions and LawyerSearchChip */}
             {!isStreaming && (msg.suggestions?.length > 0 || msg.escalation?.needed) && (
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-2 mt-4">
                 {msg.escalation?.needed && user?.role !== 'lawyer' && <LawyerSearchChip category={msg.escalation.category} />}
                 {msg.suggestions?.map((sug, i) => (
                   <button key={i} onClick={() => { if (!isTyping) sendMessage(sug); }} disabled={isTyping}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.05] text-neutral-300 hover:bg-white/[0.1] hover:text-white border border-white/5 transition-colors disabled:opacity-50">
+                    className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/[0.05] text-white/60 hover:bg-white/[0.1] hover:text-white border border-white/10 transition-colors disabled:opacity-50">
                     {sug}
                   </button>
                 ))}
@@ -382,7 +381,6 @@ export default function ChatPage() {
     else startListening();
   }, [isListening, startListening, stopListening]);
 
-  // Stop recognition if component unmounts
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
   const handleFileSelect = (e) => {
@@ -418,7 +416,6 @@ export default function ChatPage() {
     }
   }, []);
 
-  // Use ResizeObserver to auto-scroll while text is typing/expanding
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -439,7 +436,6 @@ export default function ChatPage() {
             return;
           }
           
-          // Easing factor for buttery smooth follow-scroll
           el.scrollTop = currentScrollTop + distance * 0.25;
           animationFrameId = requestAnimationFrame(animateScroll);
         };
@@ -467,7 +463,6 @@ export default function ChatPage() {
   useEffect(() => {
     if (messages.length > lastMsgCount.current) {
       isAutoScrollActive.current = true;
-      // Use smooth scroll when a brand new message appears
       scrollToBottom(true);
       lastMsgCount.current = messages.length;
     }
@@ -490,43 +485,48 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex flex-col h-full bg-black relative w-full overflow-hidden"
+      className="flex flex-col h-full bg-[#050505] text-white relative w-full overflow-hidden"
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
     >
       {/* ── Living Background ── */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center opacity-20">
         <motion.div
-          className="w-[700px] h-[700px] mix-blend-screen filter blur-[18px]"
-          animate={{ scale: isGenerating ? [1, 1.12, 1.08, 1.14, 1] : [1, 1.04, 1], opacity: isGenerating ? [0.35, 0.65, 0.5, 0.7, 0.35] : [0.2, 0.35, 0.2] }}
-          transition={{ duration: isGenerating ? 3 : 10, repeat: Infinity, ease: isGenerating ? "easeInOut" : "easeInOut" }}
+          className="w-[800px] h-[800px] mix-blend-screen filter blur-[12px]"
+          animate={{ 
+            scale: isGenerating ? [1, 1.15, 1.05, 1.2, 1] : [1, 1.12, 1], 
+            opacity: isGenerating ? [0.4, 0.7, 0.5, 0.8, 0.4] : [0.2, 0.45, 0.2] 
+          }}
+          transition={{ 
+            duration: isGenerating ? 3 : 6, 
+            repeat: Infinity, 
+            ease: "easeInOut" 
+          }}
         >
           <GenerativeArtScene isThinking={isGenerating} />
         </motion.div>
 
-        {/* extra glow ring when generating */}
         <AnimatePresence>
           {isGenerating && (
             <motion.div
               key="glow-ring"
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: [0, 0.15, 0], scale: [0.8, 1.4, 1.8] }}
+              animate={{ opacity: [0, 0.2, 0], scale: [0.8, 1.6, 2] }}
               exit={{ opacity: 0 }}
               transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
-              className="absolute w-[400px] h-[400px] rounded-full border border-white/20"
-              style={{ filter: 'blur(8px)' }}
+              className="absolute w-[500px] h-[500px] rounded-full border border-white/20"
+              style={{ filter: 'blur(12px)' }}
             />
           )}
         </AnimatePresence>
       </div>
 
-      {/* ── Drag overlay ── */}
       <AnimatePresence>
         {isDragOver && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md border-2 border-dashed border-white/20 m-4 rounded-3xl">
+            className="absolute inset-0 z-50 flex items-center justify-center bg-[#050505]/90 backdrop-blur-xl border-4 border-dashed border-white/20 m-6 rounded-[3rem]">
             <div className="text-center">
-              <FileText size={48} className="mx-auto text-white mb-4 opacity-50" />
-              <h3 className="text-xl font-bold text-white">Отпустите файл здесь</h3>
+              <FileText size={64} className="mx-auto text-white/40 mb-6" />
+              <h3 className="text-3xl font-black tracking-tight text-white">Отпустите файл здесь</h3>
             </div>
           </motion.div>
         )}
@@ -534,8 +534,8 @@ export default function ChatPage() {
 
       {/* ── Messages ── */}
       <div ref={scrollRef} onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-8 md:px-8 w-full max-w-4xl mx-auto custom-scrollbar relative z-10">
-        <div className="flex flex-col space-y-8 min-h-full justify-end pb-4">
+        className="flex-1 overflow-y-auto px-4 md:px-6 py-6 w-full max-w-4xl mx-auto custom-scrollbar relative z-10">
+        <div className="flex flex-col space-y-6 min-h-full justify-end pb-4">
           <AnimatePresence mode="popLayout">
             {messages.length === 0 ? (
               <motion.div key="welcome"
@@ -543,23 +543,22 @@ export default function ChatPage() {
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5, ease: 'easeOut' }}
               >
-                {/* ── VaporizeText greeting ── */}
-                <div className="w-12 h-12 rounded-xl bg-white text-black flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(255,255,255,0.15)]">
+                <div className="w-12 h-12 rounded-[1rem] bg-white text-black flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(255,255,255,0.15)]">
                   <Scale size={24} strokeWidth={2} />
                 </div>
 
-                <div className="w-full max-w-lg mb-2 text-center">
+                <div className="w-full max-w-lg mb-3 text-center">
                   <motion.h2 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
-                    className="text-2xl md:text-3xl font-black text-white tracking-tight"
+                    className="text-2xl md:text-3xl font-black text-white tracking-tighter"
                   >
-                    Юридический ИИ-ассистент
+                    Правовой ИИ
                   </motion.h2>
                 </div>
 
-                <p className="text-neutral-500 max-w-sm mx-auto mb-10 text-sm leading-relaxed">
+                <p className="text-white/40 max-w-sm mx-auto mb-8 text-[9px] font-black uppercase tracking-widest leading-relaxed">
                   Задайте юридический вопрос, загрузите документ для анализа или попросите составить договор.
                 </p>
 
@@ -577,10 +576,10 @@ export default function ChatPage() {
                   ]).map((sug, i) => (
                     <motion.button key={i} onClick={() => sendMessage(sug.text)}
                       variants={suggestionVariants} initial="hidden" animate="visible" custom={i}
-                      className="group flex items-center gap-3 p-4 bg-white/[0.04] border border-white/[0.07] rounded-2xl hover:bg-white/[0.08] hover:border-white/[0.12] transition-all duration-200 text-left"
+                      className="group flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-white/20 transition-all duration-300 text-left"
                     >
-                      <div className="text-neutral-500 group-hover:text-white transition-colors flex-shrink-0">{sug.icon}</div>
-                      <span className="text-sm text-neutral-400 group-hover:text-white transition-colors font-medium leading-snug">{sug.text}</span>
+                      <div className="w-8 h-8 rounded-lg bg-[#050505] border border-white/5 flex items-center justify-center text-white/40 group-hover:text-white transition-colors flex-shrink-0">{sug.icon}</div>
+                      <span className="text-[13px] text-white/60 group-hover:text-white transition-colors font-semibold leading-snug">{sug.text}</span>
                     </motion.button>
                   ))}
                 </div>
@@ -590,28 +589,40 @@ export default function ChatPage() {
                 {messages.map((msg, index) => (
                   <motion.div key={msg.tempId || msg.id || index}
                     className={`flex flex-col w-full ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-                    variants={msgVariants} initial="hidden" animate="visible"
+                    variants={msgVariants} initial={msg.isHistory ? false : "hidden"} animate="visible"
                   >
-                    {msg.role === 'assistant' && (
-                      <div className="flex items-center gap-2 mb-2 px-1">
-                        <div className="w-5 h-5 rounded bg-white text-black flex items-center justify-center">
-                          <Scale size={12} />
-                        </div>
-                        <span className="text-[11px] font-bold text-white uppercase tracking-widest">LegalAI</span>
-                      </div>
-                    )}
-                    <div className={`relative max-w-[85%] px-5 py-4 rounded-3xl text-[15px] ${
-                      msg.role === 'user' ? 'bg-white text-black rounded-tr-sm' : 'bg-transparent text-white pl-8'
+                    <div className={`relative w-full max-w-[95%] sm:max-w-[85%] p-4 md:p-6 rounded-3xl ${
+                      msg.role === 'user' 
+                        ? 'bg-white/[0.03] border border-white/10 text-white ml-auto' 
+                        : 'bg-white/[0.01] border border-white/5 text-white hover:border-white/10 transition-colors'
                     }`}>
+                      {msg.role === 'assistant' && (
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
+                          <div className="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center">
+                            <Scale size={14} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-bold tracking-tight text-white leading-none">LegalAI</span>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-0.5">Ответ системы</span>
+                          </div>
+                        </div>
+                      )}
+                      
                       {msg.role === 'user' ? (
                         <>
+                          <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/5 opacity-50">
+                            <div className="w-6 h-6 rounded-lg bg-white/10 text-white flex items-center justify-center">
+                              <Search size={12} />
+                            </div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-white">Вы спросили</span>
+                          </div>
                           {msg.attached_document_id && (
-                            <div className="flex items-center gap-2 mb-2 bg-black/10 w-fit px-3 py-1.5 rounded-xl border border-black/5">
-                              <FileText size={14} className="text-black/70" />
-                              <span className="text-xs font-medium truncate max-w-[200px]">{msg.attached_document_name || "Документ"}</span>
+                            <div className="flex items-center gap-2 mb-3 bg-white/[0.05] w-fit px-2.5 py-1.5 rounded-lg border border-white/10">
+                              <FileText size={12} className="text-white/60" />
+                              <span className="text-xs font-semibold truncate max-w-[200px]">{msg.attached_document_name || "Документ"}</span>
                             </div>
                           )}
-                          <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                          <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap text-white/90">{msg.content}</p>
                         </>
                       ) : (
                         <TypewriterMarkdown 
@@ -627,9 +638,12 @@ export default function ChatPage() {
                 ))}
 
                 {isTyping && (
-                  <motion.div className="flex justify-start w-full pl-8"
+                  <motion.div className="flex justify-start w-full pl-6"
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                    <AIWaveform label="Генерирую ответ..." />
+                    <div className="bg-white/[0.02] border border-white/5 p-3 md:p-4 rounded-2xl flex items-center gap-3">
+                       <Zap size={14} className="text-white animate-pulse" />
+                       <AIWaveform label="АНАЛИЗ..." />
+                    </div>
                   </motion.div>
                 )}
               </>
@@ -638,36 +652,37 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* ── Voice Feedback Overlay ── */}
       <AnimatePresence>
         {(isListening || voiceError) && (
           <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute bottom-28 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="absolute bottom-40 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
           >
-            <div className="bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col items-center gap-3 min-w-[280px]">
+            <div className="bg-[#050505]/95 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col items-center gap-5 min-w-[320px]">
               {voiceError ? (
                 <>
-                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 mb-1">
-                    <MicOff size={20} />
+                  <div className="w-16 h-16 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-2">
+                    <MicOff size={24} />
                   </div>
-                  <p className="text-sm font-semibold text-red-400 text-center">{voiceError}</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-red-500 text-center">{voiceError}</p>
                 </>
               ) : (
                 <>
-                  <div className="w-12 h-12 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center relative">
-                    <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.8, 0.3] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0 rounded-full bg-red-500/20" />
-                    <Mic size={20} className="text-red-400 relative z-10" />
+                  <div className="relative w-20 h-20 flex items-center justify-center">
+                    <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.1, 0, 0.1] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0 rounded-full border border-white/50" />
+                    <div className="w-16 h-16 rounded-[2rem] bg-white text-black flex items-center justify-center relative z-10 shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+                      <Mic size={24} />
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-[13px] font-bold text-white mb-1">Слушаю вас...</p>
-                    <p className="text-[11px] text-white/40">Нажмите «Стоп», чтобы добавить текст</p>
+                  <div className="text-center mt-2">
+                    <p className="text-lg font-black text-white mb-2 tracking-tight">Слушаю вас...</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Нажмите «Стоп», чтобы добавить текст</p>
                   </div>
                   {interimTranscript && (
-                    <div className="w-full mt-2 pt-2 border-t border-white/10 text-center">
-                      <p className="text-xs text-white/60 italic leading-relaxed line-clamp-2">
+                    <div className="w-full mt-4 pt-4 border-t border-white/5 text-center">
+                      <p className="text-sm font-medium text-white/80 italic leading-relaxed">
                         "{interimTranscript}"
                       </p>
                     </div>
@@ -679,33 +694,28 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
 
-      {/* ════════════════════════════
-          REDESIGNED INPUT AREA
-      ════════════════════════════ */}
-      <div className="px-4 pb-5 pt-2 w-full max-w-4xl mx-auto relative z-20">
-
-        {/* Command palette */}
+      <div className="px-4 pb-4 pt-1 w-full max-w-4xl mx-auto relative z-20">
         <AnimatePresence>
           {showCommands && (
-            <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.97 }} transition={{ duration: 0.18 }}
-              className="absolute bottom-full left-4 right-4 md:left-0 md:right-0 mb-3 bg-[#111] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50">
-              <div className="px-4 py-2.5 border-b border-white/[0.05]">
-                <span className="text-[10px] font-bold text-neutral-600 uppercase tracking-widest">Быстрые команды</span>
+            <motion.div initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.2 }}
+              className="absolute bottom-full left-4 right-4 md:left-0 md:right-0 mb-4 bg-[#050505] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Быстрые команды</span>
               </div>
               <div className="p-1.5 flex flex-col gap-0.5 max-h-56 overflow-y-auto custom-scrollbar">
                 {INLINE_COMMANDS.filter(c => c.prefix.toLowerCase().startsWith(input.toLowerCase())).map((cmd, i) => (
                   <button key={i} type="button"
                     onClick={() => { setInput(cmd.prefix + ' '); setShowCommands(false); textareaRef.current?.focus(); }}
                     onMouseEnter={() => setCommandIndex(i)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${commandIndex === i ? 'bg-white/[0.08] text-white' : 'text-neutral-400 hover:bg-white/[0.05]'}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${commandIndex === i ? 'bg-white text-black' : 'text-white/60 hover:bg-white/[0.05]'}`}
                   >
-                    <div className="p-1.5 rounded-lg bg-white/[0.06] text-white">{cmd.icon}</div>
+                    <div className={`p-1.5 rounded-lg ${commandIndex === i ? 'bg-black/10' : 'bg-white/5 text-white'}`}>{cmd.icon}</div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold">{cmd.label}</div>
-                      <div className="text-xs text-neutral-600">{cmd.description}</div>
+                      <div className="text-[13px] font-bold tracking-tight">{cmd.label}</div>
+                      <div className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${commandIndex === i ? 'text-black/60' : 'text-white/40'}`}>{cmd.description}</div>
                     </div>
-                    <div className="text-[10px] font-mono bg-white/[0.06] px-2 py-0.5 rounded-lg text-neutral-500">{cmd.prefix}</div>
+                    <div className={`text-[9px] font-black tracking-widest px-2 py-1 rounded-md ${commandIndex === i ? 'bg-black/10' : 'bg-white/5'}`}>{cmd.prefix}</div>
                   </button>
                 ))}
               </div>
@@ -713,27 +723,24 @@ export default function ChatPage() {
           )}
         </AnimatePresence>
 
-        {/* Main input card */}
         <motion.form onSubmit={handleSubmit}
-          animate={{ borderColor: isFocused ? 'rgba(255,255,255,0.18)' : isGenerating ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)' }}
+          animate={{ borderColor: isFocused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)' }}
           transition={{ duration: 0.3 }}
-          className="relative rounded-2xl border bg-[#0d0d0d] shadow-[0_8px_40px_rgba(0,0,0,0.6)] overflow-hidden"
-          style={{ borderColor: 'rgba(255,255,255,0.07)' }}
+          className="relative rounded-3xl border bg-[#050505]/80 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.6)] overflow-hidden"
+          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
         >
-          {/* Attached file pill */}
           {attachedFile && (
             <div className="px-4 pt-3 pb-0">
-              <div className="inline-flex items-center gap-2 bg-white/[0.07] border border-white/[0.08] px-3 py-1.5 rounded-xl">
-                <FileText size={13} className="text-neutral-300" />
-                <span className="text-xs font-medium text-neutral-200 truncate max-w-[220px]">{attachedFile.name}</span>
-                <button type="button" onClick={() => setAttachedFile(null)} className="text-neutral-500 hover:text-white transition-colors ml-1">
-                  <X size={13} />
+              <div className="inline-flex items-center gap-2 bg-white/[0.05] border border-white/10 px-3 py-1.5 rounded-xl">
+                <FileText size={14} className="text-white/60" />
+                <span className="text-[13px] font-medium text-white truncate max-w-[200px]">{attachedFile.name}</span>
+                <button type="button" onClick={() => setAttachedFile(null)} className="text-white/40 hover:text-white transition-colors ml-1">
+                  <X size={14} />
                 </button>
               </div>
             </div>
           )}
 
-          {/* Textarea */}
           <div className="px-4 pt-3 pb-2">
             <TextareaAutosize
               ref={textareaRef}
@@ -757,147 +764,76 @@ export default function ChatPage() {
               placeholder="Спросите LegalAI..."
               minRows={1}
               maxRows={7}
-              className="w-full bg-transparent border-none text-white placeholder-neutral-600 text-[15px] outline-none resize-none custom-scrollbar leading-relaxed"
+              className="w-full bg-transparent border-none text-white placeholder-white/20 text-[15px] font-medium outline-none resize-none custom-scrollbar leading-relaxed tracking-tight"
             />
           </div>
 
-          {/* Bottom toolbar */}
           <div className="flex items-center justify-between px-3 pb-3 pt-1">
-            {/* Left actions */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".pdf,.docx,.doc,.txt" className="hidden" />
 
-              {/* Slash command button */}
               <button type="button"
                 onClick={() => { if (input.startsWith('/')) setShowCommands(false); else { setInput('/'); setShowCommands(true); textareaRef.current?.focus(); } }}
                 title="Команды"
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-colors ${showCommands ? 'bg-white/10 text-white' : 'text-neutral-600 hover:text-neutral-300 hover:bg-white/[0.05]'}`}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${showCommands ? 'bg-white text-black' : 'bg-white/[0.02] text-white/40 hover:text-white hover:bg-white/[0.05] border border-white/5'}`}
               >
-                <Command size={13} /><span className="hidden sm:block">Команды</span>
+                <Command size={12} /><span className="hidden sm:block">Команды</span>
               </button>
 
-              {/* Attach */}
               <button type="button" onClick={() => fileInputRef.current?.click()} title="Прикрепить файл"
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-colors ${attachedFile ? 'bg-white/10 text-white' : 'text-neutral-600 hover:text-neutral-300 hover:bg-white/[0.05]'}`}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${attachedFile ? 'bg-white text-black' : 'bg-white/[0.02] text-white/40 hover:text-white hover:bg-white/[0.05] border border-white/5'}`}
               >
-                <Paperclip size={13} /><span className="hidden sm:block">Файл</span>
+                <Paperclip size={12} /><span className="hidden sm:block">Файл</span>
               </button>
 
-              {/* Mic */}
               <button type="button" onClick={toggleListening} title="Голосовой ввод"
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-all duration-200 ${
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${
                   isListening
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
-                    : 'text-neutral-600 hover:text-neutral-300 hover:bg-white/[0.05]'
+                    ? 'bg-red-500 text-black shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                    : 'bg-white/[0.02] text-white/40 hover:text-white hover:bg-white/[0.05] border border-white/5'
                 }`}
               >
                 {isListening
-                  ? <><motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }}><MicOff size={13} /></motion.div><span className="hidden sm:block">Стоп</span></>
-                  : <><Mic size={13} /><span className="hidden sm:block">Голос</span></>
+                  ? <><motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }}><MicOff size={12} /></motion.div><span className="hidden sm:block">Стоп</span></>
+                  : <><Mic size={12} /><span className="hidden sm:block">Голос</span></>
                 }
               </button>
             </div>
-            {/* Right — hint + send */}
+            
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-neutral-700 hidden sm:block">Enter — отправить</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/20 hidden sm:block">Enter — отправить</span>
               <button type="submit" disabled={!canSend}
-                className={`relative h-9 w-9 flex items-center justify-center rounded-xl transition-all duration-200 ${canSend ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.25)] hover:bg-neutral-100 active:scale-95' : 'bg-white/[0.06] text-neutral-600'}`}
+                className={`relative h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-300 ${canSend ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95' : 'bg-white/[0.02] text-white/20 border border-white/5'}`}
               >
                 {isUploadingFile
-                  ? <Loader2 size={15} className="animate-spin" />
+                  ? <Loader2 size={14} className="animate-spin" />
                   : isGenerating
                     ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-                        <Loader2 size={15} />
+                        <Loader2 size={14} />
                       </motion.div>
-                    : <ArrowUp size={15} strokeWidth={2.5} />
+                    : <ArrowUp size={14} strokeWidth={2.5} />
                 }
               </button>
             </div>
           </div>
 
-          {/* ── Animated bottom glow when generating ── */}
           {isGenerating && (
             <motion.div
               key="glow-entry"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
-              className="absolute bottom-0 left-0 right-0 h-[1px] pointer-events-none"
+              className="absolute bottom-0 left-0 right-0 h-[2px] pointer-events-none"
             >
               <div
-                className="absolute inset-0 h-full bg-gradient-to-r from-transparent via-white/35 to-transparent"
+                className="absolute inset-0 h-full bg-gradient-to-r from-transparent via-white/50 to-transparent"
                 style={{ animation: 'glowSweep 2s ease-in-out infinite' }}
               />
             </motion.div>
           )}
-
-          {/* ── Voice recording overlay ── */}
-          <AnimatePresence>
-            {(isListening || voiceError) && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                transition={{ duration: 0.2 }}
-                className="absolute bottom-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-[320px] rounded-3xl z-50 flex flex-col items-center justify-center gap-5 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 shadow-2xl p-6"
-              >
-                {/* Visualizer rings */}
-                {!voiceError && (
-                  <div className="relative w-16 h-16 flex items-center justify-center">
-                    <motion.div
-                      className="absolute inset-0 rounded-full border border-white/20"
-                      animate={{ scale: [1, 1.5, 1], opacity: [1, 0, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                    />
-                    <motion.div
-                      className="absolute inset-2 rounded-full border border-white/40"
-                      animate={{ scale: [1, 1.3, 1], opacity: [1, 0, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: 'linear', delay: 0.2 }}
-                    />
-                    <Mic className="text-white relative z-10" size={24} />
-                  </div>
-                )}
-                
-                {/* Interim transcript or prompt */}
-                <div className="text-sm font-medium text-center text-white/80 min-h-[40px] flex items-center justify-center">
-                  {!voiceError ? (
-                    interimTranscript || (voiceLang === 'kk-KZ' ? 'Сөйлеңіз...' : 'Говорите...')
-                  ) : null}
-                </div>
-
-                {/* Controls */}
-                <div className="flex gap-3 w-full">
-                  {!voiceError && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); setVoiceLang(prev => prev === 'ru-RU' ? 'kk-KZ' : 'ru-RU'); }}
-                      className="flex-1 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-medium text-white/70 transition-colors"
-                    >
-                      {voiceLang === 'ru-RU' ? '🇷🇺 RU' : '🇰🇿 KZ'}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setVoiceError(null); toggleListening(); }}
-                    className="flex-1 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-medium transition-colors border border-red-500/20"
-                  >
-                    {isListening ? 'Стоп' : 'Закрыть'}
-                  </button>
-                </div>
-
-                {/* Voice error */}
-                {voiceError && (
-                  <div className="flex flex-col items-center gap-2 mt-2 w-full">
-                    <p className="text-red-400/90 text-xs text-center">{voiceError}</p>
-                    <button type="button" onClick={() => setVoiceError(null)} className="mt-2 w-full py-2 bg-white/[0.05] rounded-xl text-xs hover:bg-white/[0.1] transition-colors border border-white/5">Закрыть ошибку</button>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
         </motion.form>
 
-        <p className="text-center text-[10px] text-neutral-700 mt-2.5">
+        <p className="text-center text-[9px] font-black uppercase tracking-widest text-white/20 mt-6">
           LegalAI может допускать ошибки. Проконсультируйтесь с юристом по важным вопросам.
         </p>
       </div>

@@ -205,7 +205,7 @@ export default function CommandPalette() {
 
           {/* Panel */}
           <motion.div
-            className="relative w-full max-w-xl mx-4 rounded-2xl border-beam bg-obsidian-900/95 backdrop-blur-xl shadow-[0_25px_60px_rgba(0,0,0,0.7),0_0_40px_rgba(255,255,255,0.02)] overflow-hidden"
+            className="relative w-full max-w-xl mx-4 rounded-2xl bg-[#050505]/95 border border-white/10 backdrop-blur-xl shadow-[0_25px_60px_rgba(0,0,0,0.7),0_0_40px_rgba(255,255,255,0.02)] overflow-hidden"
             variants={panelVariants}
             initial="hidden"
             animate="visible"
@@ -213,22 +213,22 @@ export default function CommandPalette() {
             onKeyDown={handleKeyDown}
           >
             {/* Subtle top accent line */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-px bg-gradient-to-r from-transparent via-chrome-300/40 to-transparent" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
 
             {/* Search input */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
-              <Search size={18} className="text-steel-400 flex-shrink-0" />
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+              <Search size={18} className="text-neutral-500 flex-shrink-0" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Поиск команд и действий..."
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-steel-500 outline-none caret-indigo-400"
+                className="flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none caret-white"
                 autoComplete="off"
                 spellCheck={false}
               />
-              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-steel-500 bg-white/[0.04] rounded border border-white/[0.08]">
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-neutral-500 bg-white/5 rounded border border-white/10">
                 ESC
               </kbd>
             </div>
@@ -239,7 +239,7 @@ export default function CommandPalette() {
               className="max-h-[360px] overflow-y-auto overscroll-contain py-2 px-2 custom-scrollbar"
             >
               {flatItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-steel-500">
+                <div className="flex flex-col items-center justify-center py-12 text-neutral-500">
                   <Search size={32} strokeWidth={1} className="mb-3 opacity-40" />
                   <p className="text-sm font-medium">Ничего не найдено</p>
                   <p className="text-xs mt-1 opacity-60">Попробуйте другой запрос</p>
@@ -248,7 +248,7 @@ export default function CommandPalette() {
                 grouped.map((group, gi) => (
                   <div key={group.category} className={gi > 0 ? 'mt-3' : ''}>
                     {/* Category header */}
-                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-steel-500">
+                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
                       {group.category}
                     </div>
 
@@ -270,19 +270,15 @@ export default function CommandPalette() {
                           onMouseEnter={() => setSelectedIndex(globalIdx)}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group cursor-pointer border ${
                             isSelected
-                              ? 'bg-gradient-to-r from-white/[0.08] to-white/[0.02] border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_4px_20px_rgba(0,0,0,0.3)] text-white scale-[1.01]'
-                              : 'text-steel-300 hover:bg-white/[0.03] border-transparent'
+                              ? 'bg-white/[0.05] border-white/10 text-white scale-[1.01]'
+                              : 'text-neutral-400 hover:bg-white/[0.03] border-transparent'
                           }`}
                         >
                           <div
                             className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 ${
                               isSelected
-                                ? action.category === 'Навигация'
-                                  ? 'bg-indigo-500/25 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.25)]'
-                                  : action.category === 'Юристы'
-                                    ? 'bg-emerald-500/25 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
-                                    : 'bg-amber-500/25 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-                                : 'bg-white/[0.04] text-steel-400 group-hover:text-steel-300'
+                                ? 'bg-white text-black'
+                                : 'bg-white/[0.04] text-neutral-500 group-hover:text-neutral-300'
                             }`}
                           >
                             <Icon size={16} strokeWidth={1.8} />
@@ -290,7 +286,7 @@ export default function CommandPalette() {
 
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{action.label}</div>
-                            <div className="text-[11px] text-steel-500 truncate">
+                            <div className={`text-[11px] truncate transition-colors ${isSelected ? 'text-white/60' : 'text-neutral-500'}`}>
                               {action.description}
                             </div>
                           </div>
@@ -299,7 +295,7 @@ export default function CommandPalette() {
                             <motion.div
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="flex-shrink-0 flex items-center gap-1 text-[10px] text-steel-500"
+                              className="flex-shrink-0 flex items-center gap-1 text-[10px] text-white/40"
                             >
                               <CornerDownLeft size={12} />
                             </motion.div>
@@ -313,36 +309,36 @@ export default function CommandPalette() {
             </div>
 
             {/* Footer with keyboard hints */}
-            <div className="flex items-center justify-between px-5 py-2.5 border-t border-white/[0.06] bg-white/[0.02]">
-              <div className="flex items-center gap-3 text-[10px] text-steel-500">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-white/10 bg-[#0a0a0a]">
+              <div className="flex items-center gap-3 text-[10px] text-neutral-500 font-medium">
                 <span className="inline-flex items-center gap-1">
-                  <kbd className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/[0.06] border border-white/[0.08]">
+                  <kbd className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/5 border border-white/10">
                     <ArrowUp size={8} />
                   </kbd>
-                  <kbd className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/[0.06] border border-white/[0.08]">
+                  <kbd className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/5 border border-white/10">
                     <ArrowDown size={8} />
                   </kbd>
                   <span className="ml-0.5">навигация</span>
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <kbd className="inline-flex items-center justify-center h-4 px-1 rounded bg-white/[0.06] border border-white/[0.08] text-[9px] font-mono">
+                  <kbd className="inline-flex items-center justify-center h-4 px-1 rounded bg-white/5 border border-white/10 text-[9px] font-mono">
                     ↵
                   </kbd>
                   <span className="ml-0.5">выбрать</span>
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <kbd className="inline-flex items-center justify-center h-4 px-1 rounded bg-white/[0.06] border border-white/[0.08] text-[9px] font-mono">
+                  <kbd className="inline-flex items-center justify-center h-4 px-1 rounded bg-white/5 border border-white/10 text-[9px] font-mono">
                     esc
                   </kbd>
                   <span className="ml-0.5">закрыть</span>
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-[10px] text-steel-500">
-                <kbd className="inline-flex items-center justify-center h-4 px-1.5 rounded bg-white/[0.06] border border-white/[0.08] text-[9px] font-mono">
+              <div className="flex items-center gap-1 text-[10px] text-neutral-500 font-medium">
+                <kbd className="inline-flex items-center justify-center h-4 px-1.5 rounded bg-white/5 border border-white/10 text-[9px] font-mono">
                   {isMac ? '⌘' : 'Ctrl'}
                 </kbd>
                 <span>+</span>
-                <kbd className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/[0.06] border border-white/[0.08] text-[9px] font-mono">
+                <kbd className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/5 border border-white/10 text-[9px] font-mono">
                   K
                 </kbd>
               </div>

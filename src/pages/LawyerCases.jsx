@@ -82,16 +82,16 @@ export default function LawyerCases() {
 
   const filteredCases = cases.filter(c => 
     c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.client.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (c.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'active': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      case 'won': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.2)]';
-      case 'closed': return 'bg-steel-500/10 text-steel-400 border-steel-500/20';
-      case 'pending': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
-      default: return 'bg-obsidian-800 text-chrome-400 border-obsidian-600';
+      case 'active': return 'bg-white/10 text-white border-white/20';
+      case 'won': return 'bg-white text-black border-white';
+      case 'closed': return 'bg-white/5 text-white/40 border-white/10';
+      case 'pending': return 'bg-white/10 text-white/60 border-white/20';
+      default: return 'bg-[#050505] text-white/40 border-white/5';
     }
   };
 
@@ -106,37 +106,37 @@ export default function LawyerCases() {
   };
 
   return (
-    <div className="h-full p-8 flex flex-col relative overflow-hidden">
-      <div className="flex justify-between items-center mb-8">
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-6 lg:p-10 selection:bg-white/20 font-sans">
+      <div className="flex justify-between items-center mb-6 shrink-0 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-            <Briefcase className="text-chrome-400" />
+          <h1 className="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3">
+            <Briefcase size={28} />
             Истории дел
           </h1>
-          <p className="text-steel-400 mt-2 text-sm tracking-wide">Управление процессами и задачами по клиентам</p>
+          <p className="text-white/40 font-bold tracking-widest text-[10px] uppercase mt-1">Управление процессами и задачами по клиентам</p>
         </div>
         
-        <MagneticButton onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2 px-5 py-2.5">
-          <Plus size={18} />
+        <button onClick={() => setIsModalOpen(true)} className="h-12 px-6 rounded-2xl bg-white text-black font-bold text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-neutral-200 transition-colors whitespace-nowrap shrink-0">
+          <Plus size={16} />
           <span>Новое дело</span>
-        </MagneticButton>
+        </button>
       </div>
 
-      <div className="glass-card p-4 mb-6 flex items-center gap-3">
-        <Search className="text-steel-500" size={20} />
+      <div className="bg-white/[0.01] border border-white/5 rounded-2xl p-3 mb-6 shrink-0 flex items-center gap-3">
+        <Search className="text-white/40 ml-2" size={18} />
         <input 
           type="text" 
           placeholder="Поиск по названию дела или имени клиента..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-transparent border-none outline-none text-white w-full placeholder:text-steel-600"
+          className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-white/30"
         />
       </div>
 
 
-      <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar pb-4 mt-4">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar pb-4 pr-4">
         {loading ? (
-          <div className="text-steel-400 text-center py-10">Загрузка дел...</div>
+          <div className="text-white/40 text-center py-20 font-bold tracking-widest uppercase text-[10px]">Загрузка дел...</div>
         ) : (
           <div className="flex gap-6 h-full min-w-max">
             {['pending', 'active', 'won', 'closed'].map(colStatus => {
@@ -144,32 +144,32 @@ export default function LawyerCases() {
               return (
                 <div 
                   key={colStatus} 
-                  className="w-80 flex flex-col bg-obsidian-900/20 rounded-2xl border border-obsidian-700/50"
+                  className="w-80 flex flex-col bg-white/[0.01] rounded-[2rem] border border-white/5 overflow-hidden transition-colors"
                   onDragOver={(e) => {
                     e.preventDefault();
-                    e.currentTarget.classList.add('bg-obsidian-800/40');
+                    e.currentTarget.classList.add('bg-white/[0.03]');
                   }}
                   onDragLeave={(e) => {
-                    e.currentTarget.classList.remove('bg-obsidian-800/40');
+                    e.currentTarget.classList.remove('bg-white/[0.03]');
                   }}
                   onDrop={(e) => {
                     e.preventDefault();
-                    e.currentTarget.classList.remove('bg-obsidian-800/40');
+                    e.currentTarget.classList.remove('bg-white/[0.03]');
                     const caseIdStr = e.dataTransfer.getData('caseId');
                     if (caseIdStr) {
                       updateCaseStatus(parseInt(caseIdStr), colStatus);
                     }
                   }}
                 >
-                  <div className="p-4 border-b border-obsidian-700/50 flex items-center justify-between">
-                    <h3 className="text-white font-bold tracking-wide flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${getStatusColor(colStatus).split(' ')[0].replace('/10','')}`} />
+                  <div className="p-5 border-b border-white/5 flex items-center justify-between shrink-0 bg-white/[0.02]">
+                    <h3 className="font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor(colStatus).split(' ')[0]}`} />
                       {getStatusText(colStatus)}
                     </h3>
-                    <span className="text-xs font-mono text-steel-500 bg-obsidian-800 px-2 py-0.5 rounded-md border border-obsidian-700">{colCases.length}</span>
+                    <span className="text-[10px] font-black text-white/40 bg-white/[0.05] px-2.5 py-1 rounded-full border border-white/10">{colCases.length}</span>
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative">
                     {colCases.map((c, i) => (
                       <motion.div 
                         key={c.id}
@@ -184,29 +184,35 @@ export default function LawyerCases() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05 }}
-                        className="glass-card p-4 flex flex-col hover:border-chrome-500/50 transition-colors group relative cursor-grab active:cursor-grabbing bg-obsidian-900/60"
+                        className="bg-[#050505] p-5 flex flex-col rounded-[1.5rem] border border-white/5 hover:border-white/20 transition-all group relative cursor-grab active:cursor-grabbing hover:bg-white/[0.02]"
                       >
-                        <div className="flex items-center justify-between mb-2">
-                           <span className="text-[10px] font-medium text-steel-500 px-2 py-0.5 bg-obsidian-800 rounded-md border border-obsidian-700">
+                        <div className="flex items-center justify-between mb-3">
+                           <span className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 py-1 bg-white/[0.05] rounded-md border border-white/5 truncate max-w-[120px]">
                              {c.category || 'Без категории'}
                            </span>
                            {c.client && (
-                             <div className="flex items-center gap-1 text-[10px] text-chrome-200">
+                             <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/60">
                                <User size={10} />
                                <span className="truncate max-w-[80px]">{c.client.name}</span>
                              </div>
                            )}
                         </div>
-                        <h4 className="text-sm font-bold text-white mb-1 leading-snug">{c.title}</h4>
-                        <p className="text-xs text-steel-400 line-clamp-2 mb-3">{c.description || 'Нет описания'}</p>
+                        <h4 className="text-sm font-bold text-white mb-2 leading-snug">{c.title}</h4>
+                        <p className="text-xs text-white/40 line-clamp-2 mb-4 leading-relaxed">{c.description || 'Нет описания'}</p>
                         
-                        <div className="flex items-center gap-2 mt-auto pt-2 border-t border-obsidian-800">
-                           <button className="text-[10px] text-chrome-400 hover:text-chrome-300 font-medium flex items-center gap-1 transition-colors">
-                             Подробнее <ChevronRight size={12} />
+                        <div className="flex items-center gap-2 mt-auto pt-3 border-t border-white/5">
+                           <button className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white flex items-center gap-1 transition-colors">
+                             Подробнее <ChevronRight size={10} />
                            </button>
                         </div>
                       </motion.div>
                     ))}
+                    {colCases.length === 0 && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white/20">
+                        <Briefcase size={24} className="mb-2 opacity-20" />
+                        <p className="text-[10px] uppercase font-black tracking-widest">Пусто</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -218,28 +224,29 @@ export default function LawyerCases() {
       <AnimatePresence>
         {isModalOpen && (
           <motion.div 
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
             <motion.div 
-              className="glass-card w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar"
+              className="w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar bg-[#050505] rounded-[2rem] border border-white/10 shadow-2xl"
               initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
             >
-              <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-steel-400 hover:text-white">
-                <X size={24} />
+              <button onClick={() => setIsModalOpen(false)} className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors">
+                <X size={20} />
               </button>
               
-              <h2 className="text-2xl font-bold text-white mb-6">Новое дело</h2>
+              <h2 className="text-3xl font-black mb-8">Новое дело</h2>
               
               {clients.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-steel-400 mb-4">Сначала необходимо добавить клиента в базу.</p>
-                  <MagneticButton onClick={() => setIsModalOpen(false)} className="btn-primary w-full py-2">Закрыть</MagneticButton>
+                <div className="text-center py-10">
+                  <p className="text-white/40 text-sm mb-6">Сначала необходимо добавить клиента в базу.</p>
+                  <button onClick={() => setIsModalOpen(false)} className="h-12 w-full rounded-2xl bg-white text-black font-bold text-sm hover:bg-neutral-200 transition-colors">Закрыть</button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label className="block text-sm text-steel-400 mb-1">Клиент <span className="text-red-500">*</span></label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Клиент <span className="text-red-500">*</span></label>
                     <CustomSelect 
                       value={formData.client_id} 
                       onChange={e => setFormData({...formData, client_id: e.target.value})} 
@@ -247,11 +254,11 @@ export default function LawyerCases() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-steel-400 mb-1">Название дела <span className="text-red-500">*</span></label>
-                    <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="input-field shadow-inner" placeholder="Иск о взыскании долга..." />
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Название дела <span className="text-red-500">*</span></label>
+                    <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full h-12 bg-white/[0.02] border border-white/10 rounded-2xl px-4 text-sm text-white placeholder:text-white/30 focus:border-white/30 outline-none transition-colors" placeholder="Иск о взыскании долга..." />
                   </div>
                   <div>
-                    <label className="block text-sm text-steel-400 mb-1">Категория</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Категория</label>
                     <CustomSelect 
                       value={formData.category} 
                       onChange={e => setFormData({...formData, category: e.target.value})} 
@@ -259,11 +266,11 @@ export default function LawyerCases() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-steel-400 mb-1">Описание / Суть</label>
-                    <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="input-field shadow-inner h-24 resize-none" placeholder="Подробности дела..." />
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Описание / Суть</label>
+                    <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full h-24 resize-none bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-sm text-white placeholder:text-white/30 focus:border-white/30 outline-none transition-colors" placeholder="Подробности дела..." />
                   </div>
                   <div>
-                    <label className="block text-sm text-steel-400 mb-1">Статус</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Статус</label>
                     <CustomSelect 
                       value={formData.status} 
                       onChange={e => setFormData({...formData, status: e.target.value})} 
@@ -276,9 +283,9 @@ export default function LawyerCases() {
                     />
                   </div>
                   
-                  <MagneticButton type="submit" className="btn-primary w-full py-3 mt-6">
+                  <button type="submit" className="h-14 w-full rounded-2xl bg-white text-black font-bold text-sm hover:bg-neutral-200 transition-colors mt-8">
                     Создать дело
-                  </MagneticButton>
+                  </button>
                 </form>
               )}
             </motion.div>

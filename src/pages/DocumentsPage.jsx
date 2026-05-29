@@ -33,12 +33,12 @@ const normalizeDocName = (name = '') => name.replace(/_/g, ' ');
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 110, damping: 18 } },
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }
 };
 
 export default function DocumentsPage() {
@@ -167,246 +167,219 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8">
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-6 lg:p-10 selection:bg-white/20 relative font-sans">
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: -14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            className={`fixed left-1/2 top-5 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border px-5 py-3 text-sm shadow-2xl backdrop-blur-xl ${
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className={`fixed left-1/2 top-5 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border px-5 py-3 text-sm shadow-2xl backdrop-blur-xl ${
               toast.type === 'error'
                 ? 'border-red-500/30 bg-red-500/10 text-red-200'
-                : 'border-white/10 bg-neutral-900/90 text-white'
+                : 'border-white/10 bg-white/[0.05] text-white'
             }`}
           >
             {toast.type === 'error' ? <AlertTriangle size={18} /> : <FileText size={18} />}
-            <span>{toast.message}</span>
+            <span className="font-bold">{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-        <motion.header variants={itemVariants} className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-steel-300">
-              <FileSearch size={14} />
-              Документы и аудит
-            </div>
-            <h1 className="text-3xl font-bold text-white md:text-4xl">Документы</h1>
-            <p className="mt-3 text-sm leading-6 text-neutral-400">
-              Загружайте договоры, запускайте аудит рисков, редактируйте текст и создавайте финальные версии в одном workflow.
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full gap-8 max-w-6xl mx-auto w-full">
+        
+        {/* ── Header ── */}
+        <motion.header variants={itemVariants} className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 shrink-0">
+          <div>
+            <h1 className="text-4xl lg:text-5xl font-black tracking-tight mb-2">Документы</h1>
+            <p className="text-white/40 text-sm max-w-xl">
+              Анализируйте риски, загружайте файлы и создавайте новые версии документов с помощью AI.
             </p>
           </div>
 
-          <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-            <div className="relative min-w-0 flex-1 lg:w-72">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 lg:w-64">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={16} />
               <input
                 type="text"
-                className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-neutral-500 focus:border-white/20"
-                placeholder="Поиск документа"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск..."
+                className="w-full h-12 bg-white/[0.02] border border-white/5 rounded-2xl pl-11 pr-4 text-sm text-white placeholder:text-white/30 focus:bg-white/[0.05] focus:border-white/20 outline-none transition-all"
               />
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-bold text-black transition-colors hover:bg-neutral-200"
+              className="h-12 px-6 rounded-2xl bg-white text-black font-bold text-sm hover:bg-neutral-200 transition-colors flex items-center gap-2 whitespace-nowrap"
             >
-              <Sparkles size={17} />
+              <Sparkles size={16} />
               AI создание
             </button>
           </div>
         </motion.header>
 
-        <motion.section variants={itemVariants} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs text-steel-500">Всего</p>
-            <p className="mt-1 text-2xl font-bold text-white">{stats.total}</p>
+        {/* ── Stats ── */}
+        <motion.div variants={itemVariants} className="grid grid-cols-3 gap-4 shrink-0">
+          <div className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Всего</span>
+            <span className="text-3xl font-black">{stats.total}</span>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs text-steel-500">Загружено</p>
-            <p className="mt-1 text-2xl font-bold text-white">{stats.uploaded}</p>
+          <div className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Загружено</span>
+            <span className="text-3xl font-black">{stats.uploaded}</span>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs text-steel-500">Создано ИИ</p>
-            <p className="mt-1 text-2xl font-bold text-white">{stats.generated}</p>
+          <div className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Создано ИИ</span>
+            <span className="text-3xl font-black">{stats.generated}</span>
           </div>
-        </motion.section>
+        </motion.div>
 
-        <input
-          type="file"
-          multiple
-          accept=".pdf,.doc,.docx,.txt"
-          ref={fileInputRef}
-          className="hidden"
-          onChange={(event) => handleUpload(event.target.files)}
-        />
-
-        <motion.section
+        {/* ── Upload Zone ── */}
+        <input type="file" multiple accept=".pdf,.doc,.docx,.txt" ref={fileInputRef} className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+        <motion.div
           variants={itemVariants}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
+          onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
           onDragLeave={() => setDragActive(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragActive(false);
-            handleUpload(event.dataTransfer.files);
-          }}
+          onDrop={(e) => { e.preventDefault(); setDragActive(false); handleUpload(e.dataTransfer.files); }}
           onClick={() => fileInputRef.current?.click()}
-          className={`group relative cursor-pointer overflow-hidden rounded-3xl border border-dashed p-7 text-center transition-colors ${
-            dragActive ? 'border-white/40 bg-white/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
+          className={`shrink-0 cursor-pointer rounded-[2rem] border border-dashed transition-all p-6 flex items-center gap-5 ${
+            dragActive ? 'border-white/30 bg-white/[0.05]' : 'border-white/10 bg-transparent hover:bg-white/[0.02]'
           }`}
         >
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/40 transition-transform group-hover:scale-105">
-            {uploading ? <Loader2 className="h-6 w-6 animate-spin text-white" /> : <UploadCloud size={25} className="text-steel-300" />}
+          <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center text-white shrink-0">
+            {uploading ? <Loader2 size={20} className="animate-spin" /> : <UploadCloud size={20} />}
           </div>
-          <p className="font-semibold text-white">{uploading ? 'Загрузка документов...' : 'Перетащите файлы сюда или нажмите для выбора'}</p>
-          <p className="mt-2 text-xs text-neutral-500">PDF, DOCX, DOC, TXT до 10 MB. После загрузки можно открыть аудит договора.</p>
-        </motion.section>
+          <div className="flex-1">
+            <p className="text-sm font-bold">{uploading ? 'Загрузка документов...' : 'Загрузить новый документ'}</p>
+            <p className="text-[11px] text-white/40 mt-0.5">Перетащите файлы сюда или нажмите. Поддерживаются PDF, DOCX, TXT.</p>
+          </div>
+        </motion.div>
 
-        <motion.section variants={containerVariants} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {docs.map((doc) => (
-            <motion.article
-              key={doc.id}
-              variants={itemVariants}
-              onClick={() => navigate(`/dashboard/documents/${doc.id}`)}
-              className="group relative flex min-h-[230px] cursor-pointer flex-col rounded-3xl border border-white/10 bg-neutral-950 p-5 transition-colors hover:border-white/20 hover:bg-neutral-900"
-            >
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${doc.type === 'generated' ? 'bg-white text-black' : 'bg-white/5 text-white'}`}>
-                  <FileText size={22} />
+        {/* ── List Area ── */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar relative pr-2">
+          <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
+            {docs.map((doc) => (
+              <motion.div
+                key={doc.id}
+                variants={itemVariants}
+                onClick={() => navigate(`/dashboard/documents/${doc.id}`)}
+                className="group flex flex-col p-6 lg:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden"
+              >
+                <div className="flex items-start gap-5 mb-6">
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border ${doc.type === 'generated' ? 'bg-white text-black border-white' : 'bg-white/5 text-white border-white/10'}`}>
+                    <FileText size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0 pt-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-xl font-bold text-white truncate" title={doc.name}>{normalizeDocName(doc.name)}</h3>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/50 shrink-0 inline-block mb-2">
+                      {doc.type === 'generated' ? 'AI Сгенерировано' : 'Загруженный Файл'}
+                    </span>
+                  </div>
                 </div>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-steel-300">
-                  {doc.type === 'generated' ? 'AI документ' : 'Загружен'}
-                </span>
+
+                <div className="flex items-center justify-between pt-5 border-t border-white/5">
+                  <div className="flex items-center gap-6">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1">Дата</span>
+                      <span className="text-sm font-semibold text-white/80">{doc.date}</span>
+                    </div>
+                    <div className="w-px h-6 bg-white/5" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1">Размер</span>
+                      <span className="text-sm font-semibold text-white/80">{doc.size}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/documents/${doc.id}`); }} className="h-10 px-4 rounded-xl bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-colors">
+                      Аудит
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); docsApi.download(doc.id); }} className="w-10 h-10 rounded-xl bg-white/[0.05] text-white hover:bg-white/[0.1] flex items-center justify-center transition-colors">
+                      <Download size={16} />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }} className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+
+            {docs.length === 0 && !uploading && (
+              <div className="col-span-full py-20 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 rounded-3xl bg-white/[0.02] border border-white/5 flex items-center justify-center mb-4">
+                  <FileText size={24} className="text-white/20" />
+                </div>
+                <h3 className="text-lg font-bold text-white/50 mb-1">Документов нет</h3>
+                <p className="text-sm text-white/30">Загрузите свой первый договор или сгенерируйте новый с помощью AI.</p>
               </div>
-
-              <h3 className="mb-3 line-clamp-2 pr-2 text-base font-semibold leading-6 text-white" title={doc.name}>
-                {normalizeDocName(doc.name)}
-              </h3>
-              <p className="line-clamp-1 text-xs text-steel-500">{doc.originalName}</p>
-
-              <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-4 text-xs text-neutral-500">
-                <span>{doc.date}</span>
-                <span>{doc.size}</span>
-              </div>
-
-              <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-2">
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    navigate(`/dashboard/documents/${doc.id}`);
-                  }}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white text-xs font-bold text-black transition-colors hover:bg-neutral-200"
-                >
-                  <FileSearch size={14} />
-                  Открыть аудит
-                </button>
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    docsApi.download(doc.id);
-                  }}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-steel-300 transition-colors hover:bg-white/10 hover:text-white"
-                  title="Скачать"
-                >
-                  <Download size={15} />
-                </button>
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleDelete(doc.id);
-                  }}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-steel-300 transition-colors hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-200"
-                  title="Удалить"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </motion.article>
-          ))}
-
-          {docs.length === 0 && !uploading && (
-            <div className="col-span-full rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-14 text-center">
-              <FileText className="mx-auto mb-4 text-neutral-600" size={34} />
-              <p className="font-semibold text-white">Документов пока нет</p>
-              <p className="mt-2 text-sm text-neutral-500">Загрузите договор или создайте документ через ИИ.</p>
-            </div>
-          )}
-        </motion.section>
+            )}
+          </motion.div>
+        </div>
       </motion.div>
 
+      {/* ── Modal ── */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
           >
             <motion.div
-              className="relative w-full max-w-xl rounded-3xl border border-white/10 bg-neutral-950 p-6 shadow-2xl"
-              initial={{ scale: 0.96, y: 18 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.96, y: 18 }}
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              className="relative w-full max-w-xl rounded-[2rem] border border-white/10 bg-[#050505] p-8 shadow-2xl"
             >
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="absolute right-4 top-4 rounded-xl p-2 text-neutral-500 transition-colors hover:bg-white/5 hover:text-white"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="absolute right-6 top-6 text-white/40 hover:text-white transition-colors">
                 <X size={20} />
               </button>
 
-              <div className="mb-6 pr-10">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-black">
-                  <Plus size={22} />
+              <div className="mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center mb-4">
+                  <Sparkles size={20} />
                 </div>
-                <h2 className="text-2xl font-bold text-white">Создать документ</h2>
-                <p className="mt-2 text-sm leading-6 text-neutral-400">Опишите ситуацию, стороны, суммы, сроки и нужные условия.</p>
+                <h2 className="text-3xl font-black">Создать документ</h2>
+                <p className="text-white/40 text-sm mt-2">Опишите ситуацию, и AI подготовит шаблон с учетом законов РК.</p>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-6">
                 <div>
-                  <label className="mb-2 block text-xs font-semibold text-neutral-400">Тип документа</label>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {docTypeOptions.map((option) => (
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 block">Тип документа</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {docTypeOptions.map((opt) => (
                       <button
-                        key={option.value}
-                        onClick={() => setDocType(option.value)}
-                        className={`rounded-2xl border p-3 text-left transition-colors ${
-                          docType === option.value
-                            ? 'border-white/30 bg-white text-black'
-                            : 'border-white/10 bg-white/5 text-white hover:bg-white/10'
+                        key={opt.value}
+                        onClick={() => setDocType(opt.value)}
+                        className={`text-left p-4 rounded-2xl border transition-all ${
+                          docType === opt.value ? 'bg-white border-white text-black' : 'bg-transparent border-white/10 text-white hover:bg-white/[0.05]'
                         }`}
                       >
-                        <span className="block text-sm font-bold">{option.label}</span>
-                        <span className={`mt-1 block text-xs ${docType === option.value ? 'text-neutral-600' : 'text-neutral-500'}`}>{option.hint}</span>
+                        <div className="font-bold text-sm">{opt.label}</div>
+                        <div className={`text-[10px] mt-1 ${docType === opt.value ? 'text-black/60' : 'text-white/30'}`}>{opt.hint}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-semibold text-neutral-400">Описание ситуации</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 block">Описание ситуации</label>
                   <textarea
                     value={docDesc}
-                    onChange={(event) => setDocDesc(event.target.value)}
-                    placeholder="Например: договор оказания услуг между ТОО и ИП на сумму 500 000 тенге, предоплата 50%, срок 30 дней, нужна ответственность за просрочку..."
-                    className="h-36 w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white outline-none transition-colors placeholder:text-neutral-600 focus:border-white/20"
+                    onChange={(e) => setDocDesc(e.target.value)}
+                    placeholder="Пример: договор оказания услуг между ТОО и ИП на 500 тыс. тг..."
+                    className="w-full h-32 resize-none bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-sm text-white placeholder:text-white/30 focus:border-white/30 outline-none transition-colors"
                   />
                 </div>
 
                 <button
                   disabled={generating || !docDesc.trim()}
                   onClick={handleGenerate}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white text-sm font-bold text-black transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full h-14 rounded-2xl bg-white text-black font-bold flex items-center justify-center gap-2 hover:bg-neutral-200 transition-colors disabled:opacity-50"
                 >
                   {generating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-                  {generating ? 'Генерируем...' : 'Сгенерировать и открыть'}
+                  {generating ? 'Генерация...' : 'Сгенерировать'}
                 </button>
               </div>
             </motion.div>

@@ -31,7 +31,6 @@ export default function AuthPage() {
       setError('Введите корректный номер телефона');
       return;
     }
-    // Auto-fix phone format for KZ
     let formattedPhone = cleanPhone;
     if (formattedPhone.startsWith('8')) formattedPhone = '+7' + formattedPhone.slice(1);
     else if (formattedPhone.startsWith('7') && formattedPhone.length === 10) formattedPhone = '+7' + formattedPhone;
@@ -73,40 +72,30 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-4 relative overflow-hidden font-sans text-neutral-200">
+    <div className="h-screen w-full bg-[#050505] flex items-center justify-center px-4 relative overflow-hidden font-sans text-white selection:bg-white/20">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
 
       <FadeUp className="w-full max-w-md relative z-10" delay={0.1}>
-        {/* Logo */}
-        <div className="absolute top-8 left-8 flex items-center gap-3 pointer-events-none z-10">
-          <div className="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center font-black text-lg shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-            L
-          </div>
-          <div>
-            <span className="text-white font-bold text-lg tracking-wide">Legal</span>
-            <span className="text-neutral-500 font-bold text-lg tracking-wide">Ai</span>
-          </div>
+        <div className="absolute top-8 left-8 flex items-center gap-2 pointer-events-none z-10">
+          <span className="font-black text-xl tracking-tighter">LEGAL<span className="text-white/40">AI</span></span>
         </div>
 
-        <div className="bg-neutral-950/50 backdrop-blur-3xl border border-white/5 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
-          {/* Subtle Glow */}
+        <div className="bg-[#050505]/80 backdrop-blur-3xl border border-white/5 p-8 lg:p-10 rounded-[2rem] shadow-2xl relative overflow-hidden">
           <motion.div
-            className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-20 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.15), transparent)' }}
-            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+            className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-10 pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.8), transparent)' }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.05, 0.1, 0.05] }}
             transition={{ duration: 5, repeat: Infinity }}
           />
 
-          {/* Language toggle */}
-          <div className="flex justify-center mb-6 relative z-10">
+          <div className="flex justify-center mb-8 relative z-10">
             <LanguageToggle />
           </div>
 
-          {/* Tabs */}
           <AnimatePresence mode="wait">
             {mode !== 'otp' && (
               <motion.div
-                className="flex gap-1 bg-black rounded-xl p-1 mb-8 relative z-10 border border-white/5"
+                className="flex gap-1 bg-[#050505] rounded-2xl p-1 mb-8 relative z-10 border border-white/5"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -115,13 +104,13 @@ export default function AuthPage() {
                   <button
                     key={m}
                     onClick={() => { setMode(m); setError(''); }}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all relative ${
-                      mode === m ? 'text-black' : 'text-neutral-500 hover:text-white'
+                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                      mode === m ? 'text-black' : 'text-white/40 hover:text-white'
                     }`}
                   >
                     {mode === m && (
                       <motion.div
-                        className="absolute inset-0 rounded-lg bg-white"
+                        className="absolute inset-0 rounded-xl bg-white"
                         layoutId="auth-tab"
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                       />
@@ -135,7 +124,6 @@ export default function AuthPage() {
 
           <form onSubmit={mode === 'otp' ? handleVerify : handleSendCode} className="relative z-10">
             <AnimatePresence mode="wait">
-              {/* Name (register only) */}
               {mode === 'register' && (
                 <motion.div
                   key="register_fields"
@@ -145,18 +133,18 @@ export default function AuthPage() {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <label className="block text-sm text-neutral-400 mb-2 font-medium">{t('auth_name')}</label>
-                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('auth_name_placeholder')} className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-white/30 transition-colors mb-4 shadow-inner" />
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{t('auth_name')}</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('auth_name_placeholder')} className="w-full px-4 h-14 rounded-2xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors mb-4" />
                   
-                  <div className="flex items-center gap-3 mb-4 bg-black/50 p-3 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-3 mb-4 bg-[#050505] p-4 rounded-2xl border border-white/5">
                     <input 
                       type="checkbox" 
                       id="isLawyer" 
                       checked={isLawyer} 
                       onChange={(e) => setIsLawyer(e.target.checked)}
-                      className="w-4 h-4 rounded border-neutral-700 bg-black text-white focus:ring-0"
+                      className="w-4 h-4 rounded border-white/20 bg-transparent text-white focus:ring-0"
                     />
-                    <label htmlFor="isLawyer" className="text-sm text-neutral-300 font-medium cursor-pointer">
+                    <label htmlFor="isLawyer" className="text-[10px] font-black uppercase tracking-widest text-white/60 cursor-pointer">
                       Я юрист (создать профиль специалиста)
                     </label>
                   </div>
@@ -170,20 +158,19 @@ export default function AuthPage() {
                         className="space-y-4 mb-4"
                       >
                         <div>
-                          <label className="block text-xs text-neutral-400 mb-1">ИИН</label>
-                          <input type="text" maxLength={12} value={iin} onChange={(e) => setIin(e.target.value.replace(/\D/g, ''))} placeholder="12 цифр" className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-white/30 transition-colors shadow-inner text-sm" />
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">ИИН</label>
+                          <input type="text" maxLength={12} value={iin} onChange={(e) => setIin(e.target.value.replace(/\D/g, ''))} placeholder="12 цифр" className="w-full px-4 h-12 rounded-xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
                         </div>
                         <div>
-                          <label className="block text-xs text-neutral-400 mb-1">Номер лицензии</label>
-                          <input type="text" value={license} onChange={(e) => setLicense(e.target.value)} placeholder="Номер гос. лицензии" className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-white/30 transition-colors shadow-inner text-sm" />
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Номер лицензии</label>
+                          <input type="text" value={license} onChange={(e) => setLicense(e.target.value)} placeholder="Номер гос. лицензии" className="w-full px-4 h-12 rounded-xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
                         </div>
                         <div>
-                          <label className="block text-xs text-neutral-400 mb-1">Специализация</label>
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Специализация</label>
                           <CustomSelect 
                             value={specialization} 
                             onChange={(e) => setSpecialization(e.target.value)} 
                             options={['Гражданское право', 'Уголовное право', 'Корпоративное право', 'Налоговое право', 'Семейное право', 'Трудовое право']}
-                            className="w-full text-sm mt-1"
                           />
                         </div>
                       </motion.div>
@@ -192,19 +179,17 @@ export default function AuthPage() {
                 </motion.div>
               )}
 
-              {/* Phone */}
               {mode !== 'otp' && (
                 <motion.div key="phone" className="mb-4" layout>
-                  <label className="block text-sm text-neutral-400 mb-2 font-medium">{t('auth_phone')}</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('auth_phone_placeholder')} className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-neutral-600 text-lg tracking-wider font-medium focus:outline-none focus:border-white/30 transition-colors shadow-inner" />
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{t('auth_phone')}</label>
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('auth_phone_placeholder')} className="w-full px-4 h-14 rounded-2xl bg-white/[0.02] border border-white/10 text-lg tracking-wider font-bold text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
                 </motion.div>
               )}
 
-              {/* OTP */}
               {mode === 'otp' && (
                 <motion.div
                   key="otp"
-                  className="mb-4"
+                  className="mb-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4 }}
@@ -217,11 +202,11 @@ export default function AuthPage() {
                     >
                       <ShieldCheck size={48} strokeWidth={1.5} />
                     </motion.div>
-                    <p className="text-sm text-neutral-400">Код отправлен на номер</p>
-                    <p className="text-white font-semibold tracking-wider mt-1">{phone}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Код отправлен на номер</p>
+                    <p className="text-white font-black text-sm tracking-wider mt-2">{phone}</p>
                   </div>
-                  <label className="block text-sm text-center text-neutral-400 mb-4">{t('auth_otp')}</label>
-                  <div className="flex gap-2 justify-center mb-6">
+                  <label className="block text-center text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">{t('auth_otp')}</label>
+                  <div className="flex gap-3 justify-center mb-6">
                     {[...Array(6)].map((_, i) => (
                       <motion.input
                         key={i}
@@ -234,7 +219,7 @@ export default function AuthPage() {
                           setOtp(newOtp.join(''));
                           if (e.target.value && e.target.nextSibling) e.target.nextSibling.focus();
                         }}
-                        className="w-12 h-14 text-center text-xl font-bold rounded-xl bg-black border-b-2 border-r border-white/10 text-white outline-none transition-all duration-300 focus:border-white/40 focus:bg-neutral-900 shadow-inner"
+                        className="w-12 h-16 text-center text-xl font-bold rounded-2xl bg-[#050505] border border-white/10 text-white outline-none transition-all duration-300 focus:border-white/40 focus:bg-white/[0.02]"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05 }}
@@ -246,11 +231,10 @@ export default function AuthPage() {
               )}
             </AnimatePresence>
 
-            {/* Error */}
             <AnimatePresence>
               {error && (
                 <motion.div
-                  className="text-red-400/90 text-sm mb-4 text-center bg-red-900/10 py-2 rounded-lg border border-red-900/30"
+                  className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-4 text-center bg-red-500/10 py-3 rounded-xl border border-red-500/20"
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
@@ -260,16 +244,15 @@ export default function AuthPage() {
               )}
             </AnimatePresence>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 rounded-xl text-sm font-bold flex items-center justify-center transition-colors bg-white text-black hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full h-14 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center transition-colors bg-white text-black hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <motion.svg
-                    className="w-5 h-5 text-black"
+                    className="w-4 h-4 text-black"
                     viewBox="0 0 24 24"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -283,14 +266,14 @@ export default function AuthPage() {
             </button>
 
             {mode === 'otp' && (
-              <button type="button" onClick={() => setMode('login')} className="w-full mt-4 text-sm text-neutral-500 hover:text-white transition-colors">
+              <button type="button" onClick={() => setMode('login')} className="w-full mt-6 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
                 ← Изменить номер
               </button>
             )}
           </form>
         </div>
 
-        <p className="text-xs text-neutral-600 text-center mt-8 tracking-wide font-medium">{t('footer_disclaimer')}</p>
+        <p className="text-[9px] font-black uppercase tracking-widest text-white/20 text-center mt-8">{t('footer_disclaimer')}</p>
       </FadeUp>
     </div>
   );

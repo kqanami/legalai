@@ -9,18 +9,12 @@ import CustomSelect from '../components/CustomSelect';
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { 
-    opacity: 1, 
-    transition: { staggerChildren: 0.1 }
-  }
+  visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } }
 };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, y: 0,
-    transition: { type: 'spring', stiffness: 100, damping: 15 }
-  }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }
 };
 
 export default function LawyerProfile() {
@@ -181,7 +175,7 @@ export default function LawyerProfile() {
                     className={`w-4 h-4 rounded-full absolute top-1 shadow-md ${profile.is_accepting_clients ? 'bg-black' : 'bg-white/50'}`}
                     initial={false}
                     animate={{ left: profile.is_accepting_clients ? '28px' : '4px' }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
                   />
                 </button>
               </div>

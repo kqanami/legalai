@@ -58,7 +58,7 @@ export function ToastProvider({ children }) {
                 initial={{ opacity: 0, y: -20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 100, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
                 className={`pointer-events-auto bg-gradient-to-r ${COLORS[toast.type]} backdrop-blur-xl border rounded-xl px-4 py-3 shadow-2xl shadow-black/30 flex items-start gap-3`}
               >
                 <Icon size={20} className={`${ICON_COLORS[toast.type]} mt-0.5 flex-shrink-0`} />

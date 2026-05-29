@@ -1,10 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
-import { Search, Building2, CheckCircle2, ShieldCheck, BarChart3, AlertCircle, Clock, ChevronRight, Zap } from 'lucide-react';
+import { Search, Building2, CheckCircle2, ShieldCheck, BarChart3, AlertCircle, Clock, ChevronRight, Zap, Target } from 'lucide-react';
 import { counterpartyApi } from '../services/api';
 
-/* ─── Pure SVG Radar Chart ─────────────────────────────────────── */
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }
+};
+
+/* ─── Pure Monochrome SVG Radar Chart ─────────────────────────────────────── */
 const RADAR_AXES = [
   { key: 'courts',   label: 'Суды' },
   { key: 'taxes',    label: 'Налоги' },
@@ -42,7 +52,6 @@ function RadarChart({ scores, size = 260 }) {
   const isLowRisk = avg >= 65;
 
   const gradId = useMemo(() => 'radar-fill-' + Math.random().toString(36).slice(2, 8), []);
-  const glowId = useMemo(() => 'radar-glow-' + Math.random().toString(36).slice(2, 8), []);
 
   const pointOnAxis = (i, pct) => [
     cx + R * pct * Math.cos(startAngle + i * angleStep),
@@ -64,42 +73,37 @@ function RadarChart({ scores, size = 260 }) {
     return { ...axis, x: lx, y: ly, anchor, score: scores[i] };
   });
 
-  const color = isLowRisk ? '#34d399' : '#f87171';
-  const darkColor = isLowRisk ? '#065f46' : '#7f1d1d';
+  const mainColor = '#ffffff';
+  const subColor = '#525252'; // neutral-600
 
   return (
-    <svg viewBox={`-80 -80 ${size + 160} ${size + 160}`} width="100%" height="100%" className="select-none max-w-[360px] drop-shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+    <svg viewBox={`-80 -80 ${size + 160} ${size + 160}`} width="100%" height="100%" className="select-none max-w-[360px]">
       <defs>
         <radialGradient id={gradId} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={color} stopOpacity="0.5" />
-          <stop offset="100%" stopColor={darkColor} stopOpacity="0.1" />
+          <stop offset="0%" stopColor={mainColor} stopOpacity="0.1" />
+          <stop offset="100%" stopColor={mainColor} stopOpacity="0.02" />
         </radialGradient>
-        <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
       </defs>
-      {rings.map((r) => <path key={r} d={ringPath(r)} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />)}
+      {rings.map((r) => <path key={r} d={ringPath(r)} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />)}
       {RADAR_AXES.map((_, i) => {
         const [ex, ey] = pointOnAxis(i, 1);
-        return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
+        return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />;
       })}
-      <path d={dataPath} fill={`url(#${gradId})`} stroke={color} strokeWidth="2.5" strokeLinejoin="round" filter={`url(#${glowId})`} />
+      <path d={dataPath} fill={`url(#${gradId})`} stroke={mainColor} strokeWidth="1.5" strokeLinejoin="round" />
       {scores.map((s, i) => {
         const [dx, dy] = pointOnAxis(i, s / 100);
         return (
           <g key={i}>
-            <circle cx={dx} cy={dy} r="5" fill={color} />
-            <circle cx={dx} cy={dy} r="2.5" fill="#fff" />
+            <circle cx={dx} cy={dy} r="4" fill="#000" stroke={mainColor} strokeWidth="1.5" />
           </g>
         );
       })}
       {labels.map((l) => (
         <g key={l.key}>
-          <text x={l.x} y={l.y - 8} textAnchor={l.anchor} fill="#94a3b8" fontSize="12" fontWeight="700" letterSpacing="0.05em" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+          <text x={l.x} y={l.y - 6} textAnchor={l.anchor} fill="#737373" fontSize="11" fontWeight="600" letterSpacing="0.05em" className="uppercase">
             {l.label}
           </text>
-          <text x={l.x} y={l.y + 12} textAnchor={l.anchor} fill={color} fontSize="16" fontWeight="900" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+          <text x={l.x} y={l.y + 12} textAnchor={l.anchor} fill={mainColor} fontSize="14" fontWeight="700">
             {l.score}
           </text>
         </g>
@@ -151,204 +155,230 @@ export default function CounterpartyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-white font-sans selection:bg-emerald-500/30 pb-24 relative overflow-hidden">
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-16 relative z-10 flex flex-col xl:flex-row gap-8">
+    <div className="h-full bg-[#050505] text-white font-sans selection:bg-white/20 relative overflow-hidden flex flex-col">
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+        className="max-w-7xl mx-auto w-full px-4 sm:px-8 flex-1 flex flex-col relative z-10 pb-6 min-h-0"
+      >
         
-        {/* ── Main Panel ── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-8">
-          
-          <div className="flex flex-col items-start gap-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
-              <ShieldCheck size={14} className="text-emerald-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">KYB Интеграция с базами РК</span>
-            </div>
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-[1.1]">
-              Анализ <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">контрагентов</span>
-            </h1>
-            <p className="text-white/40 max-w-lg leading-relaxed font-medium">
-              Мгновенная проверка юридических лиц на благонадежность по БИН. Оценка рисков на базе налоговых, судебных и финансовых реестров.
-            </p>
+        {/* Dynamic Header / Hero Area */}
+        <motion.div 
+          variants={itemVariants}
+          className="flex flex-col items-center justify-center pt-12 pb-8 text-center shrink-0"
+          layout
+          animate={{ paddingTop: result ? '2rem' : '10vh' }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/10 mb-6">
+            <ShieldCheck size={14} className="text-white/40" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Государственные реестры РК</span>
           </div>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4 text-white">
+            Анализ контрагентов
+          </h1>
+          {!result && (
+            <p className="text-neutral-400 max-w-xl mx-auto leading-relaxed">
+              Мгновенная проверка юридических лиц по открытым базам данных. Оцените риски, налоговые задолженности и статус компании.
+            </p>
+          )}
 
-          {/* Search Box */}
-          <div className="glass-premium rounded-[2rem] p-4 shadow-2xl relative overflow-hidden">
-            <AnimatePresence>
-              {loading && (
-                <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent"
-                  animate={{ x: ['-200%', '200%'] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }} />
-              )}
-            </AnimatePresence>
-            <form onSubmit={handleCheck} className="flex flex-col sm:flex-row gap-3 relative z-10">
-              <div className="flex-1 relative flex items-center bg-obsidian-950/50 rounded-2xl border border-white/[0.05] focus-within:border-white/20 transition-colors">
-                <Building2 size={20} className="absolute left-6 text-white/30" />
+          <div className="w-full max-w-2xl mt-8">
+            <form onSubmit={handleCheck} className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-500" />
                 <input
                   type="text" value={bin}
                   onChange={e => { setBin(e.target.value.replace(/\D/g, '').slice(0, 12)); if (result) setResult(null); }}
                   placeholder="Введите БИН компании (12 цифр)"
-                  className="w-full bg-transparent py-5 pl-16 pr-16 text-lg tracking-[0.15em] font-mono font-bold text-white placeholder-white/20 outline-none"
+                  className="w-full h-16 bg-white/[0.02] rounded-full border border-white/5 pl-14 pr-16 text-base text-white placeholder-neutral-600 focus:border-white/20 focus:bg-white/5 outline-none transition-all font-mono tracking-[0.1em] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]"
                 />
-                <span className={`absolute right-6 text-[10px] font-black tracking-widest ${bin.length === 12 ? 'text-emerald-400' : 'text-white/20'}`}>
+                <span className={`absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black tracking-widest ${bin.length === 12 ? 'text-white' : 'text-neutral-600'}`}>
                   {bin.length}/12
                 </span>
               </div>
               <button type="submit" disabled={bin.length !== 12 || loading}
-                className="h-[68px] px-10 rounded-2xl bg-white text-black text-sm font-black uppercase tracking-widest hover:bg-white/90 disabled:bg-white/10 disabled:text-white/30 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                className="px-10 h-16 rounded-full bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-neutral-200 disabled:bg-white/10 disabled:text-neutral-500 disabled:cursor-not-allowed transition-all active:scale-95 shadow-[0_10px_40px_rgba(255,255,255,0.15)] disabled:shadow-none">
                 {loading ? 'Анализ...' : 'Проверить'}
               </button>
             </form>
+            {error && (
+              <div className="mt-6 rounded-2xl bg-red-500/5 border border-red-500/10 p-4 text-sm font-bold text-red-400 flex items-center justify-center gap-2">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
           </div>
+        </motion.div>
 
-          {error && (
-            <div className="rounded-2xl bg-red-500/10 border border-red-500/20 p-5 flex items-center gap-4 text-red-400 font-medium">
-              <AlertCircle size={20} /> {error}
-            </div>
-          )}
-
-          {/* Results Bento Grid */}
-          <AnimatePresence>
-            {result && !loading && (
-              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-                className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* Radar Box (Takes full width on mobile, right column on desktop) */}
-                <div className="lg:col-span-2 rounded-[2.5rem] glass-premium p-8 sm:p-12 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-12">
-                  <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
-                  
-                  <div className="flex-1 w-full relative z-10">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                        <ShieldCheck size={24} className="text-emerald-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-black text-white tracking-tight">AI Индекс Доверия</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${result.riskLevel.includes('Низк') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                            {result.riskLevel}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <p className="text-white/40 text-sm leading-relaxed mb-8">
-                      {result.aiAnalysis || "ИИ провел глубокий анализ открытых реестров, налоговых задолженностей и судебных разбирательств. Настоятельно рекомендуется ознакомиться с полной выпиской перед заключением сделки."}
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {RADAR_AXES.map((axis, i) => {
-                        const s = computeRadarScores(result)[i];
-                        return (
-                          <div key={axis.key} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-4 flex flex-col justify-center relative overflow-hidden">
-                            <div className={`absolute bottom-0 left-0 h-1 bg-gradient-to-r ${s >= 65 ? 'from-emerald-500' : 'from-red-500'} to-transparent opacity-50`} style={{ width: `${s}%` }} />
-                            <span className="text-[10px] uppercase tracking-widest font-bold text-white/30 mb-1">{axis.label}</span>
-                            <span className="text-2xl font-black text-white/90">{s} <span className="text-xs text-white/20">/100</span></span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="w-full md:w-[360px] flex-shrink-0 flex items-center justify-center relative z-10">
-                    <RadarChart scores={computeRadarScores(result)} size={300} />
-                  </div>
+        {/* Empty State / Defaults */}
+        {!result && (
+          <motion.div 
+            variants={itemVariants}
+            className="max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 overflow-y-auto custom-scrollbar pb-12 px-2"
+          >
+            {[
+              { icon: <ShieldCheck size={20} className="text-white" />, title: 'Надежность', desc: 'Проверка налоговых задолженностей и статуса в реестре.' },
+              { icon: <BarChart3 size={20} className="text-neutral-400" />, title: 'Аналитика рисков', desc: 'Оценка вероятности банкротства и судебных споров.' },
+              { icon: <Zap size={20} className="text-neutral-600" />, title: 'Мгновенно', desc: 'Прямой доступ к государственным базам (КГД МФ РК).' },
+            ].map((f, i) => (
+              <motion.div 
+                key={i} 
+                variants={itemVariants}
+                className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 shadow-2xl flex flex-col items-center text-center hover:bg-white/[0.04] transition-all"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-center mb-6 shadow-inner">
+                  {f.icon}
                 </div>
-
-                {/* Company Info Box */}
-                <div className="rounded-[2rem] glass-card p-8 relative overflow-hidden group">
-                  <h3 className="text-[11px] font-black uppercase tracking-widest text-white/30 mb-6 flex items-center gap-2">
-                    <Building2 size={14} /> Базовые реквизиты
-                  </h3>
-                  <div className="space-y-5">
-                    {[
-                      { label: 'Наименование', value: result.companyName, accent: false },
-                      { label: 'БИН', value: result.bin, accent: false, mono: true },
-                      { label: 'Статус', value: result.status, accent: result.status === 'Действующее' ? 'text-emerald-400' : 'text-amber-400' },
-                      { label: 'Регистрация', value: result.registrationDate, accent: false },
-                      { label: 'Руководитель', value: result.director, accent: false },
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex flex-col gap-1 border-b border-white/[0.04] pb-4 last:border-0 last:pb-0">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">{item.label}</span>
-                        <span className={`text-sm font-medium ${item.accent ? item.accent : 'text-white/80'} ${item.mono ? 'font-mono tracking-wider' : ''}`}>
-                          {item.value || '—'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Financial Info Box */}
-                <div className="rounded-[2rem] glass-card p-8 relative overflow-hidden group">
-                  <h3 className="text-[11px] font-black uppercase tracking-widest text-white/30 mb-6 flex items-center gap-2">
-                    <BarChart3 size={14} /> Деятельность и Финансы
-                  </h3>
-                  <div className="space-y-5">
-                    {[
-                      { label: 'Юридический адрес', value: result.address, accent: false },
-                      { label: 'ОКЭД (Вид деятельности)', value: result.activity, accent: false },
-                      { label: 'Размер предприятия', value: result.employees, accent: false },
-                      { label: 'Налоговая задолженность', value: result.taxDebt, accent: result.taxDebt === '0 ₸' ? 'text-emerald-400' : 'text-red-400 font-bold' },
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex flex-col gap-1 border-b border-white/[0.04] pb-4 last:border-0 last:pb-0">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">{item.label}</span>
-                        <span className={`text-sm font-medium ${item.accent ? item.accent : 'text-white/80'}`}>
-                          {item.value || '—'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
+                <h3 className="text-base font-black text-white tracking-tight mb-3">{f.title}</h3>
+                <p className="text-[13px] text-neutral-500 font-medium leading-relaxed">{f.desc}</p>
               </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            ))}
+          </motion.div>
+        )}
 
-        {/* ── Sidebar (History) ── */}
-        <div className="w-full xl:w-[320px] flex-shrink-0">
-          <div className="glass-card rounded-[2rem] p-6 sticky top-24">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
-                <Clock size={14} /> История
-              </h3>
-              <span className="text-[10px] font-bold text-white/20 bg-white/[0.05] px-2 py-0.5 rounded-full">{history.length}</span>
-            </div>
-            
-            {historyLoading ? (
-              <div className="space-y-3">
-                {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-white/[0.02] animate-pulse" />)}
-              </div>
-            ) : history.length === 0 ? (
-              <div className="py-12 flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.02] flex items-center justify-center mb-3">
-                  <Zap size={20} className="text-white/10" />
+        {/* Results Layout */}
+        <AnimatePresence mode="wait">
+          {result && !loading && (
+            <motion.div 
+              key="results"
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+              variants={containerVariants}
+              className="w-full flex flex-col-reverse lg:flex-row gap-8 pb-4 flex-1 min-h-0"
+            >
+              
+              {/* ── Left Pane: Sticky Sidebar (History) ── */}
+              <motion.div variants={itemVariants} className="lg:w-[30%] flex flex-col gap-6 min-h-0 h-[400px] lg:h-full shrink-0 lg:shrink">
+                <div className="bg-[#050505] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] rounded-[2.5rem] p-6 lg:p-8 flex flex-col min-h-0 h-full">
+                  <div className="flex items-center justify-between mb-8 shrink-0">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 flex items-center gap-3">
+                      <Clock size={14} /> История запросов
+                    </h3>
+                  </div>
+                  
+                  {historyLoading ? (
+                    <div className="space-y-4">
+                      {[...Array(5)].map((_, i) => <div key={i} className="h-16 rounded-[1.5rem] bg-white/5 animate-pulse" />)}
+                    </div>
+                  ) : history.length === 0 ? (
+                    <div className="py-12 flex flex-col items-center text-center">
+                      <div className="w-16 h-16 rounded-full bg-white/[0.02] flex items-center justify-center mb-4">
+                        <Zap size={20} className="text-neutral-600" />
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">История пуста</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 min-h-0 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                      {history.map((item) => (
+                        <button key={item.id} onClick={() => loadFromHistory(item)}
+                          className="w-full text-left p-5 rounded-[1.5rem] bg-white/[0.02] hover:bg-white/[0.05] transition-all group outline-none border border-transparent hover:border-white/5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-mono font-bold text-neutral-500 tracking-wider group-hover:text-neutral-400 transition-colors">{item.bin_number}</span>
+                            <ChevronRight size={14} className="text-neutral-600 group-hover:text-white transition-colors" />
+                          </div>
+                          <p className="text-sm font-black text-white truncate mb-1">{item.company_name || 'Неизвестная компания'}</p>
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-600">{new Date(item.created_at).toLocaleDateString('ru')}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-white/30 font-medium">История запросов пуста</p>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 custom-scrollbar">
-                {history.map((item) => (
-                  <button key={item.id} onClick={() => loadFromHistory(item)}
-                    className="w-full text-left p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-transparent hover:border-white/[0.08] transition-all group">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-mono font-bold text-white/60 tracking-wider">{item.bin_number}</span>
-                      <ChevronRight size={14} className="text-white/20 group-hover:text-white transition-colors" />
+              </motion.div>
+
+              {/* ── Right Pane: Scrollable Content ── */}
+              <motion.div variants={itemVariants} className="lg:w-[70%] flex flex-col gap-8 min-h-0 overflow-y-auto custom-scrollbar pr-4 pb-12">
+                
+                {/* Header Profile Card */}
+                <div className="shrink-0 rounded-[3rem] bg-gradient-to-br from-white/[0.04] to-transparent border border-white/5 p-6 lg:p-14 flex flex-col md:flex-row items-center justify-between gap-8 hover:bg-white/[0.02] transition-all cursor-default shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/[0.02] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                  
+                  <div className="relative z-10 flex-1 w-full text-center md:text-left">
+                    <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/[0.03] border border-white/10 mb-6 lg:mb-8 mx-auto md:mx-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Досье компании</span>
                     </div>
-                    <p className="text-xs font-medium text-white/80 truncate mb-2">{item.company_name || 'Неизвестная компания'}</p>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                        item.risk_level?.includes('Низк') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                      }`}>
-                        {item.risk_level || '—'}
+                    <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-white mb-6 leading-tight pb-2">{result.companyName}</h2>
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs font-bold uppercase tracking-widest">
+                      <span className="font-mono text-neutral-400 bg-white/5 px-4 py-2 rounded-xl">БИН: {result.bin}</span>
+                      <span className={`px-4 py-2 rounded-xl border ${result.status === 'Действующее' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                        {result.status}
                       </span>
-                      <span className="text-[10px] text-white/30 font-medium">{new Date(item.created_at).toLocaleDateString('ru')}</span>
                     </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+                  </div>
+
+                  <div className="text-center md:text-right flex flex-col items-center md:items-end justify-center bg-[#050505] p-6 lg:p-8 rounded-[2rem] border border-white/5 shadow-xl shrink-0 mt-6 md:mt-0 w-full md:w-auto">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-3">AI Индекс Доверия</span>
+                    <span className="text-5xl lg:text-6xl font-black text-white">{result.riskLevel}</span>
+                  </div>
+                </div>
+
+                {/* Content Grid */}
+                <div className="shrink-0 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  
+                  {/* Radar Card */}
+                  <motion.div variants={itemVariants} className="shrink-0 rounded-[2.5rem] bg-[#050505] border border-white/5 shadow-2xl p-8 lg:p-10 flex flex-col w-full self-start hover:bg-white/[0.04] transition-all">
+                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-8">
+                      <Target size={14} /> Матрица Рисков
+                    </div>
+                    <div className="w-full flex items-center justify-center">
+                      <RadarChart scores={computeRadarScores(result)} size={280} />
+                    </div>
+                  </motion.div>
+
+                  <div className="flex flex-col gap-8">
+                    {/* Basic Info */}
+                    <div className="rounded-[2.5rem] bg-white/[0.02] border border-white/5 shadow-2xl p-8 lg:p-10 flex-1 hover:bg-white/[0.04] transition-all">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-8 flex items-center gap-3">
+                        <Building2 size={14} /> Основные сведения
+                      </h3>
+                      <div className="space-y-6">
+                        {[
+                          { label: 'Регистрация', value: result.registrationDate },
+                          { label: 'Руководитель', value: result.director },
+                          { label: 'Юр. адрес', value: result.address },
+                        ].map((item, idx) => (
+                          <div key={idx} className="flex flex-col gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-600">{item.label}</span>
+                            <span className="text-base font-medium text-white">{item.value || '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Financial Stats Grid */}
+                    <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="rounded-[2.5rem] bg-white/[0.02] border border-white/5 shadow-2xl p-8 flex flex-col justify-center hover:bg-white/[0.04] transition-all">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-3">Налоговый долг</span>
+                        <span className="text-2xl lg:text-3xl font-black text-white leading-tight break-words">{result.taxDebt === '0 ₸' ? 'Нет долгов' : (result.taxDebt || 'Не найдено')}</span>
+                      </div>
+                      <div className="rounded-[2.5rem] bg-white/[0.02] border border-white/5 shadow-2xl p-8 flex flex-col justify-center hover:bg-white/[0.04] transition-all">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-3">Штат</span>
+                        <span className="text-xl lg:text-2xl font-black text-white leading-tight break-words">{result.employees || '—'}</span>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                </div>
+
+                {/* Activity Box */}
+                <motion.div variants={itemVariants} className="shrink-0 rounded-[2.5rem] bg-white/[0.02] border border-white/5 shadow-2xl p-8 lg:p-12 mb-12 hover:bg-white/[0.04] transition-all">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-6 flex items-center gap-3">
+                    <BarChart3 size={14} /> Вид деятельности (ОКЭД)
+                  </h3>
+                  <p className="text-lg font-medium text-white/80 leading-relaxed">
+                    {result.activity || 'Нет данных о деятельности.'}
+                  </p>
+                </motion.div>
+                
+              </motion.div>
+
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+      </motion.div>
     </div>
   );
 }

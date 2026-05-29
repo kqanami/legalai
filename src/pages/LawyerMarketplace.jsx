@@ -1,129 +1,82 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence, useMotionTemplate, useMotionValue } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  Search, Star, Trophy, Shield, MapPin, Briefcase,
-  ArrowLeft, CheckCircle2, Users, Zap, X, SlidersHorizontal, ArrowUpRight
-} from 'lucide-react';
+import { Search, Star, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { marketplaceApi } from '../services/api';
-import CustomSelect from '../components/CustomSelect';
 
 /* ─────────────────────────────────────────────
-   SPOTLIGHT BENTO CARD
+   DIRECTORY CARD (Redesigned)
 ───────────────────────────────────────────── */
-const BentoCard = memo(({ lawyer, index }) => {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  function handleMouseMove({ currentTarget, clientX, clientY }) {
-    const { left, top } = currentTarget.getBoundingClientRect();
-    mouseX.set(clientX - left);
-    mouseY.set(clientY - top);
-  }
-
+const LawyerCard = memo(({ lawyer, index }) => {
   const initials = lawyer.name
     ? lawyer.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
     : '?';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: Math.min(index * 0.05, 0.4) }}
-      className="group relative rounded-[2rem] glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-white/5"
-      onMouseMove={handleMouseMove}
+      transition={{ type: "spring", stiffness: 260, damping: 20, delay: index * 0.04 }}
+      className="group relative"
     >
-      {/* Spotlight Hover Effect */}
-      <motion.div
-        className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-10"
-        style={{
-          background: useMotionTemplate`
-            radial-gradient(
-              400px circle at ${mouseX}px ${mouseY}px,
-              rgba(255,255,255,0.06),
-              transparent 80%
-            )
-          `,
-        }}
-      />
-
-      {/* Internal Glow on Hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-      <Link to={`/lawyers/${lawyer.id}`} className="block h-full relative z-20">
-        <div className="p-6 md:p-8 flex flex-col h-full">
-          
-          {/* Header Row */}
-          <div className="flex items-start justify-between mb-6">
-            <div className="relative">
-              <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-white/[0.01] flex items-center justify-center font-black text-white shadow-2xl w-14 h-14 text-xl">
-                {initials}
-              </div>
-              <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-lg bg-[#050505] border border-emerald-500/20 flex items-center justify-center">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-              </div>
+      <Link to={`/lawyers/${lawyer.id}`} className="block p-6 lg:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300 relative overflow-hidden">
+        
+        {/* Top Info */}
+        <div className="flex items-start gap-5 mb-6">
+          <motion.div layoutId={`lawyer-avatar-${lawyer.id}`} className="w-16 h-16 shrink-0 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white text-xl">
+            {initials}
+          </motion.div>
+          <div className="flex-1 min-w-0 pt-1">
+            <div className="flex items-center gap-2 mb-1.5">
+              <motion.h3 layoutId={`lawyer-name-${lawyer.id}`} className="text-xl font-bold text-white truncate">{lawyer.name}</motion.h3>
+              {lawyer.verified && <CheckCircle2 size={16} className="text-white/40 shrink-0" />}
             </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.05]">
-                <Star size={12} className="text-amber-400" fill="currentColor" />
-                <span className="text-sm font-bold text-white">{(lawyer.rating || 0).toFixed(1)}</span>
-              </div>
-              {lawyer.is_top_rated && (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/20 text-[9px] font-black tracking-widest text-amber-400 uppercase">
-                  <Trophy size={9} /> Топ
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="mb-auto">
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <h3 className="font-black tracking-tight text-white text-xl">
-                {lawyer.name}
-              </h3>
-              {lawyer.verified && (
-                <CheckCircle2 size={16} className="text-emerald-400" />
-              )}
-            </div>
-            <p className="font-medium text-white/40 mb-4 text-sm">
+            <p className="text-sm text-white/50 truncate">
               {lawyer.specialization || 'Общая практика'}
             </p>
           </div>
-
-          {/* Footer Stats Grid */}
-          <div className="grid gap-2 mt-6 grid-cols-2">
-            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 flex flex-col justify-center">
-              <span className="text-[10px] uppercase tracking-widest font-bold text-white/20 mb-1 flex items-center gap-1">
-                <Trophy size={10} /> Победы
-              </span>
-              <span className="text-lg font-black text-white/80">{lawyer.cases_won || 0}</span>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5">
+              <Star size={12} className="text-white" />
+              <span className="text-xs font-bold text-white">{(lawyer.rating || 0).toFixed(1)}</span>
             </div>
-            
-            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 flex flex-col justify-center">
-              <span className="text-[10px] uppercase tracking-widest font-bold text-white/20 mb-1 flex items-center gap-1">
-                <Briefcase size={10} /> Стаж
-              </span>
-              <span className="text-lg font-black text-white/80">{lawyer.experience_years || 0} <span className="text-xs text-white/30 font-medium">лет</span></span>
-            </div>
+            {lawyer.is_top_rated && (
+              <span className="text-[9px] font-black tracking-widest text-white/40 uppercase mt-1">Топ</span>
+            )}
           </div>
-
-          {/* Hover Arrow */}
-          <div className="absolute bottom-6 right-6 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-            <ArrowUpRight size={18} strokeWidth={2.5} />
-          </div>
-
         </div>
+
+        {/* Stats Row */}
+        <div className="flex items-center gap-6 pt-5 border-t border-white/5">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1">Успешных дел</span>
+            <span className="text-sm font-semibold text-white/80">{lawyer.cases_won || 0}</span>
+          </div>
+          <div className="w-px h-6 bg-white/5" />
+          <div className="flex flex-col">
+            <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1">Опыт работы</span>
+            <span className="text-sm font-semibold text-white/80">{lawyer.experience_years || 0} лет</span>
+          </div>
+          {lawyer.city && (
+            <>
+              <div className="w-px h-6 bg-white/5" />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1">Город</span>
+                <span className="text-sm font-semibold text-white/80 truncate max-w-[100px]">{lawyer.city}</span>
+              </div>
+            </>
+          )}
+        </div>
+
       </Link>
     </motion.div>
   );
 });
 
 /* ─────────────────────────────────────────────
-   MAIN PAGE
+   MAIN COMPONENT (Split-Pane Directory)
 ───────────────────────────────────────────── */
 export default function LawyerMarketplace() {
   const navigate = useNavigate();
@@ -137,17 +90,8 @@ export default function LawyerMarketplace() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({ city: '', specialization: initialSpec });
   const [specializations, setSpecializations] = useState([]);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const inputRef = useRef(null);
 
   const cities = ['Алматы', 'Астана', 'Шымкент', 'Актобе', 'Тараз', 'Павлодар', 'Атырау'];
-  const chips = [
-    { label: 'Гражданское', icon: <Shield size={12} /> },
-    { label: 'Уголовное',   icon: <Shield size={12} /> },
-    { label: 'Семейное',    icon: <Users size={12} /> },
-    { label: 'Бизнес',      icon: <Briefcase size={12} /> },
-    { label: 'Трудовое',    icon: <Zap size={12} /> },
-  ];
 
   useEffect(() => {
     marketplaceApi.getSpecializations().then(setSpecializations).catch(() => {});
@@ -169,10 +113,10 @@ export default function LawyerMarketplace() {
 
   const applySearch = e => { e.preventDefault(); loadLawyers(); };
 
-  const toggleChip = label => {
-    const spec = filters.specialization === label ? '' : label;
-    setFilters(f => ({ ...f, specialization: spec }));
-    loadLawyers({ specialization: spec });
+  const handleFilterChange = (key, value) => {
+    const newValue = filters[key] === value ? '' : value;
+    setFilters(prev => ({ ...prev, [key]: newValue }));
+    loadLawyers({ [key]: newValue });
   };
 
   const clearAll = () => {
@@ -184,120 +128,140 @@ export default function LawyerMarketplace() {
   const activeCount = [filters.city, filters.specialization].filter(Boolean).length;
 
   return (
-    <div className="min-h-screen bg-transparent text-white selection:bg-white/20">
-
-      {/* ── Topbar ── */}
-      <div className="sticky top-0 z-40 border-b border-white/[0.04] bg-black/50 backdrop-blur-3xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          <button
-            onClick={() => navigate(user?.role === 'lawyer' ? '/lawyer' : user ? '/dashboard' : '/')}
-            className="w-9 h-9 rounded-xl bg-white/[0.03] hover:bg-white/[0.08]
-              border border-white/[0.05] flex items-center justify-center transition-all group"
-          >
-            <ArrowLeft size={16} className="text-white/40 group-hover:text-white" />
-          </button>
-          <span className="text-sm font-bold text-white/60 tracking-wide">Legal Marketplace</span>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 pt-16 pb-32">
-        
-        {/* ── Premium Hero ── */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-16">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] mb-6">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Доступно {lawyers.length} специалистов</span>
-            </div>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter leading-[1.05] mb-6">
-              Найдите <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/30">своего<br/>юриста</span>
-            </h1>
-            <p className="text-lg text-white/40 leading-relaxed font-medium">
-              Платформа объединяет лучших независимых юристов и адвокатов Казахстана для решения ваших задач.
-            </p>
-          </motion.div>
-        </div>
-
-        {/* ── Search & Filters ── */}
-        <div className="mb-12 glass-premium rounded-[2rem] p-4 flex flex-col md:flex-row gap-4">
-          <form onSubmit={applySearch} className="flex-1 relative">
-            <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" />
-            <input
-              ref={inputRef} value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Поиск по имени или специализации..."
-              className="w-full h-14 bg-obsidian-950/50 rounded-2xl border border-white/[0.05] pl-14 pr-6 text-sm text-white placeholder-white/30 focus:border-white/20 outline-none transition-colors"
-            />
-          </form>
-          <div className="flex gap-4">
-            <CustomSelect value={filters.city} onChange={e => setFilters(f => ({ ...f, city: e.target.value }))}
-              options={[{ value: '', label: 'Все города' }, ...cities.map(c => ({ value: c, label: c }))]} 
-              className="w-48 bg-obsidian-950/50 rounded-2xl border border-white/[0.05] h-14"
-            />
-            <CustomSelect value={filters.specialization} onChange={e => setFilters(f => ({ ...f, specialization: e.target.value }))}
-              options={[{ value: '', label: 'Все специализации' }, ...specializations.map(s => ({ value: s.name_ru, label: s.name_ru }))]} 
-              className="w-56 bg-obsidian-950/50 rounded-2xl border border-white/[0.05] h-14"
-            />
-            <button onClick={() => loadLawyers()} className="px-8 h-14 bg-white text-black font-bold rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-[1.02] transition-transform">
-              Найти
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-white/20 flex flex-col lg:flex-row">
+      
+      {/* ── Left Pane: Sticky Filters ── */}
+      <div className="lg:w-[35%] xl:w-[30%] border-b lg:border-b-0 lg:border-r border-white/5 bg-[#050505] z-20">
+        <div className="lg:sticky lg:top-0 lg:h-screen flex flex-col max-h-screen overflow-y-auto custom-scrollbar">
+          
+          <div className="p-6 lg:p-8 pb-0">
+            <button
+              onClick={() => navigate(user?.role === 'lawyer' ? '/lawyer' : user ? '/dashboard' : '/')}
+              className="w-10 h-10 mb-6 lg:mb-8 rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <ArrowLeft size={16} />
             </button>
-            {activeCount > 0 && (
-              <button onClick={clearAll} className="px-6 h-14 bg-white/[0.05] text-white/50 hover:text-white font-bold rounded-2xl hover:bg-white/[0.1] transition-colors border border-white/[0.05]">
-                Сбросить
-              </button>
-            )}
+            <h1 className="text-3xl lg:text-5xl font-black tracking-tight mb-6 lg:mb-8">Каталог</h1>
           </div>
-        </div>
 
-        {/* ── Category Chips ── */}
-        <div className="flex flex-wrap items-center gap-3 mb-12">
-          {chips.map(({ label, icon }) => {
-            const active = filters.specialization === label;
-            return (
-              <button key={label} onClick={() => toggleChip(label)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300 ${
-                  active ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'bg-white/[0.02] text-white/40 border border-white/[0.05] hover:border-white/[0.1] hover:text-white/80'
-                }`}>
-                {icon} {label}
-              </button>
-            );
-          })}
-        </div>
+          <div className="px-6 lg:px-8 pb-6 lg:pb-8 flex-1 flex flex-col gap-6 lg:gap-10">
+            {/* Search */}
+            <form onSubmit={applySearch} className="relative">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Имя специалиста..."
+                className="w-full h-14 bg-white/[0.02] rounded-2xl border border-white/5 pl-12 pr-4 text-sm text-white placeholder-neutral-600 focus:border-white/20 focus:bg-white/[0.05] outline-none transition-colors"
+              />
+            </form>
 
-        {/* ── Bento Grid ── */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[280px]">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-[2rem] bg-white/[0.02] border border-white/[0.04] p-8 overflow-hidden relative">
-                <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/[0.03] to-transparent" />
-                <div className="w-16 h-16 rounded-2xl bg-white/[0.05] mb-6" />
-                <div className="h-6 w-1/2 bg-white/[0.05] rounded-lg mb-3" />
-                <div className="h-4 w-1/3 bg-white/[0.05] rounded-lg" />
+            {/* Specializations List */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-600">Специализация</h3>
               </div>
-            ))}
-          </div>
-        ) : lawyers.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-32 flex flex-col items-center text-center">
-            <div className="w-20 h-20 rounded-[2rem] bg-white/[0.02] border border-white/[0.05] flex items-center justify-center mb-6">
-              <Search size={32} className="text-white/10" />
+              <div className="flex flex-col gap-1">
+                {specializations.map(s => {
+                  const active = filters.specialization === s.name_ru;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => handleFilterChange('specialization', s.name_ru)}
+                      className={`text-left px-4 py-3 rounded-xl text-xs font-bold transition-colors ${
+                        active ? 'bg-white text-black' : 'text-neutral-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      {s.name_ru}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <h3 className="text-2xl font-black text-white/50 mb-3">Никого не найдено</h3>
-            <p className="text-white/30 max-w-sm mb-8">Попробуйте изменить параметры поиска или сбросить фильтры.</p>
+
+            {/* Cities List */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-600">Город</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {cities.map(c => {
+                  const active = filters.city === c;
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => handleFilterChange('city', c)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors border ${
+                        active ? 'bg-white text-black border-white' : 'bg-transparent text-neutral-500 border-white/10 hover:border-white/30 hover:text-white'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Clear Filters CTA */}
             {activeCount > 0 && (
-              <button onClick={clearAll} className="px-6 py-3 rounded-2xl bg-white/[0.05] text-white/60 font-bold hover:bg-white/[0.1] transition-colors border border-white/[0.05]">
-                Сбросить фильтры
-              </button>
+              <div className="pt-4 mt-auto">
+                <button
+                  onClick={clearAll}
+                  className="w-full h-12 rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  Сбросить фильтры
+                </button>
+              </div>
             )}
-          </motion.div>
-        ) : (
-          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 auto-rows-[minmax(280px,auto)]">
-            <AnimatePresence mode="popLayout">
-              {lawyers.map((l, i) => (
-                <BentoCard key={l.id} lawyer={l} index={i} />
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )}
+          </div>
+        </div>
       </div>
+
+      {/* ── Right Pane: Scrollable List ── */}
+      <div className="lg:w-[65%] xl:w-[70%] bg-[#050505] min-h-screen relative p-4 sm:p-8 lg:p-12">
+        <div className="max-w-4xl mx-auto">
+          {loading ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-48 rounded-[2rem] bg-white/[0.02] border border-white/[0.04] p-8 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/[0.03] to-transparent" />
+                  <div className="flex gap-5 mb-6">
+                     <div className="w-16 h-16 rounded-2xl bg-white/5 shrink-0" />
+                     <div className="flex-1 space-y-3 pt-2">
+                       <div className="h-4 w-1/2 bg-white/5 rounded" />
+                       <div className="h-3 w-1/3 bg-white/5 rounded" />
+                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : lawyers.length === 0 ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-32 flex flex-col items-center text-center">
+              <div className="w-20 h-20 rounded-[2.5rem] bg-white/[0.02] border border-white/[0.05] flex items-center justify-center mb-6">
+                <Search size={32} className="text-white/10" />
+              </div>
+              <h3 className="text-2xl font-black text-white/50 mb-3">Никого не найдено</h3>
+              <p className="text-white/30 max-w-sm mb-8 text-sm">Попробуйте изменить параметры поиска или выбрать другую специализацию.</p>
+              {activeCount > 0 && (
+                <button onClick={clearAll} className="px-6 py-3 rounded-2xl bg-white/[0.05] text-white font-bold hover:bg-white/[0.1] transition-colors border border-white/[0.05] text-xs uppercase tracking-widest">
+                  Сбросить всё
+                </button>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6"
+            >
+              <AnimatePresence mode="popLayout">
+                {lawyers.map((l, i) => (
+                  <LawyerCard key={l.id} lawyer={l} index={i} />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }

@@ -1,20 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Inbox, CheckCircle, XCircle, Clock, MapPin, AlertCircle, MessageSquare, Briefcase, ChevronRight, GripVertical, ArrowRight, Columns3 } from 'lucide-react';
+import { Inbox, CheckCircle, XCircle, Clock, MapPin, AlertCircle, MessageSquare, Briefcase, GripVertical, Columns3 } from 'lucide-react';
 import { escalationApi } from '../services/api';
 import { useToast } from '../components/Toast';
-import { useAuth } from '../contexts/AuthContext';
 
 const urgencyConfig = {
-  normal: { color: 'text-chrome-400', bg: 'bg-chrome-400/10', border: 'border-chrome-400/20', label: 'Обычная', glow: '' },
-  high: { color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20', label: 'Высокая', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.1)]' },
-  critical: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20', label: 'Критическая', glow: 'shadow-[0_0_20px_rgba(239,68,68,0.15)]' }
+  normal: { color: 'text-white/60', bg: 'bg-white/[0.05]', border: 'border-white/10', label: 'Обычная' },
+  high: { color: 'text-white', bg: 'bg-white/10', border: 'border-white/20', label: 'Высокая' },
+  critical: { color: 'text-black', bg: 'bg-white', border: 'border-white', label: 'Критическая' }
 };
 
 const COLUMNS = [
-  { id: 'pending', title: 'Новые заявки', color: 'amber', icon: <Inbox size={16} />, emptyText: 'Нет новых заявок' },
-  { id: 'accepted', title: 'В работе', color: 'emerald', icon: <CheckCircle size={16} />, emptyText: 'Перетащите заявку сюда' },
-  { id: 'declined', title: 'Отклонённые', color: 'red', icon: <XCircle size={16} />, emptyText: 'Нет отклонённых' },
+  { id: 'pending', title: 'Новые заявки', icon: <Inbox size={14} />, emptyText: 'Нет новых заявок', dotColor: 'bg-white' },
+  { id: 'accepted', title: 'В работе', icon: <CheckCircle size={14} />, emptyText: 'Перетащите заявку сюда', dotColor: 'bg-white/60' },
+  { id: 'declined', title: 'Отклонённые', icon: <XCircle size={14} />, emptyText: 'Нет отклонённых', dotColor: 'bg-white/20' },
 ];
 
 function KanbanCard({ lead, onDragStart, onRespond }) {
@@ -35,7 +34,6 @@ function KanbanCard({ lead, onDragStart, onRespond }) {
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
       draggable
       onDragStart={(e) => {
-        // Use native event from the DOM
         const nativeEvent = e.nativeEvent || e;
         if (nativeEvent.dataTransfer) {
           nativeEvent.dataTransfer.setData('text/plain', JSON.stringify({ id: lead.id, status: lead.status }));
@@ -43,73 +41,73 @@ function KanbanCard({ lead, onDragStart, onRespond }) {
         }
         if (onDragStart) onDragStart(lead);
       }}
-      className={`group relative bg-obsidian-900/80 border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-4 cursor-grab active:cursor-grabbing transition-all hover:shadow-lg ${urgency.glow}`}
+      className={`group relative bg-[#050505] border border-white/5 hover:border-white/20 hover:bg-white/[0.02] rounded-[1.5rem] p-5 cursor-grab active:cursor-grabbing transition-all`}
     >
-      {/* Drag handle indicator */}
-      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-40 transition-opacity">
-        <GripVertical size={14} className="text-steel-500" />
+      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <GripVertical size={14} className="text-white/40" />
       </div>
 
-      {/* Header */}
-      <div className="flex items-start gap-3 mb-3">
+      <div className="flex items-start gap-3 mb-4 pr-6">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <h4 className="text-sm font-bold text-white truncate">{lead.user_name}</h4>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold tracking-wider uppercase border ${urgency.bg} ${urgency.color} ${urgency.border}`}>
+            <span className={`text-[9px] px-2 py-0.5 rounded-md font-black tracking-widest uppercase border ${urgency.bg} ${urgency.color} ${urgency.border}`}>
               {urgency.label}
             </span>
           </div>
-          <div className="flex items-center gap-3 text-[10px] text-steel-500">
-            <span className="flex items-center gap-1"><Briefcase size={10} /> {lead.category}</span>
-            {lead.city && <span className="flex items-center gap-1"><MapPin size={10} /> {lead.city}</span>}
+          <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-white/40">
+            <span className="flex items-center gap-1.5"><Briefcase size={10} /> {lead.category}</span>
+            {lead.city && <span className="flex items-center gap-1.5"><MapPin size={10} /> {lead.city}</span>}
           </div>
         </div>
       </div>
 
-      {/* Description */}
-      <div className="bg-obsidian-950/50 rounded-lg p-3 border border-white/[0.03] mb-3">
-        <p className="text-xs text-steel-300 leading-relaxed line-clamp-3">{lead.description}</p>
+      <div className="bg-white/[0.02] rounded-xl p-4 border border-white/5 mb-4">
+        <p className="text-xs text-white/60 leading-relaxed line-clamp-3">{lead.description}</p>
       </div>
 
       {lead.ai_analysis && (
-        <div className="mb-3 px-2">
-          <p className="text-[10px] text-chrome-400 flex items-center gap-1 mb-0.5">
+        <div className="mb-4">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white flex items-center gap-1.5 mb-2">
             <AlertCircle size={10} /> AI-Анализ
           </p>
-          <p className="text-[10px] text-steel-500 leading-relaxed line-clamp-2">{lead.ai_analysis}</p>
+          <p className="text-[10px] text-white/40 leading-relaxed line-clamp-2">{lead.ai_analysis}</p>
         </div>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
-        <span className="text-[10px] text-steel-600 flex items-center gap-1">
+      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+        <span className="text-[9px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5">
           <Clock size={10} /> {new Date(lead.created_at).toLocaleDateString('ru-RU')}
         </span>
 
         {lead.status === 'pending' && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => handleAction('accept')}
               disabled={loading}
-              className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/20 text-[10px] font-bold transition-all disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
             >
               Принять
             </button>
             <button
               onClick={() => handleAction('decline')}
               disabled={loading}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.04] text-steel-400 hover:text-red-400 hover:bg-red-500/10 border border-white/[0.06] text-[10px] font-bold transition-all disabled:opacity-50"
+              className="w-7 h-7 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all disabled:opacity-50"
             >
-              ✕
+              <XCircle size={12} />
             </button>
           </div>
         )}
 
         {lead.status === 'accepted' && (
-          <span className="text-[10px] text-emerald-400 font-bold">✓ В работе</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-white flex items-center gap-1">
+            <CheckCircle size={10} /> В работе
+          </span>
         )}
         {lead.status === 'declined' && (
-          <span className="text-[10px] text-red-400 font-bold">✕ Отклонено</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1">
+            <XCircle size={10} /> Отклонено
+          </span>
         )}
       </div>
     </motion.div>
@@ -118,12 +116,6 @@ function KanbanCard({ lead, onDragStart, onRespond }) {
 
 function KanbanColumn({ column, leads, onDrop, onRespond }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const colorMap = {
-    amber: { border: 'border-amber-500/40', bg: 'bg-amber-500/5', text: 'text-amber-400', dot: 'bg-amber-500' },
-    emerald: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', text: 'text-emerald-400', dot: 'bg-emerald-500' },
-    red: { border: 'border-red-500/40', bg: 'bg-red-500/5', text: 'text-red-400', dot: 'bg-red-500' },
-  };
-  const colors = colorMap[column.color] || colorMap.amber;
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -148,28 +140,26 @@ function KanbanColumn({ column, leads, onDrop, onRespond }) {
 
   return (
     <div
-      className={`flex flex-col min-h-[60vh] rounded-2xl border transition-all duration-200 ${
+      className={`flex flex-col min-h-[60vh] rounded-[2rem] transition-all duration-200 overflow-hidden ${
         isDragOver
-          ? `${colors.border} ${colors.bg} shadow-[0_0_30px_rgba(255,255,255,0.03)]`
-          : 'border-white/[0.04] bg-obsidian-950/30'
+          ? 'border border-white/20 bg-white/[0.03]'
+          : 'border border-white/5 bg-white/[0.01]'
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Column Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/[0.04]">
+      <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.02]">
         <div className="flex items-center gap-2.5">
-          <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
-          <span className={`text-xs font-bold uppercase tracking-wider ${colors.text}`}>{column.title}</span>
+          <div className={`w-2 h-2 rounded-full ${column.dotColor}`} />
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{column.title}</span>
         </div>
-        <span className="text-[10px] font-mono text-steel-500 bg-obsidian-900 px-2 py-0.5 rounded-lg border border-white/[0.04]">
+        <span className="text-[9px] font-black text-white/40 bg-[#050505] px-2.5 py-1 rounded-full border border-white/5">
           {leads.length}
         </span>
       </div>
 
-      {/* Cards */}
-      <div className="flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 p-4 space-y-4 overflow-y-auto custom-scrollbar relative">
         <AnimatePresence>
           {leads.length > 0 ? (
             leads.map(lead => (
@@ -179,12 +169,12 @@ function KanbanColumn({ column, leads, onDrop, onRespond }) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center h-40 text-center"
+              className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
             >
-              <div className="w-12 h-12 rounded-xl bg-obsidian-900/50 flex items-center justify-center mb-3">
-                <MessageSquare size={18} className="text-steel-600" />
+              <div className="w-12 h-12 rounded-2xl bg-white/[0.02] flex items-center justify-center mb-3">
+                <MessageSquare size={16} className="text-white/20" />
               </div>
-              <p className="text-xs text-steel-600">{column.emptyText}</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/40">{column.emptyText}</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -206,7 +196,7 @@ export default function LawyerLeads() {
   const loadAllLeads = async () => {
     setLoading(true);
     try {
-      const data = await escalationApi.getLeads(null); // Load ALL statuses
+      const data = await escalationApi.getLeads(null);
       setLeads(data);
     } catch (e) {
       console.error('Failed to load leads:', e);
@@ -236,13 +226,11 @@ export default function LawyerLeads() {
     const lead = leads.find(l => l.id === leadId);
     if (!lead) return;
 
-    // Map column ID to action
     if (targetStatus === 'accepted' && lead.status === 'pending') {
       await handleRespond(leadId, 'accept');
     } else if (targetStatus === 'declined' && lead.status === 'pending') {
       await handleRespond(leadId, 'decline');
     } else {
-      // Visual-only reorder (moving between accepted/declined doesn't call API)
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: targetStatus } : l));
     }
   };
@@ -250,45 +238,41 @@ export default function LawyerLeads() {
   const getLeadsForColumn = (columnId) => leads.filter(l => l.status === columnId);
 
   return (
-    <div className="min-h-screen bg-obsidian-950 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl chrome-gradient flex items-center justify-center shadow-lg">
-              <Inbox size={24} className="text-obsidian-950" strokeWidth={2.5} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">Входящие <span className="metal-text">заявки</span></h1>
-              <p className="text-sm text-steel-400">Канбан-доска лидов от ИИ и пользователей портала</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-2.5 rounded-lg transition-all ${viewMode === 'kanban' ? 'bg-chrome-500/20 text-chrome-300 border border-chrome-500/30' : 'text-steel-500 hover:text-steel-300'}`}
-            >
-              <Columns3 size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-chrome-500/20 text-chrome-300 border border-chrome-500/30' : 'text-steel-500 hover:text-steel-300'}`}
-            >
-              <Briefcase size={18} />
-            </button>
-          </div>
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-6 lg:p-10 selection:bg-white/20 font-sans">
+      <div className="flex justify-between items-center mb-6 shrink-0 gap-4">
+        <div>
+          <h1 className="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3">
+            <Inbox size={28} />
+            Входящие заявки
+          </h1>
+          <p className="text-white/40 font-bold tracking-widest text-[10px] uppercase mt-1">Канбан-доска лидов от ИИ и пользователей портала</p>
         </div>
 
+        <div className="flex items-center bg-white/[0.02] p-1 rounded-xl border border-white/5">
+          <button
+            onClick={() => setViewMode('kanban')}
+            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${viewMode === 'kanban' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+          >
+            <Columns3 size={16} />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+          >
+            <Briefcase size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar relative pr-2">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-[60vh] rounded-2xl bg-obsidian-900/20 border border-white/[0.02] animate-pulse" />
+              <div key={i} className="min-h-[60vh] rounded-[2rem] bg-white/[0.01] border border-white/5 animate-pulse" />
             ))}
           </div>
         ) : viewMode === 'kanban' ? (
-          /* ── KANBAN VIEW ── */
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-8 h-full">
             {COLUMNS.map(col => (
               <KanbanColumn
                 key={col.id}
@@ -300,20 +284,19 @@ export default function LawyerLeads() {
             ))}
           </div>
         ) : (
-          /* ── LIST VIEW (fallback) ── */
-          <div className="space-y-4">
+          <div className="space-y-4 pb-8 max-w-4xl mx-auto w-full">
             <AnimatePresence>
               {leads.length > 0 ? (
                 leads.map(lead => (
                   <KanbanCard key={lead.id} lead={lead} onRespond={handleRespond} />
                 ))
               ) : (
-                <div className="text-center py-20 glass-card border border-white/[0.02] border-dashed">
-                  <div className="w-16 h-16 rounded-2xl bg-obsidian-800/50 flex items-center justify-center mx-auto mb-4">
-                    <MessageSquare size={24} className="text-steel-600" />
+                <div className="text-center py-20 bg-white/[0.01] rounded-[2rem] border border-dashed border-white/5">
+                  <div className="w-16 h-16 rounded-3xl bg-white/[0.02] flex items-center justify-center mx-auto mb-4">
+                    <MessageSquare size={24} className="text-white/20" />
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-1">Нет заявок</h3>
-                  <p className="text-steel-400 text-sm">У вас пока нет входящих заявок от клиентов</p>
+                  <h3 className="text-sm font-bold text-white mb-2">Нет заявок</h3>
+                  <p className="text-white/40 font-black tracking-widest uppercase text-[9px]">У вас пока нет входящих заявок от клиентов</p>
                 </div>
               )}
             </AnimatePresence>

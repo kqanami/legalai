@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ShieldCheck, KeyRound, Smartphone, Mail, Globe, LogOut, Briefcase, ArrowUpRight, Zap, Database, Copy, Check } from 'lucide-react';
-import { FadeUp } from '../components/ui/animations';
 
 const plans = {
   freemium: { name: 'FREEMIUM', limit: '3 премиум', model: 'Sonnet 3.5' },
@@ -13,9 +12,19 @@ const plans = {
   business: { name: 'БИЗНЕС', monthlyPrice: '50,000', limit: 'Безлимит', model: 'Opus' }
 };
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }
+};
+
 export default function ProfilePage() {
   const { user, logout } = useAuth();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
@@ -28,191 +37,180 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8 pb-20 text-white font-sans">
-      
-      {/* Header & User Info - Compact */}
-      <FadeUp className="mb-8">
-        <div className="bg-neutral-950 border border-white/5 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
-          <div className="flex items-center gap-5 z-10">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-xl bg-white text-black flex items-center justify-center text-2xl font-bold shadow-lg">
-                {user?.name?.charAt(0) || 'U'}
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-neutral-950 rounded-full"></div>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight mb-0.5">{user?.name}</h1>
-              <div className="flex items-center gap-4 text-xs text-neutral-500 font-medium">
-                <span className="flex items-center gap-1"><Smartphone size={12}/> {user?.phone || 'Нет телефона'}</span>
-                <span className="flex items-center gap-1"><Mail size={12}/> {user?.email || 'Не указан'}</span>
-              </div>
-            </div>
-          </div>
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-6 lg:p-10 selection:bg-white/20 font-sans">
+      <div className="flex-1 overflow-y-auto custom-scrollbar relative pr-2">
+        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-4xl mx-auto pb-8 flex flex-col gap-6">
           
-          <button 
-            onClick={logout}
-            className="z-10 flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 rounded-lg text-xs font-semibold transition-all active:scale-95"
-          >
-            <LogOut size={14} /> Выйти
-          </button>
-        </div>
-      </FadeUp>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        
-        {/* Plan Card */}
-        <FadeUp delay={0.1}>
-          <div className="bg-neutral-950 border border-white/5 rounded-2xl p-6 h-full flex flex-col hover:border-white/10 transition-colors">
-            <div className="flex items-start justify-between mb-6">
+          {/* Header & User Info */}
+          <motion.div variants={itemVariants} className="bg-white/[0.01] border border-white/5 rounded-[2rem] p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
+            <div className="flex items-center gap-6 z-10">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-[1.5rem] bg-white text-black flex items-center justify-center text-3xl font-black">
+                  {user?.name?.charAt(0) || 'U'}
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-[#050505] rounded-full"></div>
+              </div>
               <div>
-                <h2 className="text-xs text-neutral-500 font-bold uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
-                  <ShieldCheck size={14} /> Текущий Тариф
-                </h2>
-                <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/10 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest">
-                  {currentPlan.name}
+                <h1 className="text-3xl font-black tracking-tight mb-2">{user?.name}</h1>
+                <div className="flex items-center gap-4 text-[11px] font-bold text-white/40 uppercase tracking-widest">
+                  <span className="flex items-center gap-1.5"><Smartphone size={14}/> {user?.phone || 'Нет телефона'}</span>
+                  <span className="flex items-center gap-1.5"><Mail size={14}/> {user?.email || 'Не указан'}</span>
                 </div>
               </div>
-              <button 
-                onClick={() => navigate('/pricing')}
-                className="px-4 py-2 rounded-lg bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-colors shadow-sm"
-              >
-                Улучшить
-              </button>
             </div>
             
-            <div className="space-y-4 mt-auto">
-              <div>
-                <div className="flex justify-between items-end mb-1.5">
-                  <span className="text-[11px] text-neutral-400 font-medium flex items-center gap-1">
-                    <Zap size={12} className="text-white" /> Запросы
-                  </span>
-                  <span className="text-xs font-bold">12 / {currentPlan.limit.split('/')[0].trim()}</span>
-                </div>
-                <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: '60%' }} transition={{ duration: 1 }} className="h-full bg-white" />
-                </div>
-              </div>
-              {(currentPlan.name === 'ИП' || currentPlan.name === 'БИЗНЕС') && (
+            <button 
+              onClick={logout}
+              className="z-10 flex items-center gap-2 h-12 px-6 bg-white/[0.05] hover:bg-white/[0.1] text-white border border-white/10 rounded-2xl text-xs font-bold transition-all"
+            >
+              <LogOut size={16} /> Выйти
+            </button>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Plan Card */}
+            <motion.div variants={itemVariants} className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6 lg:p-8 flex flex-col hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden">
+              <div className="flex items-start justify-between mb-8">
                 <div>
-                  <div className="flex justify-between items-end mb-1.5">
-                    <span className="text-[11px] text-neutral-400 font-medium flex items-center gap-1">
-                      <Database size={12} className="text-white" /> Аудиты
-                    </span>
-                    <span className="text-xs font-bold">2 / 15</span>
+                  <h2 className="text-[10px] text-white/40 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                    <ShieldCheck size={14} /> Текущий Тариф
+                  </h2>
+                  <div className="inline-flex items-center px-3 py-1 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest">
+                    {currentPlan.name}
                   </div>
-                  <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: '15%' }} transition={{ duration: 1 }} className="h-full bg-neutral-500" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </FadeUp>
-
-        {/* API Key */}
-        <FadeUp delay={0.2}>
-          <div className="bg-neutral-950 border border-white/5 rounded-2xl p-6 h-full flex flex-col hover:border-white/10 transition-colors">
-            <h3 className="text-xs text-neutral-500 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-              <KeyRound size={14} /> API Интеграция
-            </h3>
-            <p className="text-[11px] text-neutral-500 mb-4 leading-relaxed">
-              API-ключ для интеграции LegalAI в ваши внутренние системы (CRM, ERP).
-            </p>
-            
-            <div className="mt-auto">
-              <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mb-1 block">Live API Key</label>
-              <div className="flex items-center gap-2 p-1 bg-black border border-white/10 rounded-lg">
-                <div className="flex-1 px-2 text-xs text-neutral-400 font-mono truncate">
-                  sk-live-*********************
                 </div>
                 <button 
-                  onClick={handleCopyApi}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-md text-white transition-colors"
-                  title="Копировать"
+                  onClick={() => navigate('/pricing')}
+                  className="h-9 px-4 rounded-xl bg-white/[0.05] text-white border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/[0.1] transition-colors"
                 >
-                  {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                  Улучшить
                 </button>
               </div>
-            </div>
-          </div>
-        </FadeUp>
+              
+              <div className="space-y-6 mt-auto">
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-[11px] text-white/40 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                      <Zap size={14} className="text-white" /> Запросы
+                    </span>
+                    <span className="text-xs font-black">12 / {currentPlan.limit.split('/')[0].trim()}</span>
+                  </div>
+                  <div className="w-full h-2 bg-white/[0.05] rounded-full overflow-hidden border border-white/5">
+                    <motion.div initial={{ width: 0 }} animate={{ width: '60%' }} transition={{ duration: 1, type: 'spring' }} className="h-full bg-white" />
+                  </div>
+                </div>
+                {(currentPlan.name === 'ИП' || currentPlan.name === 'БИЗНЕС') && (
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <span className="text-[11px] text-white/40 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                        <Database size={14} className="text-white" /> Аудиты
+                      </span>
+                      <span className="text-xs font-black">2 / 15</span>
+                    </div>
+                    <div className="w-full h-2 bg-white/[0.05] rounded-full overflow-hidden border border-white/5">
+                      <motion.div initial={{ width: 0 }} animate={{ width: '15%' }} transition={{ duration: 1, type: 'spring' }} className="h-full bg-white/40" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
 
-        {/* Escalations / Cases (Full Width) */}
-        <FadeUp delay={0.3} className="md:col-span-2">
-          <div className="bg-neutral-950 border border-white/5 rounded-2xl p-6 hover:border-white/10 transition-colors">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-xs text-neutral-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
+            {/* API Key */}
+            <motion.div variants={itemVariants} className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6 lg:p-8 flex flex-col hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden">
+              <h3 className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <KeyRound size={14} /> API Интеграция
+              </h3>
+              <p className="text-sm text-white/60 mb-6 leading-relaxed">
+                API-ключ для интеграции LegalAI в ваши внутренние системы (CRM, ERP).
+              </p>
+              
+              <div className="mt-auto">
+                <label className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-2 block">Live API Key</label>
+                <div className="flex items-center gap-2 p-1 bg-[#050505] border border-white/10 rounded-2xl h-14">
+                  <div className="flex-1 px-4 text-xs text-white/60 font-mono truncate">
+                    sk-live-*********************
+                  </div>
+                  <button 
+                    onClick={handleCopyApi}
+                    className="w-12 h-12 flex items-center justify-center bg-white/[0.05] hover:bg-white/[0.1] rounded-xl text-white transition-colors"
+                    title="Копировать"
+                  >
+                    {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Escalations / Cases */}
+            <motion.div variants={itemVariants} className="md:col-span-2 bg-white/[0.02] border border-white/5 rounded-[2rem] p-6 lg:p-8 hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden">
+              <div className="mb-6">
+                <h3 className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-2 flex items-center gap-1.5">
                   <Briefcase size={14} /> {user?.role === 'lawyer' ? 'Эскалации' : 'Мои Эскалации'}
                 </h3>
-                <p className="text-[11px] text-neutral-500">
+                <p className="text-sm text-white/60">
                   Сложные вопросы, требующие внимания специалиста.
                 </p>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Mock Item 1 */}
-              <div className="group bg-black border border-white/5 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:border-white/20 transition-all hover:bg-white/5">
-                <div>
-                  <p className="text-sm font-semibold mb-0.5 text-white">Раздел имущества</p>
-                  <p className="text-[10px] text-neutral-500 font-mono">#4092 • В работе</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="group bg-[#050505] border border-white/5 p-4 rounded-2xl flex items-center justify-between cursor-pointer hover:border-white/20 transition-all hover:bg-white/[0.02]">
+                  <div>
+                    <p className="text-sm font-bold mb-1 text-white">Раздел имущества</p>
+                    <p className="text-[10px] text-white/40 font-black uppercase tracking-widest">#4092 • В работе</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center text-white/40 group-hover:bg-white group-hover:text-black transition-colors">
+                    <ArrowUpRight size={16} />
+                  </div>
                 </div>
-                <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center text-neutral-400 group-hover:bg-white group-hover:text-black transition-colors">
-                  <ArrowUpRight size={14} />
+                
+                <div className="group bg-[#050505] border border-white/5 p-4 rounded-2xl flex items-center justify-between cursor-pointer hover:border-white/20 transition-all hover:bg-white/[0.02]">
+                  <div>
+                    <p className="text-sm font-bold mb-1 text-white">Аудит ВЭД контракта</p>
+                    <p className="text-[10px] text-white/40 font-black uppercase tracking-widest">#3911 • Завершено</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center text-white/40 group-hover:bg-white group-hover:text-black transition-colors">
+                    <ArrowUpRight size={16} />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Localization */}
+            <motion.div variants={itemVariants} className="md:col-span-2 bg-white/[0.01] border border-white/5 rounded-[2rem] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.02] hover:border-white/10 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center">
+                  <Globe size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white mb-1">Язык интерфейса</h3>
+                  <p className="text-xs text-white/40 font-bold uppercase tracking-widest">Выберите удобный язык для работы</p>
                 </div>
               </div>
               
-              {/* Mock Item 2 */}
-              <div className="group bg-black border border-white/5 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:border-white/20 transition-all hover:bg-white/5">
-                <div>
-                  <p className="text-sm font-semibold mb-0.5 text-white">Аудит ВЭД контракта</p>
-                  <p className="text-[10px] text-neutral-500 font-mono">#3911 • Завершено</p>
-                </div>
-                <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center text-neutral-400 group-hover:bg-white group-hover:text-black transition-colors">
-                  <ArrowUpRight size={14} />
-                </div>
+              <div className="flex bg-[#050505] p-1 rounded-2xl border border-white/5 h-12 items-center px-1 shrink-0">
+                <button
+                  onClick={() => setLanguage('ru')}
+                  className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    language === 'ru' ? 'bg-white text-black' : 'text-white/40 hover:text-white'
+                  }`}
+                >
+                  Русский
+                </button>
+                <button
+                  onClick={() => setLanguage('kz')}
+                  className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    language === 'kz' ? 'bg-white text-black' : 'text-white/40 hover:text-white'
+                  }`}
+                >
+                  Қазақша
+                </button>
               </div>
-            </div>
-          </div>
-        </FadeUp>
+            </motion.div>
 
-        {/* Localization (Full Width) */}
-        <FadeUp delay={0.4} className="md:col-span-2">
-          <div className="bg-neutral-950 border border-white/5 rounded-2xl p-4 flex items-center justify-between hover:border-white/10 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-black border border-white/10 flex items-center justify-center">
-                <Globe size={14} className="text-neutral-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white mb-0.5">Язык интерфейса</h3>
-                <p className="text-[10px] text-neutral-500 font-medium">Выберите удобный язык для работы</p>
-              </div>
-            </div>
-            
-            <div className="flex bg-black p-1 rounded-lg border border-white/10">
-              <button
-                onClick={() => setLanguage('ru')}
-                className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${
-                  language === 'ru' ? 'bg-white text-black shadow-sm' : 'text-neutral-500 hover:text-white'
-                }`}
-              >
-                Рус
-              </button>
-              <button
-                onClick={() => setLanguage('kz')}
-                className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${
-                  language === 'kz' ? 'bg-white text-black shadow-sm' : 'text-neutral-500 hover:text-white'
-                }`}
-              >
-                Қаз
-              </button>
-            </div>
           </div>
-        </FadeUp>
-
+        </motion.div>
       </div>
-
     </div>
   );
 }

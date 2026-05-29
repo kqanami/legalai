@@ -22,14 +22,14 @@ export default function CustomSelect({ value, onChange, options, placeholder, cl
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       <div 
-        className="input-field shadow-inner bg-obsidian-800 text-white border border-obsidian-600 focus:border-chrome-400 rounded-xl px-4 py-3 w-full cursor-pointer flex items-center justify-between"
+        className={`input-field bg-white/[0.03] text-white border border-white/10 hover:border-white/20 focus:border-white/30 rounded-xl px-4 py-3 w-full cursor-pointer flex items-center justify-between transition-colors ${className}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className={!selectedOption ? 'text-steel-500' : 'text-white'}>
           {displayValue}
         </span>
         <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown size={18} className="text-steel-400" />
+          <ChevronDown size={18} className="text-neutral-500" />
         </motion.div>
       </div>
 
@@ -40,7 +40,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, cl
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 top-full left-0 right-0 mt-2 bg-obsidian-800 border border-obsidian-600 rounded-xl shadow-2xl shadow-black overflow-hidden"
+            className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
           >
             <div className="max-h-60 overflow-y-auto custom-scrollbar">
               {options.map((opt, i) => {
@@ -52,7 +52,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, cl
                   <div 
                     key={i}
                     className={`px-4 py-3 cursor-pointer text-sm transition-colors ${
-                      isSelected ? 'bg-chrome-500/20 text-chrome-300 font-bold' : 'text-steel-300 hover:bg-obsidian-700 hover:text-white'
+                      isSelected ? 'bg-white/[0.05] text-white font-bold' : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white'
                     }`}
                     onClick={() => {
                       onChange({ target: { value: optValue } });

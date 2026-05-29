@@ -55,7 +55,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Dashboard Content */}
-        <main className="flex-1 overflow-x-hidden relative">
+        <main className="flex-1 overflow-hidden relative">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

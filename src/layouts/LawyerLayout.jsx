@@ -1,17 +1,37 @@
+import { useState } from 'react';
 import { Outlet, NavLink, useLocation, useOutlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LayoutDashboard, Users, Briefcase, FileText, BrainCircuit, UserCircle, ShieldCheck, Inbox } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, FileText, BrainCircuit, UserCircle, ShieldCheck, Inbox, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LawyerLayout() {
   const { user } = useAuth();
   const location = useLocation();
   const outlet = useOutlet();
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-black text-white overflow-hidden p-4 gap-4 font-sans">
+    <div className="flex h-[100dvh] bg-black text-white overflow-hidden lg:p-4 lg:gap-4 font-sans relative">
+      
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            className="lg:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Floating Sidebar */}
-      <aside className="w-[260px] bg-[#0a0a0a] border border-white/10 rounded-[2rem] flex flex-col z-20 shadow-2xl relative overflow-hidden">
+      <aside className={`
+        fixed inset-y-4 left-4 z-50 w-[260px] bg-[#0a0a0a] border border-white/10 rounded-[2rem] flex flex-col shadow-2xl overflow-hidden transition-transform duration-300
+        lg:relative lg:inset-0 lg:transform-none lg:flex
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%]'}
+      `}>
         {/* Subtle top gradient */}
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
         
@@ -28,35 +48,53 @@ export default function LawyerLayout() {
         </div>
 
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar relative z-10">
-          <NavItem to="/lawyer" end icon={<LayoutDashboard size={18} />} label="Обзор" />
-          <NavItem to="/lawyer/clients" icon={<Users size={18} />} label="Клиенты" />
-          <NavItem to="/lawyer/leads" icon={<Inbox size={18} />} label="Заявки" />
-          <NavItem to="/lawyer/cases" icon={<Briefcase size={18} />} label="Дела" />
-          <NavItem to="/lawyer/templates" icon={<FileText size={18} />} label="Шаблоны" />
+          <NavItem to="/lawyer" end icon={<LayoutDashboard size={18} />} label="Обзор" onClick={() => setSidebarOpen(false)} />
+          <NavItem to="/lawyer/clients" icon={<Users size={18} />} label="Клиенты" onClick={() => setSidebarOpen(false)} />
+          <NavItem to="/lawyer/leads" icon={<Inbox size={18} />} label="Заявки" onClick={() => setSidebarOpen(false)} />
+          <NavItem to="/lawyer/cases" icon={<Briefcase size={18} />} label="Дела" onClick={() => setSidebarOpen(false)} />
+          <NavItem to="/lawyer/templates" icon={<FileText size={18} />} label="Шаблоны" onClick={() => setSidebarOpen(false)} />
           <div className="my-4 border-t border-white/5 mx-2"></div>
-          <NavItem to="/lawyer/ai" icon={<BrainCircuit size={18} />} label="AI Ассистент" />
+          <NavItem to="/lawyer/ai" icon={<BrainCircuit size={18} />} label="AI Ассистент" onClick={() => setSidebarOpen(false)} />
         </nav>
 
         <div className="p-4 relative z-10">
           <NavLink
             to="/lawyer/profile"
+            onClick={() => setSidebarOpen(false)}
             className={({ isActive }) => `flex items-center justify-between p-3 rounded-2xl transition-all ${
               isActive ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'bg-[#111] hover:bg-[#1a1a1a] text-neutral-400 border border-white/5'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <UserCircle size={20} className={isActive ? 'text-black' : 'text-neutral-500'} />
-              <span className="font-bold text-xs truncate max-w-[120px] tracking-wide">{user?.name || 'Юрист'}</span>
-            </div>
-            <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-black/50' : 'text-neutral-600'}`}>PRO</span>
+            {({ isActive }) => (
+              <>
+                <div className="flex items-center gap-3">
+                  <UserCircle size={20} className={isActive ? 'text-black' : 'text-neutral-500'} />
+                  <span className="font-bold text-xs truncate max-w-[120px] tracking-wide">{user?.name || 'Юрист'}</span>
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-black/50' : 'text-neutral-600'}`}>PRO</span>
+              </>
+            )}
           </NavLink>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-[2rem] overflow-hidden relative shadow-2xl">
+      <main className="flex-1 bg-[#0a0a0a] lg:border border-white/10 lg:rounded-[2rem] overflow-hidden relative shadow-2xl flex flex-col">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/[0.03] via-transparent to-transparent pointer-events-none" />
         
+        {/* Mobile Header */}
+        <header className="lg:hidden h-16 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl flex items-center px-4 sticky top-0 z-20 shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 -ml-2 text-neutral-400 hover:text-white transition-colors"
+          >
+            <Menu size={24} />
+          </button>
+          <div className="ml-2 font-black tracking-widest text-sm text-white">
+            LEGAL<span className="text-neutral-500">PRO</span>
+          </div>
+        </header>
+
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -74,11 +112,12 @@ export default function LawyerLayout() {
   );
 }
 
-function NavItem({ to, icon, label, end }) {
+function NavItem({ to, icon, label, end, onClick }) {
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={onClick}
       className={({ isActive }) => `
         group flex items-center gap-3 px-4 py-3 rounded-2xl transition-all font-bold text-xs tracking-wide overflow-hidden relative
         ${isActive 
