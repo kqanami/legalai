@@ -24,7 +24,7 @@ const itemVariants = {
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
-  const { language, setLanguage } = useLanguage();
+  const { lang, switchLanguage } = useLanguage();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
@@ -190,17 +190,17 @@ export default function ProfilePage() {
               
               <div className="flex bg-[#050505] p-1 rounded-2xl border border-white/5 h-12 items-center px-1 shrink-0">
                 <button
-                  onClick={() => setLanguage('ru')}
+                  onClick={() => switchLanguage('ru')}
                   className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    language === 'ru' ? 'bg-white text-black' : 'text-white/40 hover:text-white'
+                    lang === 'ru' ? 'bg-white text-black' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   Русский
                 </button>
                 <button
-                  onClick={() => setLanguage('kz')}
+                  onClick={() => switchLanguage('kz')}
                   className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    language === 'kz' ? 'bg-white text-black' : 'text-white/40 hover:text-white'
+                    lang === 'kz' ? 'bg-white text-black' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   Қазақша
