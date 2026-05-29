@@ -55,7 +55,7 @@ export default function Sidebar({ isOpen, onClose }) {
   // On desktop, it expands on hover. On mobile, it's fully expanded if open.
   const expanded = isDesktop ? isHovered : true;
   const width = expanded ? '260px' : '72px';
-  const translateX = isDesktop ? 0 : (isOpen ? 0 : '-100%');
+  const translateX = isDesktop ? 0 : (isOpen ? 0 : 'calc(-100% - 24px)');
 
   return (
     <>
