@@ -55,14 +55,15 @@ const PrivateRoute = ({ children }) => {
 const ClientRoute = ({ children }) => {
   const { user } = useAuth();
   if (!user) return <Navigate to="/auth" />;
+  if (user.role === 'admin') return children;
   if (user.role === 'lawyer') return <Navigate to="/lawyer" />;
-  if (user.role === 'admin') return <Navigate to="/admin" />;
   return children;
 };
 
 const LawyerRoute = ({ children }) => {
   const { user } = useAuth();
   if (!user) return <Navigate to="/auth" />;
+  if (user.role === 'admin') return children;
   if (user.role !== 'lawyer') return <Navigate to="/dashboard" />;
   return children;
 };
