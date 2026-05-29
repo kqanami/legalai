@@ -17,8 +17,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
-    phone = Column(String(20), unique=True, nullable=False, index=True)
-    email = Column(String(255), nullable=True)
+    phone = Column(String(20), unique=True, nullable=True, index=True)
+    email = Column(String(255), unique=True, nullable=True, index=True)
+    password_hash = Column(String(255), nullable=True)
+    auth_provider = Column(String(50), default="local") # "local" or "google"
     role = Column(String(20), default="citizen")
     plan = Column(String(20), default="freemium")  # freemium, go, ip, business
     city = Column(String(100), nullable=True)

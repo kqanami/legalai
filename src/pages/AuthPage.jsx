@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,57 +8,35 @@ import LanguageToggle from '../components/LanguageToggle';
 import { Spotlight } from '../components/ui/spotlight';
 import { FadeUp } from '../components/ui/animations';
 import CustomSelect from '../components/CustomSelect';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function AuthPage() {
   const { t } = useLanguage();
-  const { login, register, registerLawyer, isLoading } = useAuth();
+  const { loginEmail, registerEmail, googleAuth, isLoading } = useAuth();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState('login');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [isLawyer, setIsLawyer] = useState(false);
-  const [iin, setIin] = useState('');
-  const [license, setLicense] = useState('');
-  const [specialization, setSpecialization] = useState('Гражданское право');
-  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
 
-  const handleSendCode = (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-    if (cleanPhone.length < 10) {
-      setError('Введите корректный номер телефона');
-      return;
-    }
-    let formattedPhone = cleanPhone;
-    if (formattedPhone.startsWith('8')) formattedPhone = '+7' + formattedPhone.slice(1);
-    else if (formattedPhone.startsWith('7') && formattedPhone.length === 10) formattedPhone = '+7' + formattedPhone;
-    else if (!formattedPhone.startsWith('+')) formattedPhone = '+' + formattedPhone;
-    
-    setPhone(formattedPhone);
-    setError('');
-    setMode('otp');
-  };
-
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    if (otp.length < 4) {
-      setError('Введите код подтверждения');
+    if (!email || !password) {
+      setError('Заполните все поля');
       return;
     }
     try {
       let userData;
-      if (isLawyer && name) {
-        if (!iin || !license) {
-          setError('Заполните ИИН и номер лицензии');
+      if (mode === 'register') {
+        if (!name) {
+          setError('Заполните имя');
           return;
         }
-        userData = await registerLawyer({ name, phone, code: otp, iin, license_number: license, specialization });
-      } else if (name) {
-        userData = await register(name, phone, otp);
+        userData = await registerEmail(name, email, password);
       } else {
-        userData = await login(phone, otp);
+        userData = await loginEmail(email, password);
       }
       
       if (userData?.role === 'lawyer') {
@@ -67,12 +45,29 @@ export default function AuthPage() {
         navigate('/dashboard');
       }
     } catch (e) {
-      setError(e.response?.data?.detail || e.message || 'Неверный код или ошибка регистрации');
+      setError(e.message || 'Ошибка авторизации');
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const userData = await googleAuth(credentialResponse.credential);
+      if (userData?.role === 'lawyer') {
+        navigate('/lawyer');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (e) {
+      setError(e.message || 'Ошибка авторизации через Google');
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Ошибка авторизации через Google');
+  };
+
   return (
-    <div className="h-screen w-full bg-[#050505] flex items-center justify-center px-4 relative overflow-hidden font-sans text-white selection:bg-white/20">
+    <div className="min-h-screen w-full bg-[#050505] flex items-center justify-center px-4 relative overflow-hidden font-sans text-white py-12">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
 
       <FadeUp className="w-full max-w-md relative z-10" delay={0.1}>
@@ -93,36 +88,34 @@ export default function AuthPage() {
           </div>
 
           <AnimatePresence mode="wait">
-            {mode !== 'otp' && (
-              <motion.div
-                className="flex gap-1 bg-[#050505] rounded-2xl p-1 mb-8 relative z-10 border border-white/5"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                {['login', 'register'].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => { setMode(m); setError(''); }}
-                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative ${
-                      mode === m ? 'text-black' : 'text-white/40 hover:text-white'
-                    }`}
-                  >
-                    {mode === m && (
-                      <motion.div
-                        className="absolute inset-0 rounded-xl bg-white"
-                        layoutId="auth-tab"
-                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      />
-                    )}
-                    <span className="relative z-10">{t(m === 'login' ? 'auth_login' : 'auth_register')}</span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
+            <motion.div
+              className="flex gap-1 bg-[#050505] rounded-2xl p-1 mb-8 relative z-10 border border-white/5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {['login', 'register'].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => { setMode(m); setError(''); }}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                    mode === m ? 'text-black' : 'text-white/40 hover:text-white'
+                  }`}
+                >
+                  {mode === m && (
+                    <motion.div
+                      className="absolute inset-0 rounded-xl bg-white"
+                      layoutId="auth-tab"
+                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                    />
+                  )}
+                  <span className="relative z-10">{m === 'login' ? 'Вход' : 'Регистрация'}</span>
+                </button>
+              ))}
+            </motion.div>
           </AnimatePresence>
 
-          <form onSubmit={mode === 'otp' ? handleVerify : handleSendCode} className="relative z-10">
+          <form onSubmit={handleAuth} className="relative z-10">
             <AnimatePresence mode="wait">
               {mode === 'register' && (
                 <motion.div
@@ -135,101 +128,19 @@ export default function AuthPage() {
                 >
                   <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{t('auth_name')}</label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('auth_name_placeholder')} className="w-full px-4 h-14 rounded-2xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors mb-4" />
-                  
-                  <div className="flex items-center gap-3 mb-4 bg-[#050505] p-4 rounded-2xl border border-white/5">
-                    <input 
-                      type="checkbox" 
-                      id="isLawyer" 
-                      checked={isLawyer} 
-                      onChange={(e) => setIsLawyer(e.target.checked)}
-                      className="w-4 h-4 rounded border-white/20 bg-transparent text-white focus:ring-0"
-                    />
-                    <label htmlFor="isLawyer" className="text-[10px] font-black uppercase tracking-widest text-white/60 cursor-pointer">
-                      Я юрист (создать профиль специалиста)
-                    </label>
-                  </div>
-
-                  <AnimatePresence>
-                    {isLawyer && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="space-y-4 mb-4"
-                      >
-                        <div>
-                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">ИИН</label>
-                          <input type="text" maxLength={12} value={iin} onChange={(e) => setIin(e.target.value.replace(/\D/g, ''))} placeholder="12 цифр" className="w-full px-4 h-12 rounded-xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Номер лицензии</label>
-                          <input type="text" value={license} onChange={(e) => setLicense(e.target.value)} placeholder="Номер гос. лицензии" className="w-full px-4 h-12 rounded-xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Специализация</label>
-                          <CustomSelect 
-                            value={specialization} 
-                            onChange={(e) => setSpecialization(e.target.value)} 
-                            options={['Гражданское право', 'Уголовное право', 'Корпоративное право', 'Налоговое право', 'Семейное право', 'Трудовое право']}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-
-              {mode !== 'otp' && (
-                <motion.div key="phone" className="mb-4" layout>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{t('auth_phone')}</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('auth_phone_placeholder')} className="w-full px-4 h-14 rounded-2xl bg-white/[0.02] border border-white/10 text-lg tracking-wider font-bold text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
-                </motion.div>
-              )}
-
-              {mode === 'otp' && (
-                <motion.div
-                  key="otp"
-                  className="mb-8"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  <div className="text-center mb-8 mt-2">
-                    <motion.div
-                      className="mb-4 text-white flex justify-center"
-                      animate={{ y: [0, -5, 0], opacity: [0.7, 1, 0.7] }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    >
-                      <ShieldCheck size={48} strokeWidth={1.5} />
-                    </motion.div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Код отправлен на номер</p>
-                    <p className="text-white font-black text-sm tracking-wider mt-2">{phone}</p>
-                  </div>
-                  <label className="block text-center text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">{t('auth_otp')}</label>
-                  <div className="flex gap-3 justify-center mb-6">
-                    {[...Array(6)].map((_, i) => (
-                      <motion.input
-                        key={i}
-                        type="text"
-                        maxLength={1}
-                        value={otp[i] || ''}
-                        onChange={(e) => {
-                          const newOtp = otp.split('');
-                          newOtp[i] = e.target.value;
-                          setOtp(newOtp.join(''));
-                          if (e.target.value && e.target.nextSibling) e.target.nextSibling.focus();
-                        }}
-                        className="w-12 h-16 text-center text-xl font-bold rounded-2xl bg-[#050505] border border-white/10 text-white outline-none transition-all duration-300 focus:border-white/40 focus:bg-white/[0.02]"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        whileFocus={{ scale: 1.05 }}
-                      />
-                    ))}
-                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <div className="mb-4">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="w-full px-4 h-14 rounded-2xl bg-white/[0.02] border border-white/10 text-sm tracking-wider font-bold text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
+            </div>
+
+            <div className="mb-8">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Пароль</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 h-14 rounded-2xl bg-white/[0.02] border border-white/10 text-lg tracking-wider font-bold text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
+            </div>
 
             <AnimatePresence>
               {error && (
@@ -262,14 +173,25 @@ export default function AuthPage() {
                   </motion.svg>
                   {t('common_loading')}
                 </span>
-              ) : mode === 'otp' ? t('auth_verify') : t('auth_send_code')}
+              ) : mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
             </button>
+            
+            <div className="flex items-center my-6">
+              <div className="flex-1 border-t border-white/10"></div>
+              <span className="px-3 text-[10px] font-black uppercase tracking-widest text-white/40">ИЛИ</span>
+              <div className="flex-1 border-t border-white/10"></div>
+            </div>
 
-            {mode === 'otp' && (
-              <button type="button" onClick={() => setMode('login')} className="w-full mt-6 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
-                ← Изменить номер
-              </button>
-            )}
+            <div className="flex justify-center w-full [&>div]:w-full [&>div>div]:!w-full [&>div>div>div]:!w-full">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="filled_black"
+                shape="pill"
+                size="large"
+                width="100%"
+              />
+            </div>
           </form>
         </div>
 

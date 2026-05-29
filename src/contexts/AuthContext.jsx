@@ -71,6 +71,39 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const registerEmail = useCallback(async (name, email, password) => {
+    setIsLoading(true);
+    try {
+      const data = await authApi.registerEmail(name, email, password);
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loginEmail = useCallback(async (email, password) => {
+    setIsLoading(true);
+    try {
+      const data = await authApi.loginEmail(email, password);
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const googleAuth = useCallback(async (credential) => {
+    setIsLoading(true);
+    try {
+      const data = await authApi.googleAuth(credential);
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const registerLawyer = useCallback(async (lawyerData) => {
     setIsLoading(true);
     try {
@@ -97,7 +130,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, sendCode, login, register, registerLawyer, logout, updateUserLocal }}>
+    <AuthContext.Provider value={{ user, isLoading, sendCode, login, register, registerLawyer, logout, updateUserLocal, registerEmail, loginEmail, googleAuth }}>
       {children}
     </AuthContext.Provider>
   );

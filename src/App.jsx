@@ -52,6 +52,21 @@ const PrivateRoute = ({ children }) => {
   return children;
 };
 
+const ClientRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" />;
+  if (user.role === 'lawyer') return <Navigate to="/lawyer" />;
+  if (user.role === 'admin') return <Navigate to="/admin" />;
+  return children;
+};
+
+const LawyerRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" />;
+  if (user.role !== 'lawyer') return <Navigate to="/dashboard" />;
+  return children;
+};
+
 const PublicRoute = ({ children }) => {
   const { user } = useAuth();
   if (user) {
@@ -110,11 +125,11 @@ function AnimatedRoutes() {
         
         <Route path="/dashboard" element={
           <PageWrapper>
-            <PrivateRoute>
+            <ClientRoute>
               <ChatProvider>
                 <DashboardLayout />
               </ChatProvider>
-            </PrivateRoute>
+            </ClientRoute>
           </PageWrapper>
         }>
           <Route index element={<ChatPage />} />
@@ -127,11 +142,11 @@ function AnimatedRoutes() {
 
         <Route path="/lawyer" element={
           <PageWrapper>
-            <PrivateRoute>
+            <LawyerRoute>
               <ChatProvider>
                 <LawyerLayout />
               </ChatProvider>
-            </PrivateRoute>
+            </LawyerRoute>
           </PageWrapper>
         }>
           <Route index element={<LawyerDashboard />} />

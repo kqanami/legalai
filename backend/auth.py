@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 from config import settings
 from database import get_db
 from models import User
@@ -14,6 +15,15 @@ from services.sms_service import sms_service
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password, hashed_password):
+    if not hashed_password:
+        return False
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 # ── Phone Validation ──
 PHONE_REGEX = re.compile(r"^\+7\d{10}$")

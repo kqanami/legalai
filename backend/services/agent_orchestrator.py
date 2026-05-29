@@ -65,10 +65,10 @@ class LegalAgentOrchestrator:
         q_lower = query.lower()
         user_plan = user_plan.lower() if user_plan else "freemium"
         
-        # 1. Freemium Soft Limit
-        if user_plan == "freemium" and total_messages >= 3:
-            logger.info("Freemium quota reached, downgrading to Haiku")
-            return "cheap"
+        # 1. Freemium Soft Limit (DISABLED FOR MVP)
+        # if user_plan == "freemium" and total_messages >= 3:
+        #     logger.info("Freemium quota reached, downgrading to Haiku")
+        #     return "cheap"
 
         # 2. Business users get Opus for deep analysis
         if user_plan == "business":

@@ -100,18 +100,18 @@ async def send_message(session_id: int, req: SendMessageRequest, request: Reques
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # ── Check Plan Limits ──
+    # ── Check Plan Limits (DISABLED FOR MVP) ──
     total_msgs = db.query(ChatMessage).join(ChatSession).filter(ChatSession.user_id == user.id, ChatMessage.role == "user").count()
     
-    if user.plan == "go":
-        today_start = datetime.combine(datetime.now().date(), time.min).replace(tzinfo=timezone.utc)
-        daily_msgs = db.query(ChatMessage).join(ChatSession).filter(
-            ChatSession.user_id == user.id, 
-            ChatMessage.role == "user",
-            ChatMessage.created_at >= today_start
-        ).count()
-        if daily_msgs >= 50:
-            raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
+    # if user.plan == "go":
+    #     today_start = datetime.combine(datetime.now().date(), time.min).replace(tzinfo=timezone.utc)
+    #     daily_msgs = db.query(ChatMessage).join(ChatSession).filter(
+    #         ChatSession.user_id == user.id, 
+    #         ChatMessage.role == "user",
+    #         ChatMessage.created_at >= today_start
+    #     ).count()
+    #     if daily_msgs >= 50:
+    #         raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
 
     user_msg = ChatMessage(
         session_id=session_id, 
@@ -187,18 +187,18 @@ async def stream_message(session_id: int, req: SendMessageRequest, request: Requ
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # ── Check Plan Limits (Streaming) ──
+    # ── Check Plan Limits (Streaming) (DISABLED FOR MVP) ──
     total_msgs = db.query(ChatMessage).join(ChatSession).filter(ChatSession.user_id == user.id, ChatMessage.role == "user").count()
     
-    if user.plan == "go":
-        today_start = datetime.combine(datetime.now().date(), time.min).replace(tzinfo=timezone.utc)
-        daily_msgs = db.query(ChatMessage).join(ChatSession).filter(
-            ChatSession.user_id == user.id, 
-            ChatMessage.role == "user",
-            ChatMessage.created_at >= today_start
-        ).count()
-        if daily_msgs >= 50:
-            raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
+    # if user.plan == "go":
+    #     today_start = datetime.combine(datetime.now().date(), time.min).replace(tzinfo=timezone.utc)
+    #     daily_msgs = db.query(ChatMessage).join(ChatSession).filter(
+    #         ChatSession.user_id == user.id, 
+    #         ChatMessage.role == "user",
+    #         ChatMessage.created_at >= today_start
+    #     ).count()
+    #     if daily_msgs >= 50:
+    #         raise HTTPException(status_code=403, detail="Дневной лимит (50 запросов) исчерпан.")
 
     user_msg = ChatMessage(
         session_id=session_id, 

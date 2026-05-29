@@ -118,6 +118,36 @@ export const authApi = {
     return data;
   },
 
+  async registerEmail(name, email, password) {
+    const data = await request('/auth/register-email', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password }),
+    });
+    setToken(data.token);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    return data;
+  },
+
+  async loginEmail(email, password) {
+    const data = await request('/auth/login-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    setToken(data.token);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    return data;
+  },
+
+  async googleAuth(credential) {
+    const data = await request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+    setToken(data.token);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    return data;
+  },
+
   async registerLawyer(lawyerData) {
     const data = await request('/auth/register-lawyer', {
       method: 'POST',

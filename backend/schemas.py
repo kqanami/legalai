@@ -16,6 +16,18 @@ class RegisterRequest(BaseModel):
     phone: str
     code: str
 
+class RegisterEmailRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginEmailRequest(BaseModel):
+    email: str
+    password: str
+
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
 class AuthResponse(BaseModel):
     token: str
     user: "UserResponse"
