@@ -19,7 +19,13 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isLawyer, setIsLawyer] = useState(false);
+  const [iin, setIin] = useState('');
+  const [license, setLicense] = useState('');
+  const [specialization, setSpecialization] = useState('Гражданское право');
   const [error, setError] = useState('');
+
+  const { registerLawyer } = useAuth();
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -34,7 +40,15 @@ export default function AuthPage() {
           setError('Заполните имя');
           return;
         }
-        userData = await registerEmail(name, email, password);
+        if (isLawyer) {
+          if (!iin || !license) {
+            setError('Заполните ИИН и номер лицензии');
+            return;
+          }
+          userData = await registerLawyer({ name, email, password, iin, license_number: license, specialization });
+        } else {
+          userData = await registerEmail(name, email, password);
+        }
       } else {
         userData = await loginEmail(email, password);
       }
@@ -128,6 +142,47 @@ export default function AuthPage() {
                 >
                   <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{t('auth_name')}</label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('auth_name_placeholder')} className="w-full px-4 h-14 rounded-2xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors mb-4" />
+                  
+                  <div className="flex items-center gap-3 mb-4 bg-[#050505] p-4 rounded-2xl border border-white/5">
+                    <input 
+                      type="checkbox" 
+                      id="isLawyer" 
+                      checked={isLawyer} 
+                      onChange={(e) => setIsLawyer(e.target.checked)}
+                      className="w-4 h-4 rounded border-white/20 bg-transparent text-white focus:ring-0"
+                    />
+                    <label htmlFor="isLawyer" className="text-[10px] font-black uppercase tracking-widest text-white/60 cursor-pointer">
+                      Я юрист (создать профиль специалиста)
+                    </label>
+                  </div>
+
+                  <AnimatePresence>
+                    {isLawyer && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-4 mb-4"
+                      >
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">ИИН</label>
+                          <input type="text" maxLength={12} value={iin} onChange={(e) => setIin(e.target.value.replace(/\D/g, ''))} placeholder="12 цифр" className="w-full px-4 h-12 rounded-xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Номер лицензии</label>
+                          <input type="text" value={license} onChange={(e) => setLicense(e.target.value)} placeholder="Номер гос. лицензии" className="w-full px-4 h-12 rounded-xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Специализация</label>
+                          <CustomSelect 
+                            value={specialization} 
+                            onChange={(e) => setSpecialization(e.target.value)} 
+                            options={['Гражданское право', 'Уголовное право', 'Корпоративное право', 'Налоговое право', 'Семейное право', 'Трудовое право']}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
             </AnimatePresence>

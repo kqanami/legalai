@@ -134,19 +134,17 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
 @router.post("/register-lawyer", response_model=AuthResponse)
 def register_lawyer(req: RegisterLawyerRequest, db: Session = Depends(get_db)):
     """Register new lawyer with IIN and license."""
-    phone = validate_phone(req.phone)
-
-    if not verify_otp(phone, req.code):
-        raise HTTPException(status_code=400, detail="Неверный код подтверждения")
-
-    existing_user = db.query(User).filter(User.phone == phone).first()
+    existing_user = db.query(User).filter(User.email == req.email).first()
     
     if existing_user:
+        if existing_user.role == "lawyer":
+            raise HTTPException(status_code=400, detail="Этот email уже зарегистрирован как юрист")
         user = existing_user
         user.name = req.name
         user.role = "lawyer"
     else:
-        user = User(name=req.name, phone=phone, role="lawyer")
+        hashed_password = get_password_hash(req.password)
+        user = User(name=req.name, email=req.email, password_hash=hashed_password, auth_provider="local", role="lawyer")
         db.add(user)
     
     db.commit()

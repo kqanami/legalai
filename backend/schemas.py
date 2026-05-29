@@ -193,8 +193,8 @@ class DashboardStats(BaseModel):
 # ── Lawyer Workspace ──
 class RegisterLawyerRequest(BaseModel):
     name: str
-    phone: str
-    code: str
+    email: str
+    password: str
     iin: str
     license_number: str
     specialization: str
