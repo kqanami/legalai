@@ -652,47 +652,6 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {(isListening || voiceError) && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="absolute bottom-40 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
-          >
-            <div className="bg-[#050505]/95 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col items-center gap-5 min-w-[320px]">
-              {voiceError ? (
-                <>
-                  <div className="w-16 h-16 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-2">
-                    <MicOff size={24} />
-                  </div>
-                  <p className="text-xs font-black uppercase tracking-widest text-red-500 text-center">{voiceError}</p>
-                </>
-              ) : (
-                <>
-                  <div className="relative w-20 h-20 flex items-center justify-center">
-                    <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.1, 0, 0.1] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0 rounded-full border border-white/50" />
-                    <div className="w-16 h-16 rounded-[2rem] bg-white text-black flex items-center justify-center relative z-10 shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-                      <Mic size={24} />
-                    </div>
-                  </div>
-                  <div className="text-center mt-2">
-                    <p className="text-lg font-black text-white mb-2 tracking-tight">Слушаю вас...</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Нажмите «Стоп», чтобы добавить текст</p>
-                  </div>
-                  {interimTranscript && (
-                    <div className="w-full mt-4 pt-4 border-t border-white/5 text-center">
-                      <p className="text-sm font-medium text-white/80 italic leading-relaxed">
-                        "{interimTranscript}"
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="px-4 pb-4 pt-1 w-full max-w-4xl mx-auto relative z-20">
         <AnimatePresence>
@@ -724,10 +683,9 @@ export default function ChatPage() {
         </AnimatePresence>
 
         <motion.form onSubmit={handleSubmit}
-          animate={{ borderColor: isFocused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)' }}
+          animate={{ borderColor: isListening ? 'rgba(239,68,68,0.4)' : (isFocused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)') }}
           transition={{ duration: 0.3 }}
-          className="relative rounded-3xl border bg-[#050505]/80 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.6)] overflow-hidden"
-          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
+          className={`relative rounded-3xl border bg-[#050505]/80 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.6)] overflow-hidden ${isListening ? 'shadow-[0_0_30px_rgba(239,68,68,0.1)]' : ''}`}
         >
           {attachedFile && (
             <div className="px-4 pt-3 pb-0">
@@ -741,32 +699,45 @@ export default function ChatPage() {
             </div>
           )}
 
-          <div className="px-4 pt-3 pb-2">
-            <TextareaAutosize
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => {
-                const val = e.target.value; setInput(val);
-                if (val.startsWith('/')) { setShowCommands(true); setCommandIndex(0); }
-                else setShowCommands(false);
-              }}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              onKeyDown={(e) => {
-                if (showCommands) {
-                  const filtered = INLINE_COMMANDS.filter(c => c.prefix.toLowerCase().startsWith(input.toLowerCase()));
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setCommandIndex(i => (i + 1) % filtered.length); }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); setCommandIndex(i => (i - 1 + filtered.length) % filtered.length); }
-                  else if (e.key === 'Enter') { e.preventDefault(); if (filtered[commandIndex]) { setInput(filtered[commandIndex].prefix + ' '); setShowCommands(false); } }
-                  else if (e.key === 'Escape') setShowCommands(false);
-                } else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
-              }}
-              placeholder="Спросите LegalAI..."
-              minRows={1}
-              maxRows={7}
-              className="w-full bg-transparent border-none text-white placeholder-white/20 text-[15px] font-medium outline-none resize-none custom-scrollbar leading-relaxed tracking-tight"
-            />
-          </div>
+          {isListening ? (
+            <div className="px-4 py-6 flex flex-col items-center justify-center min-h-[80px]">
+              <div className="flex items-center gap-3 mb-2">
+                <motion.div animate={{ opacity: [1, 0.5, 1], scale: [1, 1.2, 1] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]" />
+                <span className="text-[11px] font-black uppercase tracking-widest text-red-500">Слушаю вас...</span>
+              </div>
+              <div className="max-w-md w-full text-center">
+                {input && <span className="text-[15px] font-medium text-white/80">{input} </span>}
+                {interimTranscript && <span className="text-[15px] font-medium text-white/50 italic">{interimTranscript}</span>}
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 pt-3 pb-2">
+              <TextareaAutosize
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => {
+                  const val = e.target.value; setInput(val);
+                  if (val.startsWith('/')) { setShowCommands(true); setCommandIndex(0); }
+                  else setShowCommands(false);
+                }}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                onKeyDown={(e) => {
+                  if (showCommands) {
+                    const filtered = INLINE_COMMANDS.filter(c => c.prefix.toLowerCase().startsWith(input.toLowerCase()));
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setCommandIndex(i => (i + 1) % filtered.length); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); setCommandIndex(i => (i - 1 + filtered.length) % filtered.length); }
+                    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[commandIndex]) { setInput(filtered[commandIndex].prefix + ' '); setShowCommands(false); } }
+                    else if (e.key === 'Escape') setShowCommands(false);
+                  } else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
+                }}
+                placeholder="Спросите LegalAI..."
+                minRows={1}
+                maxRows={7}
+                className="w-full bg-transparent border-none text-white placeholder-white/20 text-[15px] font-medium outline-none resize-none custom-scrollbar leading-relaxed tracking-tight"
+              />
+            </div>
+          )}
 
           <div className="flex items-center justify-between px-3 pb-3 pt-1">
             <div className="flex items-center gap-1.5">
@@ -801,7 +772,10 @@ export default function ChatPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <span className="text-[9px] font-black uppercase tracking-widest text-white/20 hidden sm:block">Enter — отправить</span>
+              {voiceError && (
+                <span className="text-[9px] font-black uppercase tracking-widest text-red-500 mr-2">{voiceError}</span>
+              )}
+              {!voiceError && <span className="text-[9px] font-black uppercase tracking-widest text-white/20 hidden sm:block">Enter — отправить</span>}
               <button type="submit" disabled={!canSend}
                 className={`relative h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-300 ${canSend ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95' : 'bg-white/[0.02] text-white/20 border border-white/5'}`}
               >
