@@ -35,7 +35,7 @@ class AuthResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     name: str
-    phone: str
+    phone: Optional[str] = None
     email: Optional[str] = None
     role: str
     plan: str
