@@ -106,7 +106,9 @@ const PageWrapper = ({ children }) => (
     transition={{ duration: 0.3, ease: 'easeOut' }}
     className="h-full w-full"
   >
-    {children}
+    <Suspense fallback={<LoadingUI />}>
+      {children}
+    </Suspense>
   </motion.div>
 );
 
@@ -181,9 +183,7 @@ function App() {
                   
                   <div className="relative z-10 h-full w-full">
                     <AuthenticatedCommandPalette />
-                    <Suspense fallback={<LoadingUI />}>
-                      <AnimatedRoutes />
-                    </Suspense>
+                    <AnimatedRoutes />
                   </div>
                 </div>
               </ToastProvider>
