@@ -4,7 +4,7 @@
  * escalation (AI→Lawyer bridge), marketplace, and lawyer workspace.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 // ── Auth Failure Handler (set by AuthContext) ──
 let _onAuthFailure = null;

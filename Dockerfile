@@ -13,19 +13,17 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Use a lightweight server for serving the build
-FROM node:20-slim
+# Use Nginx to serve the static files
+FROM nginx:alpine
 
-WORKDIR /app
-
-# Install 'serve' package
-RUN npm install -g serve
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy build from builder stage
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Expose port
 EXPOSE 5173
 
-# Command to serve the build
-CMD ["serve", "-s", "dist", "-l", "5173"]
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
