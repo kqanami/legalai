@@ -130,13 +130,36 @@ function Hero({ user }) {
       
       <div className="relative inset-0 flex min-h-[100svh] w-full flex-col md:absolute md:h-full md:flex-row">
         {/* Left Content */}
+        <div className="relative z-10 flex h-auto flex-1 flex-col justify-center px-6 pb-12 pt-28 sm:px-8 sm:pt-32 md:h-full md:p-20 md:pt-0">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="max-w-2xl"
+          >
+            <div className="inline-block border border-white/10 px-3 py-1 rounded-full text-xs font-medium text-neutral-400 mb-6 bg-white/5 backdrop-blur-sm">
+              AI Legal Engine v1.0
+            </div>
+            
+            <h1 className="mb-5 text-[2.5rem] font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:mb-8 md:text-[5.5rem]">
+              Правовой интеллект <br className="hidden sm:block"/>
+              <span className="text-neutral-500">нового поколения.</span>
+            </h1>
+            
+            <p className="mb-8 max-w-xl text-[15px] leading-relaxed text-neutral-400 sm:text-lg md:mb-10">
+              Первая интеллектуальная правовая система Казахстана. Автоматизируйте рутину, анализируйте риски и принимайте решения в 10 раз быстрее.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
+               <Link to={user ? '/dashboard' : '/auth'} className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-4 text-sm font-bold text-black transition-colors hover:bg-neutral-200 sm:w-auto sm:px-8 sm:py-4 sm:text-base">
+                 {user ? 'В панель' : 'Начать работу'} <ArrowRight size={18} />
                </Link>
             </div>
           </motion.div>
         </div>
 
         {/* Right 3D Scene */}
-        <div className="relative mt-0 h-[32svh] min-h-[220px] flex-1 md:h-full">
+        <div className="relative mt-auto h-[40svh] min-h-[250px] w-full flex-1 md:h-full opacity-60 md:opacity-100 mix-blend-screen md:mix-blend-normal">
           <GenerativeArtScene />
         </div>
       </div>
@@ -151,7 +174,7 @@ function Metrics() {
   return (
     <section className="border-t border-white/5 bg-black py-14 sm:py-20 md:py-24">
       <div className="max-w-screen-xl mx-auto px-6 sm:px-12">
-        <div className="grid grid-cols-2 gap-6 divide-white/5 md:grid-cols-4 md:gap-8 md:divide-x">
+        <div className="grid grid-cols-2 gap-y-10 gap-x-6 divide-white/5 md:grid-cols-4 md:gap-8 md:divide-x">
           {[
              { value: "10x", label: "Ускорение работы" },
              { value: "99%", label: "Точность анализа" },
