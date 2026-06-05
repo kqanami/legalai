@@ -15,7 +15,11 @@ export function setAuthFailureHandler(handler) {
 
 // ── Token Management ──
 function getToken() {
-  return localStorage.getItem('auth_token');
+  const token = localStorage.getItem('auth_token');
+  if (!token || token === 'null' || token === 'undefined') {
+    return null;
+  }
+  return token;
 }
 
 function setToken(token) {
