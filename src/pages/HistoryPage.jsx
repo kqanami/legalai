@@ -45,16 +45,16 @@ export default function HistoryPage() {
   const grouped = groupByDate(filteredHistory);
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-6 lg:p-10 selection:bg-white/20 font-sans">
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full gap-8 max-w-6xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-4 sm:p-6 lg:p-10 selection:bg-white/20 font-sans">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full gap-6 sm:gap-8 max-w-6xl mx-auto w-full">
         
         {/* ── Header ── */}
-        <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 shrink-0">
+        <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 sm:gap-6 shrink-0 mt-4 sm:mt-0">
           <div>
-            <h1 className="text-4xl lg:text-5xl font-black tracking-tight mb-2">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-2">
               {t('history_title')}
             </h1>
-            <p className="text-white/40 text-sm max-w-xl">
+            <p className="text-white/40 text-xs sm:text-sm max-w-xl">
               Архив ваших сессий и документов. AI Engine 3.1.
             </p>
           </div>
@@ -86,13 +86,13 @@ export default function HistoryPage() {
                 <Clock size={24} className="text-white/20" />
               </div>
               <p className="text-lg font-bold text-white/50 mb-1">{t('history_empty')}</p>
-              <p className="text-sm text-white/30 max-w-sm mb-6">Задайте первый вопрос в чате, и он будет сохранен в вашей истории сессий.</p>
+              <p className="text-sm text-white/30 max-w-sm mb-6 px-4">Задайте первый вопрос в чате, и он будет сохранен в вашей истории сессий.</p>
               <button onClick={() => navigate('/dashboard')} className="h-12 px-8 rounded-2xl bg-white text-black font-bold text-sm hover:bg-neutral-200 transition-colors">
                 {t('new_chat')}
               </button>
             </motion.div>
           ) : (
-            <motion.div variants={containerVariants} className="flex flex-col gap-8 pb-8">
+            <motion.div variants={containerVariants} className="flex flex-col gap-6 sm:gap-8 pb-8">
               {Object.entries(grouped).map(([date, items]) => (
                 <motion.div variants={itemVariants} key={date} className="flex flex-col gap-3">
                   <div className="flex items-center gap-4 mb-2">
@@ -107,16 +107,16 @@ export default function HistoryPage() {
                       <motion.div 
                         variants={itemVariants} 
                         key={item.id} 
-                        className="group flex flex-col p-6 lg:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden" 
+                        className="group flex flex-col p-5 sm:p-6 lg:p-8 rounded-3xl lg:rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden" 
                         onClick={async () => { await loadSession(item.id); navigate('/dashboard'); }}
                       >
                         <div className="flex items-start justify-between relative z-10">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center flex-shrink-0 text-white">
-                              <MessageSquare size={16} />
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center flex-shrink-0 text-white">
+                              <MessageSquare size={14} className="sm:w-4 sm:h-4" />
                             </div>
                             <div className="flex gap-2">
-                              <div className="px-2 py-0.5 rounded-full border border-white/10 bg-white/5 flex items-center gap-1">
+                              <div className="px-2 py-0.5 rounded-full border border-white/10 bg-white/5 flex items-center gap-1 hidden sm:flex">
                                 <Zap size={10} className="text-white" />
                                 <span className="text-[9px] font-black text-white uppercase tracking-widest">Opus 3</span>
                               </div>
@@ -133,20 +133,20 @@ export default function HistoryPage() {
                               deleteSession(item.id);
                               addToast('Чат удален', 'info');
                             }}
-                            className="w-8 h-8 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-20"
+                            className="w-8 h-8 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all z-20"
                             title="Удалить чат"
                           >
                             <Trash2 size={14} />
                           </button>
                         </div>
                         
-                        <div className="mt-8 flex-1 relative z-10 mb-8">
-                          <p className="text-white font-bold text-xl leading-snug line-clamp-3">
+                        <div className="mt-6 sm:mt-8 flex-1 relative z-10 mb-6 sm:mb-8">
+                          <p className="text-white font-bold text-lg sm:text-xl leading-snug line-clamp-3">
                             {item.preview || 'Пустой чат'}
                           </p>
                         </div>
 
-                        <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-5 relative z-10">
+                        <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4 sm:pt-5 relative z-10">
                           <span className="text-[10px] uppercase tracking-widest text-white/30 font-bold flex items-center gap-2">
                             <Clock size={12} />
                             {new Date(item.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
