@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { useRef } from 'react';
-import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring } from 'framer-motion';
+import { useRef, useState } from 'react';
+import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageToggle from '../components/LanguageToggle';
@@ -8,7 +8,7 @@ import MagneticButton from '../components/MagneticButton';
 import { GenerativeArtScene } from '../components/ui/generative-art-scene';
 import { Spotlight } from '../components/ui/spotlight';
 import {
-  FileText, ArrowRight, Check,
+  FileText, ArrowRight, Check, Menu, X,
   MessagesSquare, Shield, Search, Mail, Phone, MapPin
 } from 'lucide-react';
 
@@ -60,15 +60,15 @@ const smoothScrollTo = (e, targetId) => {
 import { FadeUp, TiltCard } from '../components/ui/animations';
 import { Footer } from '../components/Footer';
 
-
-
 /* ═══════════════════════════════
    HEADER
 ═══════════════════════════════ */
 function Header({ user, t }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/5 bg-black/50 px-4 backdrop-blur-md sm:h-20 sm:px-6 md:px-12">
-      <a href="#" onClick={(e) => smoothScrollTo(e, 'top')} className="flex items-center gap-2 text-white">
+      <a href="#" onClick={(e) => smoothScrollTo(e, 'top')} className="flex items-center gap-2 text-white relative z-50">
         <span className="text-lg font-bold tracking-tighter sm:text-xl">LEGAL<span className="text-neutral-500">AI</span></span>
       </a>
 
@@ -88,12 +88,34 @@ function Header({ user, t }) {
         </Link>
       </nav>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-3 sm:gap-4 relative z-50">
         <LanguageToggle />
-        <Link to={user ? '/dashboard' : '/auth'} className="text-xs font-semibold text-white transition-colors hover:text-neutral-300 sm:text-sm">
+        <Link to={user ? '/dashboard' : '/auth'} className="hidden md:block text-xs font-semibold text-white transition-colors hover:text-neutral-300 sm:text-sm">
           {user ? 'Дашборд' : t('auth_login')}
         </Link>
+        <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-white p-1 focus:outline-none">
+          {isOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 right-0 bg-black/95 backdrop-blur-xl border-b border-white/10 p-6 flex flex-col gap-6 shadow-2xl md:hidden z-40"
+          >
+             <a href="/#capabilities" onClick={(e) => { smoothScrollTo(e, 'capabilities'); setIsOpen(false); }} className="text-sm font-bold text-white uppercase tracking-widest p-2">Возможности</a>
+             <Link to="/pricing" onClick={() => setIsOpen(false)} className="text-sm font-bold text-white uppercase tracking-widest p-2">Тарифы</Link>
+             <div className="h-px w-full bg-white/10 my-2" />
+             <Link to={user ? '/dashboard' : '/auth'} className="bg-white text-black text-center py-4 rounded-xl font-bold">
+               {user ? 'Перейти в Дашборд' : t('auth_login')}
+             </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
@@ -103,33 +125,11 @@ function Header({ user, t }) {
 ═══════════════════════════════ */
 function Hero({ user }) {
   return (
-    <section id="top" className="relative flex min-h-[100svh] w-full items-center overflow-hidden bg-black md:h-screen">
+    <section id="top" className="relative flex min-h-[100svh] w-full items-center justify-center overflow-hidden bg-black md:h-screen">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
       
       <div className="relative inset-0 flex min-h-[100svh] w-full flex-col md:absolute md:h-full md:flex-row">
         {/* Left Content */}
-        <div className="relative z-10 flex h-auto flex-1 flex-col justify-center px-5 pb-4 pt-24 sm:px-8 sm:pt-28 md:h-full md:p-20 md:pt-0">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="inline-block border border-white/10 px-3 py-1 rounded-full text-xs font-medium text-neutral-400 mb-6 bg-white/5 backdrop-blur-sm">
-              AI Legal Engine v1.0
-            </div>
-            
-            <h1 className="mb-5 text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:mb-8 md:text-[5.5rem]">
-              Правовой интеллект <br />
-              <span className="text-neutral-500">нового поколения.</span>
-            </h1>
-            
-            <p className="mb-7 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-lg md:mb-10">
-              Первая интеллектуальная правовая система Казахстана. Автоматизируйте рутину, анализируйте риски и принимайте решения в 10 раз быстрее.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
-               <Link to={user ? '/dashboard' : '/auth'} className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 font-bold text-black transition-colors hover:bg-neutral-200 sm:w-auto sm:px-8 sm:py-4">
-                 {user ? 'В панель' : 'Начать работу'} <ArrowRight size={18} />
                </Link>
             </div>
           </motion.div>
