@@ -330,29 +330,29 @@ export default function DocumentsPage() {
             <motion.div
               initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="relative w-full max-w-xl rounded-[2rem] border border-white/10 bg-[#050505] p-8 shadow-2xl"
-            >
-              <button onClick={() => setIsModalOpen(false)} className="absolute right-6 top-6 text-white/40 hover:text-white transition-colors">
-                <X size={20} />
-              </button>
+            className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scrollbar rounded-[2rem] border border-white/10 bg-[#050505] p-5 sm:p-8 shadow-2xl"
+          >
+            <button onClick={() => setIsModalOpen(false)} className="absolute right-4 top-4 sm:right-6 sm:top-6 text-white/40 hover:text-white transition-colors">
+              <X size={20} />
+            </button>
 
-              <div className="mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center mb-4">
-                  <Sparkles size={20} />
-                </div>
-                <h2 className="text-3xl font-black">Создать документ</h2>
-                <p className="text-white/40 text-sm mt-2">Опишите ситуацию, и AI подготовит шаблон с учетом законов РК.</p>
+            <div className="mb-5 sm:mb-8">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white text-black flex items-center justify-center mb-4">
+                <Sparkles size={20} />
               </div>
+              <h2 className="text-2xl sm:text-3xl font-black">Создать документ</h2>
+              <p className="text-white/40 text-xs sm:text-sm mt-2">Опишите ситуацию, и AI подготовит шаблон с учетом законов РК.</p>
+            </div>
 
-              <div className="space-y-6">
+                            <div className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 block">Тип документа</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 sm:mb-3 block">Тип документа</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {docTypeOptions.map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() => setDocType(opt.value)}
-                        className={`text-left p-4 rounded-2xl border transition-all ${
+                        className={`text-left p-3 sm:p-4 rounded-2xl border transition-all ${
                           docType === opt.value ? 'bg-white border-white text-black' : 'bg-transparent border-white/10 text-white hover:bg-white/[0.05]'
                         }`}
                       >
@@ -364,12 +364,12 @@ export default function DocumentsPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 block">Описание ситуации</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 sm:mb-3 block">Описание ситуации</label>
                   <textarea
                     value={docDesc}
                     onChange={(e) => setDocDesc(e.target.value)}
                     placeholder="Пример: договор оказания услуг между ТОО и ИП на 500 тыс. тг..."
-                    className="w-full h-32 resize-none bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-sm text-white placeholder:text-white/30 focus:border-white/30 outline-none transition-colors"
+                    className="w-full h-24 sm:h-32 resize-none bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-sm text-white placeholder:text-white/30 focus:border-white/30 outline-none transition-colors custom-scrollbar"
                   />
                 </div>
 
