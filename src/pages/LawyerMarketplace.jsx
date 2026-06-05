@@ -132,7 +132,7 @@ export default function LawyerMarketplace() {
       
       {/* ── Left Pane: Sticky Filters ── */}
       <div className="lg:w-[35%] xl:w-[30%] border-b lg:border-b-0 lg:border-r border-white/5 bg-[#050505] z-20">
-        <div className="lg:sticky lg:top-0 lg:h-screen flex flex-col max-h-screen overflow-y-auto custom-scrollbar">
+        <div className="lg:sticky lg:top-0 lg:h-screen flex flex-col lg:overflow-y-auto custom-scrollbar">
           
           <div className="p-6 lg:p-8 pb-0">
             <button
