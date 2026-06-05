@@ -12,17 +12,17 @@ const ICONS = {
 };
 
 const COLORS = {
-  success: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/40',
-  error: 'from-red-500/20 to-red-600/10 border-red-500/40',
-  warning: 'from-amber-500/20 to-amber-600/10 border-amber-500/40',
-  info: 'from-blue-500/20 to-blue-600/10 border-blue-500/40',
+  success: 'bg-emerald-500/10 border-emerald-500/20',
+  error: 'bg-red-500/10 border-red-500/20',
+  warning: 'bg-amber-500/10 border-amber-500/20',
+  info: 'bg-white/[0.04] border-white/10',
 };
 
 const ICON_COLORS = {
   success: 'text-emerald-400',
   error: 'text-red-400',
   warning: 'text-amber-400',
-  info: 'text-blue-400',
+  info: 'text-white/70',
 };
 
 export function ToastProvider({ children }) {
@@ -48,7 +48,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={{ addToast, removeToast }}>
       {children}
       {/* Toast Container */}
-      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+      <div className="fixed top-4 left-4 right-4 md:left-auto md:w-96 z-[9999] flex flex-col gap-3 pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => {
             const Icon = ICONS[toast.type] || Info;
@@ -59,13 +59,13 @@ export function ToastProvider({ children }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 100, scale: 0.95 }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
-                className={`pointer-events-auto bg-gradient-to-r ${COLORS[toast.type]} backdrop-blur-xl border rounded-xl px-4 py-3 shadow-2xl shadow-black/30 flex items-start gap-3`}
+                className={`pointer-events-auto ${COLORS[toast.type]} backdrop-blur-xl border rounded-[1.25rem] px-5 py-4 shadow-2xl flex items-center gap-3`}
               >
-                <Icon size={20} className={`${ICON_COLORS[toast.type]} mt-0.5 flex-shrink-0`} />
+                <Icon size={20} className={`${ICON_COLORS[toast.type]} flex-shrink-0`} />
                 <p className="text-sm text-white/90 flex-1 font-medium">{toast.message}</p>
                 <button
                   onClick={() => removeToast(toast.id)}
-                  className="text-white/40 hover:text-white/80 transition-colors flex-shrink-0"
+                  className="text-white/30 hover:text-white/80 transition-colors flex-shrink-0"
                 >
                   <X size={16} />
                 </button>
