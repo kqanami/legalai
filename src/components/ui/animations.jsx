@@ -48,14 +48,14 @@ export function TiltCard({ children, className = "" }) {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-      className={`relative w-full h-full group cursor-default perspective-1000 ${className}`}
+      className={`relative w-full min-h-[260px] md:h-full group cursor-default perspective-1000 ${className}`}
     >
       <div 
         className="absolute inset-0 bg-neutral-950 border border-white/5 rounded-[2rem] group-hover:border-white/10 transition-colors"
         style={{ transform: "translateZ(-10px)" }}
       />
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent rounded-[2rem] pointer-events-none" />
-      <div className="relative z-10 p-8 md:p-10 flex flex-col justify-between h-full pointer-events-none" style={{ transform: "translateZ(30px)" }}>
+      <div className="relative z-10 p-6 sm:p-8 md:p-10 flex min-h-[260px] md:h-full flex-col justify-between pointer-events-none" style={{ transform: "translateZ(30px)" }}>
         {children}
       </div>
     </motion.div>

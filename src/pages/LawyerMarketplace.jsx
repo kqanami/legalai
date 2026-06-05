@@ -216,7 +216,6 @@ export default function LawyerMarketplace() {
         </div>
       </div>
 
-      {/* ── Right Pane: Scrollable List ── */}
       <div className="lg:w-[65%] xl:w-[70%] bg-[#050505] min-h-screen relative p-4 sm:p-8 lg:p-12">
         <div className="max-w-4xl mx-auto">
           {loading ? (

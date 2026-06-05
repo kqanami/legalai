@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User, LawyerProfile
-from schemas import SendCodeRequest, VerifyRequest, RegisterRequest, RegisterLawyerRequest, AuthResponse, UserResponse, RegisterEmailRequest, LoginEmailRequest, GoogleAuthRequest
+from schemas import SendCodeRequest, VerifyRequest, RegisterRequest, RegisterLawyerRequest, AuthResponse, UserResponse, RegisterEmailRequest, LoginEmailRequest, GoogleAuthRequest, UserUpdateRequest
 from auth import generate_otp, verify_otp, create_token, get_current_user, validate_phone, get_password_hash, verify_password
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -169,3 +169,32 @@ def register_lawyer(req: RegisterLawyerRequest, db: Session = Depends(get_db)):
 def get_me(user: User = Depends(get_current_user)):
     """Get current authenticated user."""
     return UserResponse.model_validate(user)
+
+@router.put("/me", response_model=UserResponse)
+def update_me(req: UserUpdateRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Update current user profile."""
+    if req.name is not None: user.name = req.name
+    if req.phone is not None: user.phone = req.phone
+    if req.email is not None: user.email = req.email
+    if req.city is not None: user.city = req.city
+    db.commit()
+    db.refresh(user)
+    return UserResponse.model_validate(user)
+
+import secrets
+@router.post("/me/api-key", response_model=UserResponse)
+def generate_api_key(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Generate a new API key for the user."""
+    user.api_key = f"sk-live-{secrets.token_urlsafe(24)}"
+    db.commit()
+    db.refresh(user)
+    return UserResponse.model_validate(user)
+
+@router.post("/me/security/2fa", response_model=UserResponse)
+def toggle_2fa(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Toggle 2FA for the user."""
+    user.two_factor_enabled = not user.two_factor_enabled
+    db.commit()
+    db.refresh(user)
+    return UserResponse.model_validate(user)
+

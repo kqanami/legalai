@@ -40,7 +40,7 @@ function PricingCard({ p, i, user, onPurchase }) {
 
   return (
     <FadeUp delay={i * 0.05} className="relative md:col-span-1 h-full">
-      <div className={`flex flex-col h-full rounded-[2rem] bg-white/[0.01] border ${isCurrentPlan ? 'border-white/30 bg-white/[0.05]' : 'border-white/5'} transition-all relative overflow-hidden group hover:border-white/20 p-8`}>
+      <div className={`flex h-full flex-col rounded-[2rem] border bg-white/[0.01] p-6 transition-all group hover:border-white/20 sm:p-8 ${isCurrentPlan ? 'border-white/30 bg-white/[0.05]' : 'border-white/5'} relative overflow-hidden`}>
         {isCurrentPlan && (
           <div className="absolute top-0 right-0 bg-white text-black text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-bl-2xl z-20">
             Текущий
@@ -49,11 +49,11 @@ function PricingCard({ p, i, user, onPurchase }) {
         
         <div className="mb-10">
           <span className="text-[10px] font-black tracking-widest uppercase text-white/40 mb-4 block">{p.name}</span>
-          <div className="flex items-baseline gap-2 mt-4">
-            <span className="text-5xl font-black text-white tracking-tighter">{p.price}</span>
+          <div className="mt-4 flex flex-wrap items-baseline gap-2">
+            <span className="text-4xl font-black tracking-tighter text-white sm:text-5xl">{p.price}</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{p.period ? `₸${p.period}` : ''}</span>
           </div>
-          <p className="text-xs text-white/60 mt-6 h-10 leading-relaxed font-bold">{p.desc}</p>
+          <p className="mt-5 min-h-10 text-xs font-bold leading-relaxed text-white/60 sm:mt-6">{p.desc}</p>
         </div>
 
         <div className="flex-1 space-y-4 mb-12">
@@ -112,7 +112,7 @@ export default function PricingPage() {
     setIsPaymentOpen(true);
   };
   return (
-    <div className="h-screen w-full bg-[#050505] text-white font-sans overflow-hidden flex flex-col selection:bg-white/20">
+    <div className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[#050505] font-sans text-white selection:bg-white/20">
       <header className="flex-shrink-0 flex items-center justify-between px-6 lg:px-12 h-20 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md z-50">
         <Link to="/" className="flex items-center gap-2 text-white">
           <span className="font-black text-xl tracking-tighter">LEGAL<span className="text-white/40">AI</span></span>

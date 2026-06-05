@@ -162,6 +162,25 @@ export const authApi = {
     return request('/auth/me');
   },
 
+  async updateProfile(data) {
+    return request('/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async generateApiKey() {
+    return request('/auth/me/api-key', {
+      method: 'POST',
+    });
+  },
+
+  async toggle2fa() {
+    return request('/auth/me/security/2fa', {
+      method: 'POST',
+    });
+  },
+
   logout() {
     clearToken();
     localStorage.removeItem('auth_user');

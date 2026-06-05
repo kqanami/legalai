@@ -40,10 +40,19 @@ class UserResponse(BaseModel):
     role: str
     plan: str
     city: Optional[str] = None
+    api_key: Optional[str] = None
+    two_factor_enabled: bool = False
 
     class Config:
         from_attributes = True
 
+
+
+class UserUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    city: Optional[str] = None
 
 # ── Chat ──
 class CreateSessionRequest(BaseModel):

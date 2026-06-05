@@ -67,9 +67,9 @@ import { Footer } from '../components/Footer';
 ═══════════════════════════════ */
 function Header({ user, t }) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-20 border-b border-white/5 bg-black/50 backdrop-blur-md">
+    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/5 bg-black/50 px-4 backdrop-blur-md sm:h-20 sm:px-6 md:px-12">
       <a href="#" onClick={(e) => smoothScrollTo(e, 'top')} className="flex items-center gap-2 text-white">
-        <span className="font-bold text-xl tracking-tighter">LEGAL<span className="text-neutral-500">AI</span></span>
+        <span className="text-lg font-bold tracking-tighter sm:text-xl">LEGAL<span className="text-neutral-500">AI</span></span>
       </a>
 
       <nav className="hidden md:flex items-center gap-8">
@@ -88,9 +88,9 @@ function Header({ user, t }) {
         </Link>
       </nav>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <LanguageToggle />
-        <Link to={user ? '/dashboard' : '/auth'} className="text-sm font-semibold text-white hover:text-neutral-300 transition-colors">
+        <Link to={user ? '/dashboard' : '/auth'} className="text-xs font-semibold text-white transition-colors hover:text-neutral-300 sm:text-sm">
           {user ? 'Дашборд' : t('auth_login')}
         </Link>
       </div>
@@ -103,12 +103,12 @@ function Header({ user, t }) {
 ═══════════════════════════════ */
 function Hero({ user }) {
   return (
-    <section id="top" className="relative w-full h-screen bg-black overflow-hidden flex items-center">
+    <section id="top" className="relative flex min-h-[100svh] w-full items-center overflow-hidden bg-black md:h-screen">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
       
-      <div className="absolute inset-0 flex flex-col md:flex-row h-full">
+      <div className="relative inset-0 flex min-h-[100svh] w-full flex-col md:absolute md:h-full md:flex-row">
         {/* Left Content */}
-        <div className="flex-1 p-8 md:p-20 relative z-10 flex flex-col justify-center h-full pt-32 md:pt-0">
+        <div className="relative z-10 flex h-auto flex-1 flex-col justify-center px-5 pb-4 pt-24 sm:px-8 sm:pt-28 md:h-full md:p-20 md:pt-0">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -118,17 +118,17 @@ function Hero({ user }) {
               AI Legal Engine v1.0
             </div>
             
-            <h1 className="text-4xl sm:text-5xl md:text-[5.5rem] font-bold text-white leading-[1.05] tracking-tight mb-6 md:mb-8">
+            <h1 className="mb-5 text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:mb-8 md:text-[5.5rem]">
               Правовой интеллект <br />
               <span className="text-neutral-500">нового поколения.</span>
             </h1>
             
-            <p className="text-base sm:text-lg text-neutral-400 max-w-xl mb-8 md:mb-10 leading-relaxed">
+            <p className="mb-7 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-lg md:mb-10">
               Первая интеллектуальная правовая система Казахстана. Автоматизируйте рутину, анализируйте риски и принимайте решения в 10 раз быстрее.
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
-               <Link to={user ? '/dashboard' : '/auth'} className="bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2">
+               <Link to={user ? '/dashboard' : '/auth'} className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 font-bold text-black transition-colors hover:bg-neutral-200 sm:w-auto sm:px-8 sm:py-4">
                  {user ? 'В панель' : 'Начать работу'} <ArrowRight size={18} />
                </Link>
             </div>
@@ -136,7 +136,7 @@ function Hero({ user }) {
         </div>
 
         {/* Right 3D Scene */}
-        <div className="flex-1 relative h-[50vh] md:h-full mt-10 md:mt-0">
+        <div className="relative mt-0 h-[32svh] min-h-[220px] flex-1 md:h-full">
           <GenerativeArtScene />
         </div>
       </div>
@@ -149,9 +149,9 @@ function Hero({ user }) {
 ═══════════════════════════════ */
 function Metrics() {
   return (
-    <section className="py-24 border-t border-white/5 bg-black">
+    <section className="border-t border-white/5 bg-black py-14 sm:py-20 md:py-24">
       <div className="max-w-screen-xl mx-auto px-6 sm:px-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-white/5">
+        <div className="grid grid-cols-2 gap-6 divide-white/5 md:grid-cols-4 md:gap-8 md:divide-x">
           {[
              { value: "10x", label: "Ускорение работы" },
              { value: "99%", label: "Точность анализа" },
@@ -174,7 +174,7 @@ function Metrics() {
 ═══════════════════════════════ */
 function Capabilities() {
   return (
-    <section id="capabilities" className="relative z-10 py-32 bg-black border-t border-white/5">
+    <section id="capabilities" className="relative z-10 border-t border-white/5 bg-black py-20 sm:py-24 md:py-32">
       <div className="max-w-screen-xl mx-auto px-6 sm:px-12">
 
         <FadeUp>
@@ -239,7 +239,7 @@ function Capabilities() {
 ═══════════════════════════════ */
 function FinalCta({ user }) {
   return (
-    <section className="relative z-10 py-32 bg-neutral-950 border-t border-white/5 text-center">
+    <section className="relative z-10 border-t border-white/5 bg-neutral-950 py-20 text-center sm:py-24 md:py-32">
       <div className="max-w-3xl mx-auto px-6">
         <FadeUp>
           <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">Начните работу прямо сейчас.</h2>
@@ -263,7 +263,7 @@ export default function LandingPage() {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-black overflow-hidden text-neutral-200 font-sans selection:bg-neutral-800 selection:text-white flex flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-black font-sans text-neutral-200 selection:bg-neutral-800 selection:text-white">
       <Header user={user} t={t} />
       
       <main className="flex-1">

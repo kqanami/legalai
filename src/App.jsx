@@ -122,9 +122,9 @@ function AnimatedRoutes() {
         <Route path="/pricing" element={<PageWrapper><PricingPage /></PageWrapper>} />
         <Route path="/auth" element={<PageWrapper><PublicRoute><AuthPage /></PublicRoute></PageWrapper>} />
         <Route path="/admin" element={<PageWrapper><AdminRoute><AdminDashboard /></AdminRoute></PageWrapper>} />
-        <Route path="/lawyers" element={<PageWrapper><LawyerMarketplace /></PageWrapper>} />
-        <Route path="/lawyers/rankings" element={<PageWrapper><Placeholder title="Глобальный рейтинг юристов" /></PageWrapper>} />
-        <Route path="/lawyers/:id" element={<PageWrapper><LawyerPublicProfile /></PageWrapper>} />
+        <Route path="/lawyers" element={<Suspense fallback={<LoadingUI />}><LawyerMarketplace /></Suspense>} />
+        <Route path="/lawyers/rankings" element={<Suspense fallback={<LoadingUI />}><Placeholder title="Глобальный рейтинг юристов" /></Suspense>} />
+        <Route path="/lawyers/:id" element={<Suspense fallback={<LoadingUI />}><LawyerPublicProfile /></Suspense>} />
         
         <Route path="/dashboard" element={
           <PageWrapper>

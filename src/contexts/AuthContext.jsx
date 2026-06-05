@@ -129,8 +129,44 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  const updateProfile = useCallback(async (updates) => {
+    setIsLoading(true);
+    try {
+      const updatedUser = await authApi.updateProfile(updates);
+      setUser(updatedUser);
+      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      return updatedUser;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const generateApiKey = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const updatedUser = await authApi.generateApiKey();
+      setUser(updatedUser);
+      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      return updatedUser;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const toggle2fa = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const updatedUser = await authApi.toggle2fa();
+      setUser(updatedUser);
+      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      return updatedUser;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, sendCode, login, register, registerLawyer, logout, updateUserLocal, registerEmail, loginEmail, googleAuth }}>
+    <AuthContext.Provider value={{ user, isLoading, sendCode, login, register, registerLawyer, logout, updateUserLocal, registerEmail, loginEmail, googleAuth, updateProfile, generateApiKey, toggle2fa }}>
       {children}
     </AuthContext.Provider>
   );

@@ -24,6 +24,8 @@ class User(Base):
     role = Column(String(20), default="citizen")
     plan = Column(String(20), default="freemium")  # freemium, go, ip, business
     city = Column(String(100), nullable=True)
+    api_key = Column(String(100), nullable=True, unique=True, index=True)
+    two_factor_enabled = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
