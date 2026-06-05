@@ -23,27 +23,46 @@ const LoadingUI = () => (
   </div>
 );
 
-// Lazy Load Pages for Performance
-const LandingPage = lazy(() => import('./pages/LandingPage'));
-const AuthPage = lazy(() => import('./pages/AuthPage'));
-const PricingPage = lazy(() => import('./pages/PricingPage'));
-const ChatPage = lazy(() => import('./pages/ChatPage'));
-const DocumentWorkspace = lazy(() => import('./pages/DocumentWorkspace'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
-const HistoryPage = lazy(() => import('./pages/HistoryPage'));
-const CounterpartyPage = lazy(() => import('./pages/CounterpartyPage'));
-const DashboardLayout = lazy(() => import('./layouts/DashboardLayout'));
-const LawyerLayout = lazy(() => import('./layouts/LawyerLayout'));
-const LawyerDashboard = lazy(() => import('./pages/LawyerDashboard'));
-const LawyerClients = lazy(() => import('./pages/LawyerClients'));
-const LawyerCases = lazy(() => import('./pages/LawyerCases'));
-const LawyerLeads = lazy(() => import('./pages/LawyerLeads'));
-const LawyerTemplates = lazy(() => import('./pages/LawyerTemplates'));
-const LawyerProfile = lazy(() => import('./pages/LawyerProfile'));
-const LawyerMarketplace = lazy(() => import('./pages/LawyerMarketplace'));
-const LawyerPublicProfile = lazy(() => import('./pages/LawyerPublicProfile'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+// Fix for "Failed to fetch dynamically imported module" errors during deployments
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
+    );
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('page-has-been-force-refreshed', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenForceRefreshed) {
+        window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
+
+// Lazy Load Pages for Performance (with retry logic)
+const LandingPage = lazyWithRetry(() => import('./pages/LandingPage'));
+const AuthPage = lazyWithRetry(() => import('./pages/AuthPage'));
+const PricingPage = lazyWithRetry(() => import('./pages/PricingPage'));
+const ChatPage = lazyWithRetry(() => import('./pages/ChatPage'));
+const DocumentWorkspace = lazyWithRetry(() => import('./pages/DocumentWorkspace'));
+const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'));
+const DocumentsPage = lazyWithRetry(() => import('./pages/DocumentsPage'));
+const HistoryPage = lazyWithRetry(() => import('./pages/HistoryPage'));
+const CounterpartyPage = lazyWithRetry(() => import('./pages/CounterpartyPage'));
+const DashboardLayout = lazyWithRetry(() => import('./layouts/DashboardLayout'));
+const LawyerLayout = lazyWithRetry(() => import('./layouts/LawyerLayout'));
+const LawyerDashboard = lazyWithRetry(() => import('./pages/LawyerDashboard'));
+const LawyerClients = lazyWithRetry(() => import('./pages/LawyerClients'));
+const LawyerCases = lazyWithRetry(() => import('./pages/LawyerCases'));
+const LawyerLeads = lazyWithRetry(() => import('./pages/LawyerLeads'));
+const LawyerTemplates = lazyWithRetry(() => import('./pages/LawyerTemplates'));
+const LawyerProfile = lazyWithRetry(() => import('./pages/LawyerProfile'));
+const LawyerMarketplace = lazyWithRetry(() => import('./pages/LawyerMarketplace'));
+const LawyerPublicProfile = lazyWithRetry(() => import('./pages/LawyerPublicProfile'));
+const AdminDashboard = lazyWithRetry(() => import('./pages/AdminDashboard'));
 
 // Route guard components
 const PrivateRoute = ({ children }) => {
