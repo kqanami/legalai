@@ -15,14 +15,14 @@ const COLORS = {
   success: 'bg-emerald-500/10 border-emerald-500/20',
   error: 'bg-red-500/10 border-red-500/20',
   warning: 'bg-amber-500/10 border-amber-500/20',
-  info: 'bg-white/[0.04] border-white/10',
+  info: 'bg-[#1a1a1a] border-white/10', // Opaque dark grey to avoid background bleed (which might look blue)
 };
 
 const ICON_COLORS = {
   success: 'text-emerald-400',
   error: 'text-red-400',
   warning: 'text-amber-400',
-  info: 'text-white/70',
+  info: 'text-white',
 };
 
 export function ToastProvider({ children }) {
@@ -48,18 +48,18 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={{ addToast, removeToast }}>
       {children}
       {/* Toast Container */}
-      <div className="fixed top-4 left-4 right-4 md:left-auto md:w-96 z-[9999] flex flex-col gap-3 pointer-events-none">
+      <div className="fixed bottom-6 left-4 right-4 md:bottom-auto md:top-6 md:left-auto md:right-6 md:w-96 z-[9999] flex flex-col gap-3 pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => {
             const Icon = ICONS[toast.type] || Info;
             return (
               <motion.div
                 key={toast.id}
-                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 100, scale: 0.95 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                className={`pointer-events-auto ${COLORS[toast.type]} backdrop-blur-xl border rounded-[1.25rem] px-5 py-4 shadow-2xl flex items-center gap-3`}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className={`pointer-events-auto ${COLORS[toast.type]} backdrop-blur-xl border rounded-2xl px-4 py-3 sm:px-5 sm:py-4 shadow-2xl flex items-center gap-3`}
               >
                 <Icon size={20} className={`${ICON_COLORS[toast.type]} flex-shrink-0`} />
                 <p className="text-sm text-white/90 flex-1 font-medium">{toast.message}</p>

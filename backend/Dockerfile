@@ -14,6 +14,10 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 
+# Pre-download and bake the local ONNX embedding model into the image
+# This runs once at build time so the container never needs internet for embeddings
+RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFunction; ef = DefaultEmbeddingFunction(); ef(['test']); print('ONNX model baked into image!')"
+
 # Copy the rest of the application
 COPY . .
 

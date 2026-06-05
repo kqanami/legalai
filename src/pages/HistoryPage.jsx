@@ -45,8 +45,8 @@ export default function HistoryPage() {
   const grouped = groupByDate(filteredHistory);
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-4 sm:p-6 lg:p-10 selection:bg-white/20 font-sans">
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full gap-6 sm:gap-8 max-w-6xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-3 sm:p-6 lg:p-10 selection:bg-white/20 font-sans">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full gap-4 sm:gap-8 max-w-6xl mx-auto w-full">
         
         {/* ── Header ── */}
         <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 sm:gap-6 shrink-0 mt-4 sm:mt-0">
@@ -107,7 +107,7 @@ export default function HistoryPage() {
                       <motion.div 
                         variants={itemVariants} 
                         key={item.id} 
-                        className="group flex flex-col p-5 sm:p-6 lg:p-8 rounded-3xl lg:rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden" 
+                        className="group flex flex-col p-4 sm:p-6 lg:p-8 rounded-[1.5rem] lg:rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden" 
                         onClick={async () => { await loadSession(item.id); navigate('/dashboard'); }}
                       >
                         <div className="flex items-start justify-between relative z-10">

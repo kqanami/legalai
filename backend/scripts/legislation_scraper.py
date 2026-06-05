@@ -58,17 +58,59 @@ LEGISLATION_CATALOG = {
         "category": "criminal",
         "file": "criminal.md"
     },
+    "criminal_procedure": {
+        "title": "Уголовно-процессуальный кодекс РК",
+        "url": "https://adilet.zan.kz/rus/docs/K1400000231",
+        "category": "criminal",
+        "file": "criminal_procedure.md"
+    },
+    "civil_procedure": {
+        "title": "Гражданский процессуальный кодекс РК (ГПК)",
+        "url": "https://adilet.zan.kz/rus/docs/K1500000377",
+        "category": "civil",
+        "file": "civil_procedure.md"
+    },
+    "family": {
+        "title": "Кодекс РК о браке (супружестве) и семье",
+        "url": "https://adilet.zan.kz/rus/docs/K1100000518",
+        "category": "family",
+        "file": "family.md"
+    },
     "law_too": {
         "title": "Закон РК о ТОО и товариществах",
         "url": "https://adilet.zan.kz/rus/docs/U980003900_",
         "category": "civil",
         "file": "law_too.md"
     },
+    "law_bankruptcy": {
+        "title": "Закон РК о реабилитации и банкротстве",
+        "url": "https://adilet.zan.kz/rus/docs/Z1400000176",
+        "category": "civil",
+        "file": "law_bankruptcy.md"
+    },
     "law_procurement": {
         "title": "Закон РК о государственных закупках",
         "url": "https://adilet.zan.kz/rus/docs/Z1500000434",
         "category": "civil",
         "file": "law_procurement.md"
+    },
+    "law_ip": {
+        "title": "Закон РК об авторском праве и смежных правах",
+        "url": "https://adilet.zan.kz/rus/docs/Z960000006_",
+        "category": "civil",
+        "file": "law_ip.md"
+    },
+    "law_consumer": {
+        "title": "Закон РК о защите прав потребителей",
+        "url": "https://adilet.zan.kz/rus/docs/Z2200000000_",
+        "category": "civil",
+        "file": "law_consumer.md"
+    },
+    "law_real_estate": {
+        "title": "Закон РК о государственной регистрации прав на недвижимость",
+        "url": "https://adilet.zan.kz/rus/docs/Z0700000310_",
+        "category": "civil",
+        "file": "law_real_estate.md"
     },
     "constitution": {
         "title": "Конституция Республики Казахстан",

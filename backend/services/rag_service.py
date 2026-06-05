@@ -8,42 +8,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 from config import settings
-from google import genai
-import numpy as np
-
-class CustomGeminiEmbeddingFunction(embedding_functions.EmbeddingFunction):
-    """Custom embedding function using the new google-genai SDK with fail-fast daily quota handling."""
-    def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
-        self.client = genai.Client(api_key=api_key)
-        self.model_name = model_name
-
-    def __call__(self, input: chromadb.api.types.Documents) -> chromadb.api.types.Embeddings:
-        import time
-        max_retries = 6
-        backoff = 2
-        for attempt in range(max_retries):
-            try:
-                response = self.client.models.embed_content(
-                    model=self.model_name,
-                    contents=input
-                )
-                return [e.values for e in response.embeddings]
-            except Exception as e:
-                err_str = str(e)
-                # Check for daily/overall quota exhaustion limits (which sleeping won't fix)
-                is_quota_limit = any(x in err_str.lower() for x in ["quota", "limit", "exceeded", "requestsperday"])
-                
-                if ("429" in err_str or "RESOURCE_EXHAUSTED" in err_str) and not is_quota_limit and attempt < max_retries - 1:
-                    sleep_time = (backoff ** attempt) + 3
-                    logger.warning(f"Gemini Embedding Rate Limit (429) encountered. Sleeping for {sleep_time}s before retry... (Attempt {attempt+1}/{max_retries})")
-                    time.sleep(sleep_time)
-                else:
-                    if is_quota_limit:
-                        logger.error(f"Gemini Embedding Daily Quota Exceeded. Failing fast to prevent backend lag: {e}")
-                    else:
-                        logger.error(f"Failed embedding content after {attempt+1} attempts: {e}")
-                    raise e
-
 
 
 class LRUCache:
@@ -86,24 +50,30 @@ class LegalRAGService:
         
         try:
             self.client = chromadb.PersistentClient(path=db_path)
-            # Set API key in environment
-            os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY
             
-            self.embedding_fn = CustomGeminiEmbeddingFunction(
-                api_key=settings.GEMINI_API_KEY,
-                model_name="gemini-embedding-001"
-            )
+            # Use ChromaDB's built-in local ONNX model (all-MiniLM-L6-v2)
+            # This is completely FREE, runs 100% locally, no API key needed, no rate limits!
+            # Model is ~80MB and downloaded once to /root/.cache/chroma/onnx_models/
+            self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
+            logger.info("Using local ONNX embedding model (all-MiniLM-L6-v2) — no API calls, no rate limits!")
             
+            # Use a new collection name since the embedding model changed
+            # (vectors from Gemini and ONNX are incompatible)
             self.collection = self.client.get_or_create_collection(
-                name="kz_legal_knowledge_v3",
+                name="kz_legal_v4_local",
                 embedding_function=self.embedding_fn
             )
             doc_count = self.collection.count()
-            logger.info(f"ChromaDB initialized (gemini-embedding-001). Documents: {doc_count}")
+            logger.info(f"ChromaDB initialized (local ONNX). Documents in collection: {doc_count}")
+            
+            # If empty, migrate data from old Gemini collection by re-ingesting raw text
+            if doc_count == 0:
+                logger.info("New local collection is empty. Will need to re-ingest documents.")
         except Exception as e:
             logger.error(f"Failed to initialize ChromaDB: {e}")
             self.client = None
             self.collection = None
+
 
     def add_documents(self, documents: list[str], metadatas: list[dict], ids: list[str]):
         """Adds curated legal texts to the vector database."""
@@ -243,8 +213,9 @@ class LegalRAGService:
                 docs = []
                 for i in range(len(results["documents"][0])):
                     dist = results["distances"][0][i] if (results.get("distances") and len(results["distances"][0]) > i) else 0.0
-                    sim = max(0.0, min(1.0, 1.0 - dist))
-                    if sim >= getattr(settings, "RAG_MIN_SIMILARITY", 0.35):
+                    # ChromaDB default is Squared L2. For normalized vectors, Cosine Similarity = 1 - (L2^2 / 2)
+                    sim = max(0.0, min(1.0, 1.0 - (dist / 2.0)))
+                    if sim >= getattr(settings, "RAG_MIN_SIMILARITY", 0.40):
                         docs.append(results["documents"][0][i])
                 docs = docs[:n_results]
                 self._cache.set(query, n_results, category, docs)

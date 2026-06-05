@@ -141,7 +141,7 @@ function Hero({ user }) {
               AI Legal Engine v1.0
             </div>
             
-            <h1 className="mb-5 text-[2.5rem] font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:mb-8 md:text-[5.5rem]">
+            <h1 className="mb-5 text-[2.25rem] font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:mb-8 md:text-[5.5rem]">
               Правовой интеллект <br className="hidden sm:block"/>
               <span className="text-neutral-500">нового поколения.</span>
             </h1>

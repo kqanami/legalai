@@ -11,16 +11,24 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from services.rag_service import rag_service
 
 def reset_and_reingest():
-    print("Resetting RAG Collection v3...")
+    print("Resetting RAG Collection v4 (local ONNX)...")
+    try:
+        rag_service.client.delete_collection("kz_legal_v4_local")
+        print("Deleted old collection kz_legal_v4_local.")
+    except:
+        pass
     try:
         rag_service.client.delete_collection("kz_legal_knowledge_v3")
+        print("Deleted old Gemini collection kz_legal_knowledge_v3.")
     except:
         pass
     
-    # Re-create collection
+    # Re-create collection with local embedding function
+    from chromadb.utils import embedding_functions
+    local_ef = embedding_functions.DefaultEmbeddingFunction()
     rag_service.collection = rag_service.client.create_collection(
-        name="kz_legal_knowledge_v3",
-        embedding_function=rag_service.embedding_fn
+        name="kz_legal_v4_local",
+        embedding_function=local_ef
     )
     
     # Ingest Narcotics Articles first
