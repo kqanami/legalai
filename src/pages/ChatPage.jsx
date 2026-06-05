@@ -10,7 +10,7 @@ import { GenerativeArtScene } from '../components/ui/generative-art-scene';
 import {
   Scale, Link2, Search, ExternalLink, BookOpen, Loader2,
   Paperclip, X, FileText, Users, ShoppingBag, Building, Book,
-  PenTool, GitCompare, Command, Shield, Mic, MicOff, ArrowUp, Zap
+  PenTool, GitCompare, Command, Shield, Mic, MicOff, ArrowUp, Zap, Download, Check, Copy, ThumbsUp, ThumbsDown, RefreshCw, Square
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -52,6 +52,14 @@ function useTypewriter(text, { speed = 120, enabled = true } = {}) {
   return { displayed, done };
 }
 
+
+const TEMPLATES = [
+  { label: 'Составить NDA', prompt: 'Подготовьте шаблон Соглашения о неразглашении (NDA) по законодательству РК.', icon: <FileText size={16} /> },
+  { label: 'Претензия', prompt: 'Составьте досудебную претензию о возврате долга по расписке.', icon: <PenTool size={16} /> },
+  { label: 'Договор аренды', prompt: 'Проверьте типовой договор аренды квартиры на подводные камни.', icon: <Book size={16} /> },
+  { label: 'Регистрация ТОО', prompt: 'Какие документы нужны для регистрации ТОО в 2026 году?', icon: <Building size={16} /> },
+];
+
 const INLINE_COMMANDS = [
   { label: 'Анализ рисков',  description: 'Проверить договор на уязвимости', prefix: '/analyze',  icon: <Shield size={14} /> },
   { label: 'Создать договор', description: 'Генерация нового документа',       prefix: '/contract', icon: <FileText size={14} /> },
@@ -68,7 +76,7 @@ function CitationTooltip({ text, reference }) {
   return (
     <span className="relative inline-block" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       <span
-        className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-0.5 rounded-md text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-200 bg-white/10 text-white hover:bg-white/20"
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-0.5 rounded-md text-[12px] font-light tracking-wide cursor-pointer transition-all duration-200 bg-white/10 text-white hover:bg-white/20"
         onClick={() => reference?.url && window.open(reference.url, '_blank')}
       >
         <BookOpen size={10} className="flex-shrink-0" />{text}
@@ -93,7 +101,7 @@ function CitationTooltip({ text, reference }) {
               </div>
               {reference.url && (
                 <a href={reference.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors pt-3 border-t border-white/5">
+                  className="flex items-center gap-2 text-[12px] font-light tracking-wide text-white/40 hover:text-white transition-colors pt-3 border-t border-white/5">
                   <ExternalLink size={10} />adilet.zan.kz
                 </a>
               )}
@@ -127,16 +135,16 @@ function EscalationBanner({ escalation }) {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       className="mt-8 w-full max-w-lg rounded-[2rem] bg-white/[0.02] border border-white/10 p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center gap-6 justify-between">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center flex-shrink-0">
+        <div className="w-12 h-12 rounded-2xl bg-white/10 text-white flex items-center justify-center flex-shrink-0">
           <Scale size={20} />
         </div>
         <div>
           <h4 className="text-sm font-bold text-white mb-1">Требуется адвокат</h4>
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/40 leading-relaxed">{escalation.reason}</p>
+          <p className="text-[12px] font-light tracking-wide text-white/40 leading-relaxed">{escalation.reason}</p>
         </div>
       </div>
       <button onClick={() => navigate(`/lawyers?specialization=${encodeURIComponent(category)}`)}
-        className="shrink-0 flex items-center justify-center gap-2 h-12 px-6 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-neutral-200 transition-colors">
+        className="shrink-0 flex items-center justify-center gap-2 h-12 px-6 bg-white/10 text-white text-[12px] font-light tracking-wide rounded-xl hover:bg-neutral-200 transition-colors">
         <Search size={14} />Найти
       </button>
     </motion.div>
@@ -147,7 +155,7 @@ function LawyerSearchChip({ category }) {
   const navigate = useNavigate();
   return (
     <motion.button onClick={() => navigate(`/lawyers?specialization=${encodeURIComponent(category || '')}`)}
-      className="inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-black hover:bg-neutral-200 transition-colors">
+      className="inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[12px] font-light tracking-wide bg-white/10 text-white hover:bg-neutral-200 transition-colors">
       <Search size={12} />Найти адвоката
     </motion.button>
   );
@@ -264,7 +272,7 @@ const TypewriterMarkdown = memo(({ msg, isStreaming, sendMessage, isTyping, user
               <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap gap-2">
                 {msg.references.map((ref, i) => (
                   <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/5 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/[0.05] transition-all">
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/5 text-[12px] font-light tracking-wide text-white/60 hover:text-white hover:bg-white/[0.05] transition-all">
                     <Link2 size={10} /><span>{ref.title}</span>
                   </a>
                 ))}
@@ -277,7 +285,7 @@ const TypewriterMarkdown = memo(({ msg, isStreaming, sendMessage, isTyping, user
                 {msg.escalation?.needed && user?.role !== 'lawyer' && <LawyerSearchChip category={msg.escalation.category} />}
                 {msg.suggestions?.map((sug, i) => (
                   <button key={i} onClick={() => { if (!isTyping) sendMessage(sug); }} disabled={isTyping}
-                    className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/[0.05] text-white/60 hover:bg-white/[0.1] hover:text-white border border-white/10 transition-colors disabled:opacity-50">
+                    className="px-3 py-1.5 rounded-lg text-[12px] font-light tracking-wide bg-white/[0.05] text-white/60 hover:bg-white/[0.1] hover:text-white border border-white/10 transition-colors disabled:opacity-50">
                     {sug}
                   </button>
                 ))}
@@ -315,8 +323,57 @@ export default function ChatPage() {
   const [commandIndex, setCommandIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [voiceLang, setVoiceLang] = useState(currentAppLang || 'ru');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [feedbackState, setFeedbackState] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+
 
   const isGenerating = isTyping || isStreaming;
+
+  const handleCopy = async (text, id) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {}
+  };
+
+  const handleFeedback = (id, type) => {
+    setFeedbackState(prev => ({ ...prev, [id]: prev[id] === type ? null : type }));
+  };
+
+  const handleExport = () => {
+    setIsExporting(true);
+    let text = 'Экспорт чата LegalAI\n\n';
+    messages.forEach(m => {
+      text += m.role === 'user' ? 'Вы: ' : 'LegalAI: ';
+      text += m.content + '\n\n';
+    });
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'LegalAI_Chat_Export.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    setIsExporting(false);
+  };
+
+  const handleRegenerate = (index) => {
+    // Find the last user message before this assistant message
+    let lastUserMsg = null;
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserMsg = messages[i].content;
+        break;
+      }
+    }
+    if (lastUserMsg && !isTyping) {
+      sendMessage(lastUserMsg);
+    }
+  };
+
 
   /* ── Voice Input (Web Speech API) ── */
   const startListening = useCallback(() => {
@@ -488,6 +545,13 @@ export default function ChatPage() {
       className="flex flex-col h-full bg-[#050505] text-white relative w-full overflow-hidden"
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
     >
+      
+      {messages.length > 0 && (
+        <button onClick={handleExport} disabled={isExporting} title="Экспорт переписки" className="absolute top-6 right-6 z-50 w-10 h-10 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.05] transition-all">
+           {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+        </button>
+      )}
+
       {/* ── Living Background ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center opacity-20">
         <motion.div
@@ -532,60 +596,15 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Messages ── */}
-      <div ref={scrollRef} onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 md:px-6 py-6 w-full max-w-4xl mx-auto custom-scrollbar relative z-10">
-        <div className="flex flex-col space-y-6 min-h-full justify-end pb-4">
-          <AnimatePresence mode="popLayout">
-            {messages.length === 0 ? (
-              <motion.div key="welcome"
-                className="flex flex-col items-center justify-center h-full my-auto text-center"
-                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5, ease: 'easeOut' }}
-              >
-                <div className="w-12 h-12 rounded-[1rem] bg-white text-black flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(255,255,255,0.15)]">
-                  <Scale size={24} strokeWidth={2} />
-                </div>
-
-                <div className="w-full max-w-lg mb-3 text-center">
-                  <motion.h2 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="text-2xl md:text-3xl font-black text-white tracking-tighter"
-                  >
-                    Правовой ИИ
-                  </motion.h2>
-                </div>
-
-                <p className="text-white/40 max-w-sm mx-auto mb-8 text-[9px] font-black uppercase tracking-widest leading-relaxed">
-                  Задайте юридический вопрос, загрузите документ для анализа или попросите составить договор.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-xl">
-                  {(user?.role === 'lawyer' ? [
-                    { text: t('lawyer_suggestion_1'), icon: <Book size={16} /> },
-                    { text: t('lawyer_suggestion_2'), icon: <FileText size={16} /> },
-                    { text: t('lawyer_suggestion_3'), icon: <PenTool size={16} /> },
-                    { text: t('lawyer_suggestion_4'), icon: <GitCompare size={16} /> },
-                  ] : [
-                    { text: t('chat_suggestion_1'), icon: <Users size={16} /> },
-                    { text: t('chat_suggestion_2'), icon: <ShoppingBag size={16} /> },
-                    { text: t('chat_suggestion_3'), icon: <Building size={16} /> },
-                    { text: t('chat_suggestion_4'), icon: <Search size={16} /> },
-                  ]).map((sug, i) => (
-                    <motion.button key={i} onClick={() => sendMessage(sug.text)}
-                      variants={suggestionVariants} initial="hidden" animate="visible" custom={i}
-                      className="group flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-white/20 transition-all duration-300 text-left"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-[#050505] border border-white/5 flex items-center justify-center text-white/40 group-hover:text-white transition-colors flex-shrink-0">{sug.icon}</div>
-                      <span className="text-[13px] text-white/60 group-hover:text-white transition-colors font-semibold leading-snug">{sug.text}</span>
-                    </motion.button>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-              <>
+      
+      {/* ── Main Layout Wrapper ── */}
+      <div className={`flex flex-col w-full h-full relative z-10 transition-all duration-700 ease-in-out ${messages.length === 0 ? 'justify-center' : 'justify-end'}`}>
+        
+        {messages.length > 0 && (
+          <div ref={scrollRef} onScroll={handleScroll}
+            className="flex-1 overflow-y-auto px-4 md:px-6 py-6 w-full max-w-4xl mx-auto custom-scrollbar relative z-10">
+            <div className="flex flex-col space-y-6 min-h-full justify-end pb-4">
+              <AnimatePresence mode="popLayout">
                 {messages.map((msg, index) => (
                   <motion.div key={msg.tempId || msg.id || index}
                     className={`flex flex-col w-full ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
@@ -598,12 +617,12 @@ export default function ChatPage() {
                     }`}>
                       {msg.role === 'assistant' && (
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-                          <div className="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center">
                             <Scale size={14} />
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-[13px] font-bold tracking-tight text-white leading-none">LegalAI</span>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-0.5">Ответ системы</span>
+                            <span className="text-[14px] font-medium tracking-wide text-white/90 leading-none">LegalAI</span>
+                            <span className="text-[11px] font-light tracking-wide text-white/40 mt-0.5">Ответ системы</span>
                           </div>
                         </div>
                       )}
@@ -614,7 +633,7 @@ export default function ChatPage() {
                             <div className="w-6 h-6 rounded-lg bg-white/10 text-white flex items-center justify-center">
                               <Search size={12} />
                             </div>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-white">Вы спросили</span>
+                            <span className="text-[11px] font-light tracking-wide text-white">Вы спросили</span>
                           </div>
                           {msg.attached_document_id && (
                             <div className="flex items-center gap-2 mb-3 bg-white/[0.05] w-fit px-2.5 py-1.5 rounded-lg border border-white/10">
@@ -646,15 +665,35 @@ export default function ChatPage() {
                     </div>
                   </motion.div>
                 )}
-              </>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
 
+        {messages.length === 0 && (
+          <motion.div key="welcome-header"
+            className="flex flex-col items-center justify-center text-center px-4 mb-8"
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.6, ease: 'easeOut' }}
+          >
+            <div className="w-14 h-14 rounded-[1.2rem] bg-white/10 text-white flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(255,255,255,0.2)]">
+              <Scale size={28} strokeWidth={2} />
+            </div>
+            <h2 className="text-4xl md:text-5xl font-light tracking-wide mb-4 bg-gradient-to-b from-white to-white/40 text-transparent bg-clip-text">
+              Правовой ИИ
+            </h2>
+            <p className="text-white/50 max-w-sm mx-auto text-[13px] font-light tracking-wide leading-relaxed">
+              Задайте юридический вопрос, выберите шаблон или загрузите документ для анализа.
+            </p>
+          </motion.div>
+        )}
 
-      <div className="px-4 pb-4 pt-1 w-full max-w-4xl mx-auto relative z-20">
-        <AnimatePresence>
+        {/* INPUT BOX ANIMATED CONTAINER */}
+        <motion.div 
+          layout 
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className={`w-full px-4 ${messages.length === 0 ? 'max-w-3xl mb-0' : 'max-w-4xl pb-4'} mx-auto relative z-20`}
+        >
+<AnimatePresence>
           {showCommands && (
             <motion.div initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.2 }}
@@ -667,12 +706,12 @@ export default function ChatPage() {
                   <button key={i} type="button"
                     onClick={() => { setInput(cmd.prefix + ' '); setShowCommands(false); textareaRef.current?.focus(); }}
                     onMouseEnter={() => setCommandIndex(i)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${commandIndex === i ? 'bg-white text-black' : 'text-white/60 hover:bg-white/[0.05]'}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${commandIndex === i ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[0.05]'}`}
                   >
                     <div className={`p-1.5 rounded-lg ${commandIndex === i ? 'bg-black/10' : 'bg-white/5 text-white'}`}>{cmd.icon}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-bold tracking-tight">{cmd.label}</div>
-                      <div className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${commandIndex === i ? 'text-black/60' : 'text-white/40'}`}>{cmd.description}</div>
+                      <div className={`text-[12px] font-light tracking-wide mt-0.5 ${commandIndex === i ? 'text-black/60' : 'text-white/40'}`}>{cmd.description}</div>
                     </div>
                     <div className={`text-[9px] font-black tracking-widest px-2 py-1 rounded-md ${commandIndex === i ? 'bg-black/10' : 'bg-white/5'}`}>{cmd.prefix}</div>
                   </button>
@@ -682,10 +721,21 @@ export default function ChatPage() {
           )}
         </AnimatePresence>
 
+        
+          <AnimatePresence>
+            {isGenerating && (
+              <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:10}} className="flex justify-center w-full absolute bottom-[100%] left-0 pb-4">
+                 <button type="button" onClick={() => {/* Mock stop for now */}} className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[12px] font-light tracking-wide hover:bg-red-500/20 transition-colors backdrop-blur-md">
+                    <Square size={12} fill="currentColor" /> Остановить генерацию
+                 </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
         <motion.form onSubmit={handleSubmit}
           animate={{ borderColor: isListening ? 'rgba(239,68,68,0.4)' : (isFocused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)') }}
           transition={{ duration: 0.3 }}
-          className={`relative rounded-3xl border bg-[#050505]/80 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.6)] overflow-hidden ${isListening ? 'shadow-[0_0_30px_rgba(239,68,68,0.1)]' : ''}`}
+          className={`relative rounded-[2rem] border bg-white/[0.02] backdrop-blur-[40px] shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden ${isListening ? 'shadow-[0_0_30px_rgba(239,68,68,0.1)]' : ''}`}
         >
           {attachedFile && (
             <div className="px-4 pt-3 pb-0">
@@ -703,7 +753,7 @@ export default function ChatPage() {
             <div className="px-4 py-6 flex flex-col items-center justify-center min-h-[80px]">
               <div className="flex items-center gap-3 mb-2">
                 <motion.div animate={{ opacity: [1, 0.5, 1], scale: [1, 1.2, 1] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-red-500">Слушаю вас...</span>
+                <span className="text-[12px] font-light tracking-wide text-red-500">Слушаю вас...</span>
               </div>
               <div className="max-w-md w-full text-center">
                 {input && <span className="text-[15px] font-medium text-white/80">{input} </span>}
@@ -746,22 +796,23 @@ export default function ChatPage() {
               <button type="button"
                 onClick={() => { if (input.startsWith('/')) setShowCommands(false); else { setInput('/'); setShowCommands(true); textareaRef.current?.focus(); } }}
                 title="Команды"
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${showCommands ? 'bg-white text-black' : 'bg-white/[0.02] text-white/40 hover:text-white hover:bg-white/[0.05] border border-white/5'}`}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-light tracking-wide transition-all ${showCommands ? 'bg-white/10 text-white' : 'bg-transparent text-white/40 hover:text-white hover:bg-white/[0.05]'}`}
               >
                 <Command size={12} /><span className="hidden sm:block">Команды</span>
               </button>
 
+              
               <button type="button" onClick={() => fileInputRef.current?.click()} title="Прикрепить файл"
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${attachedFile ? 'bg-white text-black' : 'bg-white/[0.02] text-white/40 hover:text-white hover:bg-white/[0.05] border border-white/5'}`}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-light tracking-wide transition-all ${attachedFile ? 'bg-white/10 text-white' : 'bg-transparent text-white/40 hover:text-white hover:bg-white/[0.05]'}`}
               >
                 <Paperclip size={12} /><span className="hidden sm:block">Файл</span>
               </button>
 
               <button type="button" onClick={toggleListening} title="Голосовой ввод"
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-light tracking-wide transition-all duration-300 ${
                   isListening
                     ? 'bg-red-500 text-black shadow-[0_0_15px_rgba(239,68,68,0.4)]'
-                    : 'bg-white/[0.02] text-white/40 hover:text-white hover:bg-white/[0.05] border border-white/5'
+                    : 'bg-transparent text-white/40 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
                 {isListening
@@ -773,11 +824,11 @@ export default function ChatPage() {
             
             <div className="flex items-center gap-3">
               {voiceError && (
-                <span className="text-[9px] font-black uppercase tracking-widest text-red-500 mr-2">{voiceError}</span>
+                <span className="text-[12px] font-light tracking-wide text-red-500 mr-2">{voiceError}</span>
               )}
-              {!voiceError && <span className="text-[9px] font-black uppercase tracking-widest text-white/20 hidden sm:block">Enter — отправить</span>}
+              {!voiceError && <span className="text-[12px] font-light tracking-wide text-white/20 hidden sm:block">Enter — отправить</span>}
               <button type="submit" disabled={!canSend}
-                className={`relative h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-300 ${canSend ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95' : 'bg-white/[0.02] text-white/20 border border-white/5'}`}
+                className={`relative h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-300 ${canSend ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95' : 'bg-white/[0.02] text-white/20 border border-white/5'}`}
               >
                 {isUploadingFile
                   ? <Loader2 size={14} className="animate-spin" />
@@ -806,10 +857,10 @@ export default function ChatPage() {
             </motion.div>
           )}
         </motion.form>
-
-        <p className="text-center text-[9px] font-black uppercase tracking-widest text-white/20 mt-6">
+        <p className="text-center text-[12px] font-light tracking-wide text-white/20 mt-6">
           LegalAI может допускать ошибки. Проконсультируйтесь с юристом по важным вопросам.
         </p>
+        </motion.div>
       </div>
     </div>
   );
