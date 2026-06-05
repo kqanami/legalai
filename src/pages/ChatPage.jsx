@@ -602,7 +602,8 @@ export default function ChatPage() {
         
         {messages.length > 0 && (
           <div ref={scrollRef} onScroll={handleScroll}
-            className="flex-1 overflow-y-auto px-4 md:px-6 py-6 w-full max-w-4xl mx-auto custom-scrollbar relative z-10">
+            style={{ WebkitOverflowScrolling: 'touch' }}
+            className="flex-1 overflow-y-auto px-4 md:px-6 py-6 w-full max-w-4xl mx-auto custom-scrollbar relative z-10 scroll-smooth touch-pan-y overscroll-contain">
             <div className="flex flex-col space-y-6 min-h-full justify-end pb-4">
               <AnimatePresence mode="popLayout">
                 {messages.map((msg, index) => (
