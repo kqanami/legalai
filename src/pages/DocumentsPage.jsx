@@ -167,7 +167,7 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-4 sm:p-6 lg:p-10 selection:bg-white/20 relative font-sans">
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-10 selection:bg-white/20 relative font-sans">
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -186,7 +186,7 @@ export default function DocumentsPage() {
         )}
       </AnimatePresence>
 
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full gap-8 max-w-6xl mx-auto w-full">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col gap-8 max-w-6xl mx-auto w-full">
         
         {/* ── Header ── */}
         <motion.header variants={itemVariants} className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 shrink-0">
@@ -256,7 +256,7 @@ export default function DocumentsPage() {
         </motion.div>
 
         {/* ── List Area ── */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar relative pr-2">
+        <div className="relative pr-2">
           <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
             {docs.map((doc) => (
               <motion.div
