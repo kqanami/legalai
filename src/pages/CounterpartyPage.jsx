@@ -155,12 +155,12 @@ export default function CounterpartyPage() {
   };
 
   return (
-    <div className="h-full bg-[#050505] text-white font-sans selection:bg-white/20 relative overflow-hidden flex flex-col">
+    <div className="h-full bg-[#050505] text-white font-sans selection:bg-white/20 relative lg:overflow-hidden overflow-y-auto custom-scrollbar flex flex-col">
       <motion.div 
         initial="hidden"
         animate="visible"
         variants={containerVariants}
-        className="max-w-7xl mx-auto w-full px-4 sm:px-8 flex-1 flex flex-col relative z-10 pb-6 min-h-0"
+        className="max-w-7xl mx-auto w-full px-4 sm:px-8 flex-1 flex flex-col relative z-10 pb-6 lg:min-h-0"
       >
         
         {/* Dynamic Header / Hero Area */}
@@ -246,12 +246,12 @@ export default function CounterpartyPage() {
               animate="visible"
               exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
               variants={containerVariants}
-              className="w-full flex flex-col-reverse lg:flex-row gap-8 pb-4 flex-1 min-h-0"
+              className="w-full flex flex-col-reverse lg:flex-row gap-8 pb-4 lg:flex-1 lg:min-h-0"
             >
               
               {/* ── Left Pane: Sticky Sidebar (History) ── */}
-              <motion.div variants={itemVariants} className="lg:w-[30%] flex flex-col gap-6 min-h-0 h-[400px] lg:h-full shrink-0 lg:shrink">
-                <div className="bg-[#050505] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] rounded-[2.5rem] p-6 lg:p-8 flex flex-col min-h-0 h-full">
+              <motion.div variants={itemVariants} className="lg:w-[30%] flex flex-col gap-6 lg:min-h-0 lg:h-full shrink-0">
+                <div className="bg-[#050505] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] rounded-[2.5rem] p-6 lg:p-8 flex flex-col lg:min-h-0 h-full max-h-[400px] lg:max-h-none">
                   <div className="flex items-center justify-between mb-8 shrink-0">
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 flex items-center gap-3">
                       <Clock size={14} /> История запросов
@@ -288,7 +288,7 @@ export default function CounterpartyPage() {
               </motion.div>
 
               {/* ── Right Pane: Scrollable Content ── */}
-              <motion.div variants={itemVariants} className="lg:w-[70%] flex flex-col gap-8 min-h-0 overflow-y-auto custom-scrollbar pr-4 pb-12">
+              <motion.div variants={itemVariants} className="lg:w-[70%] flex flex-col gap-8 lg:min-h-0 lg:overflow-y-auto custom-scrollbar lg:pr-4 pb-12">
                 
                 {/* Header Profile Card */}
                 <div className="shrink-0 rounded-[3rem] bg-gradient-to-br from-white/[0.04] to-transparent border border-white/5 p-6 lg:p-14 flex flex-col md:flex-row items-center justify-between gap-8 hover:bg-white/[0.02] transition-all cursor-default shadow-2xl relative overflow-hidden">
