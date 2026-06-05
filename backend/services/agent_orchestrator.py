@@ -165,33 +165,53 @@ class LegalAgentOrchestrator:
             return {"domain": "all", "queries": [query]}
 
     async def filter_relevant_context(self, query: str, context: str, domain: str) -> str:
-        """Legal Grounding Gate: Pre-filters RAG context for strict relevance."""
+        """Legal Grounding Gate (Re-ranker): Pre-filters RAG context for strict relevance."""
         if not context.strip():
             return ""
             
-        prompt = f"""Задача: Оценить юридическую релевантность найденных статей. Это фильтр от галлюцинаций.
-Вопрос пользователя: {query}
-Домен (Отрасль права): {domain}
-
-Найденные статьи (КОНТЕКСТ):
-{context}
-
-Инструкция: Прочитай каждую статью. Если статья прямо и непосредственно регулирует вопрос пользователя (например, содержит основания для увольнения, если вопрос про увольнение), выпиши её.
-Если статья НЕ имеет отношения к вопросу (например, вопрос про увольнение, а статья про охрану труда, профсоюзы или налоги), КАТЕГОРИЧЕСКИ ИГНОРИРУЙ ЕЁ.
-Если ни одна статья не подходит на 100%, верни ровно одно слово: NONE
-
-Верни только текст релевантных статей, либо "NONE". Никаких рассуждений."""
+        # Parse context into separate articles
+        articles = [art.strip() for art in context.split("\n---\n") if art.strip()]
+        if not articles:
+            return ""
+            
+        import re
+        prompt = f"Вопрос пользователя: {query}\nДомен: {domain}\n\nОцени релевантность каждой из найденных статей:\n"
+        for i, art in enumerate(articles):
+            title_match = re.search(r'\[(.*?)\]\s*(Статья\s+\d+|-бап)', art)
+            title = title_match.group(0) if title_match else f"Документ {i}"
+            snippet = art[:300].replace('\n', ' ')
+            prompt += f"Индекс {i}: {title} - {snippet}...\n"
+            
+        prompt += """
+Твоя задача: Оставь ТОЛЬКО индексы статей, которые ПРЯМО и НЕПОСРЕДСТВЕННО регулируют вопрос пользователя.
+Например, если вопрос про увольнение, а статья про забастовки, аттестацию или налоги — она НЕ подходит.
+Верни СТРОГО JSON массив с индексами подходящих статей. Например: [0, 2].
+Если ни одна статья не подходит, верни пустой массив: [].
+Не пиши никаких пояснений, только JSON.
+"""
         try:
             response = await self.llm.chat(prompt, history=[], user_role="lawyer", model_type="cheap")
             content = response.get("content", "").strip()
-            if "NONE" in content.upper() and len(content) < 15:
-                logger.info("Legal Grounding Gate: All RAG context was irrelevant. Dropped.")
-                return ""
-            logger.info("Legal Grounding Gate: Found relevant articles.")
-            return content
+            
+            # Extract JSON array
+            json_match = re.search(r'\[.*?\]', content, re.DOTALL)
+            if json_match:
+                indices = json.loads(json_match.group(0))
+                valid_indices = [int(i) for i in indices if isinstance(i, (int, str)) and str(i).isdigit() and 0 <= int(i) < len(articles)]
+                
+                if not valid_indices:
+                    logger.info("Re-ranker: All articles rejected as irrelevant.")
+                    return ""
+                    
+                filtered_articles = [articles[i] for i in valid_indices]
+                logger.info(f"Re-ranker: Kept {len(filtered_articles)} out of {len(articles)} articles.")
+                return "\n\n---\n".join(filtered_articles)
+                
+            logger.warning("Re-ranker: Failed to parse JSON array. Dropping all context to be safe.")
+            return ""
         except Exception as e:
-            logger.error(f"Context filtering failed: {e}")
-            return context
+            logger.error(f"Context filtering (Re-ranker) failed: {e}")
+            return ""
 
     async def verify_legal_accuracy(self, query: str, response: str, context: str) -> str:
         """Article Verifier: Final check to eradicate post-hoc hallucinations."""
