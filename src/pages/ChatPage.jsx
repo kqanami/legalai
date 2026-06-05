@@ -488,12 +488,12 @@ export default function ChatPage() {
           const currentScrollTop = el.scrollTop;
           const distance = targetScrollTop - currentScrollTop;
           
-          if (Math.abs(distance) < 2) {
+          if (Math.abs(distance) < 1) {
             el.scrollTop = targetScrollTop;
             return;
           }
           
-          el.scrollTop = currentScrollTop + distance * 0.25;
+          el.scrollTop = currentScrollTop + distance * 0.08;
           animationFrameId = requestAnimationFrame(animateScroll);
         };
         
