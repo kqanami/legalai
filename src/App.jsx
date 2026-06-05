@@ -36,7 +36,12 @@ const lazyWithRetry = (componentImport) =>
     } catch (error) {
       if (!pageHasAlreadyBeenForceRefreshed) {
         window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
-        window.location.reload();
+        // Force a hard reload by appending a query string to bypass index.html cache
+        const url = new URL(window.location.href);
+        url.searchParams.set('v', Date.now().toString());
+        window.location.href = url.toString();
+        // Return a promise that never resolves so we don't render the error state while reloading
+        return new Promise(() => {});
       }
       throw error;
     }
