@@ -614,7 +614,7 @@ export default function DocumentWorkspace() {
   };
 
   const renderDiffView = () => (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex lg:h-full lg:min-h-0 flex-col gap-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="inline-flex w-fit rounded-2xl border border-white/10 bg-black/60 p-1">
           <button
@@ -649,8 +649,8 @@ export default function DocumentWorkspace() {
       </div>
 
       {showSideBySide ? (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-950">
+        <div className="grid lg:min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
+          <section className="flex min-h-[400px] lg:min-h-0 flex-col lg:overflow-hidden rounded-3xl border border-white/10 bg-neutral-950">
             <div className="flex items-center gap-3 border-b border-white/5 bg-black/60 px-5 py-4">
               <span className="h-2 w-2 rounded-full bg-red-400" />
               <span className="text-xs font-semibold text-steel-300">Было</span>
@@ -678,7 +678,7 @@ export default function DocumentWorkspace() {
             </div>
           </section>
 
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-emerald-500/20 bg-neutral-950 shadow-[0_0_40px_rgba(16,185,129,0.04)]">
+          <section className="flex min-h-[400px] lg:min-h-0 flex-col lg:overflow-hidden rounded-3xl border border-emerald-500/20 bg-neutral-950 shadow-[0_0_40px_rgba(16,185,129,0.04)]">
             <div className="flex items-center gap-3 border-b border-emerald-500/10 bg-black/60 px-5 py-4">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
               <span className="text-xs font-semibold text-emerald-200">Стало</span>
@@ -825,7 +825,7 @@ export default function DocumentWorkspace() {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.99 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
-      className="fixed inset-0 z-[100] flex flex-col lg:flex-row overflow-hidden bg-[#050505] text-white selection:bg-white/20"
+      className="fixed inset-0 z-[100] flex flex-col lg:flex-row lg:overflow-hidden overflow-y-auto custom-scrollbar bg-[#050505] text-white selection:bg-white/20"
     >
       <AnimatePresence>
         {toast && (
@@ -846,7 +846,7 @@ export default function DocumentWorkspace() {
       </AnimatePresence>
 
       {/* ── Left Pane: Sticky Document Identity ── */}
-      <div className="lg:w-[35%] xl:w-[28%] border-b lg:border-b-0 lg:border-r border-white/5 bg-[#050505] z-20 flex flex-col shrink-0">
+      <div className="lg:w-[35%] xl:w-[28%] border-b lg:border-b-0 lg:border-r border-white/5 bg-[#050505] z-20 flex flex-col shrink-0 lg:h-screen lg:sticky lg:top-0">
         <div className="p-6 lg:p-8 pb-4 flex items-center justify-between">
           <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/10 transition-colors">
             <ArrowLeft size={16} />
@@ -854,7 +854,7 @@ export default function DocumentWorkspace() {
           {renderStatusPill()}
         </div>
 
-        <div className="flex-1 flex flex-col justify-center px-6 lg:px-8 py-8 lg:py-0 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-8 lg:py-0 lg:overflow-y-auto custom-scrollbar">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}>
             <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-[2rem] bg-white/[0.02] border border-white/10 flex items-center justify-center mb-8 shadow-2xl">
               <FileSearch size={40} className="text-white/40" />
@@ -888,7 +888,7 @@ export default function DocumentWorkspace() {
           </motion.div>
         </div>
 
-        <div className="p-6 lg:p-8 border-t border-white/5 bg-[#050505] flex flex-col gap-3 shrink-0">
+        <div className="p-4 sm:p-6 lg:p-8 border-t border-white/5 bg-[#050505] flex flex-col gap-3 shrink-0">
           {hasChanges && (
             <button
               onClick={handleCompareWithOriginal}
@@ -909,19 +909,19 @@ export default function DocumentWorkspace() {
       </div>
 
       {/* ── Right Pane: Management ── */}
-      <div className="lg:w-[65%] xl:w-[72%] bg-[#050505] flex flex-col lg:h-screen relative min-h-0">
-        <main className="min-h-0 flex-1 flex flex-col overflow-hidden p-4 sm:p-6 lg:p-8">
+      <div className="lg:w-[65%] xl:w-[72%] bg-[#050505] flex flex-col lg:h-screen relative lg:min-h-0">
+        <main className="lg:min-h-0 flex-1 flex flex-col lg:overflow-hidden p-4 sm:p-6 lg:p-8">
           {!results && !analyzing && renderEmptyState()}
           {analyzing && renderLoading()}
 
           {results && !analyzing && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex h-full min-h-0 flex-col gap-6">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex lg:h-full lg:min-h-0 flex-col gap-6">
               {diffResult ? (
                 renderDiffView()
               ) : (
-                <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_520px]">
-                    <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#050505] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors">
-                  <div className="p-6 lg:p-8 pb-4">
+                <div className="grid lg:min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_520px]">
+                    <section className="relative flex min-h-[500px] lg:min-h-0 flex-col lg:overflow-hidden rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 bg-[#050505] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors">
+                  <div className="p-4 sm:p-6 lg:p-8 pb-4">
                     <div className="mb-6 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]">
@@ -1026,7 +1026,7 @@ export default function DocumentWorkspace() {
                       setLastFixRange(null);
                     }}
                     placeholder="Текст документа..."
-                    className={`custom-scrollbar min-h-0 flex-1 resize-none bg-transparent px-6 lg:px-8 pb-8 text-[15px] leading-8 text-neutral-300 outline-none placeholder:text-neutral-600 ${
+                    className={`custom-scrollbar min-h-[300px] lg:min-h-0 flex-1 resize-none bg-transparent px-4 sm:px-6 lg:px-8 pb-8 text-[15px] leading-8 text-neutral-300 outline-none placeholder:text-neutral-600 ${
                       lastFixRange ? 'selection:bg-emerald-500/40 selection:text-white' : 'selection:bg-white/20 selection:text-white'
                     }`}
                   />
@@ -1052,7 +1052,7 @@ export default function DocumentWorkspace() {
                   </AnimatePresence>
                 </section>
 
-                <aside className="flex min-h-0 flex-col overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#050505] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors">
+                <aside className="flex lg:min-h-0 flex-col lg:overflow-hidden rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 bg-[#050505] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors">
                   <div className="p-6 lg:p-8 pb-4">
                     <div className="mb-6 flex items-start gap-4">
                       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${riskStats.total ? 'bg-amber-500/5 border-amber-500/10 text-amber-400' : 'bg-emerald-500/5 border-emerald-500/10 text-emerald-400'} shadow-lg`}>
@@ -1091,7 +1091,7 @@ export default function DocumentWorkspace() {
                     </div>
                   </div>
 
-                  <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-6 lg:px-8 pb-4">
+                  <div className="custom-scrollbar lg:min-h-0 flex-1 space-y-4 lg:overflow-y-auto px-4 sm:px-6 lg:px-8 pb-4">
                     {filteredRisks.map(({ risk, index }) => {
                       const level = normalizeRiskLevel(risk.level);
                       const meta = riskMeta[level];
