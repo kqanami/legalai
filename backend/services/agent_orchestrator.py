@@ -122,46 +122,94 @@ class LegalAgentOrchestrator:
             
         return True
 
-    async def generate_search_queries(self, query: str, history: List[Dict]) -> List[str]:
-        """Agent that transforms user intent into optimized legal search queries."""
-        prompt = f"""Преврати вопрос пользователя в 2-3 точных поисковых запроса для юридической базы данных Казахстана.
-Используй только ключевые юридические термины (например: 'расторжение договора аренды', 'неустойка ГК РК').
+    async def generate_search_queries(self, query: str, history: List[Dict]) -> Dict[str, Any]:
+        """Agent that transforms user intent into queries and identifies the legal domain."""
+        prompt = f"""Проанализируй вопрос пользователя и определи ПРАВОВОЙ ДОМЕН (отрасль права), а также сгенерируй 2-3 поисковых запроса.
+Доступные домены:
+- 'labor' (Трудовое право, увольнения, зарплата, отпуск)
+- 'civil' (Гражданское право, договоры ГПХ, займы, ТОО, ИП)
+- 'tax' (Налоговое право)
+- 'administrative' (Административные штрафы, ПДД)
+- 'criminal' (Уголовное право)
+- 'family' (Семейное право, алименты, развод)
+- 'all' (Если вопрос смешанный или непонятный)
 
 ИСТОРИЯ ЧАТА:
 {history[-2:] if history else "Нет истории"}
 
 ВОПРОС: {query}
 
-Верни только список строк через запятую.
+Верни СТРОГО валидный JSON в формате:
+{{
+  "domain": "labor",
+  "queries": ["запрос 1", "запрос 2"]
+}}
 """
         try:
             # Using LLM directly for utility tasks
             response = await self.llm.chat(prompt, history=[], user_role="lawyer", model_type="cheap")
-            content = response.get("content", query)
-            # Simple parsing: split by comma and clean
-            queries = [q.strip() for q in content.split(",") if q.strip()]
-            return queries if queries else [query]
+            content = response.get("content", "").strip()
+            
+            # Extract JSON block
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group(0))
+                return {
+                    "domain": data.get("domain", "all"),
+                    "queries": data.get("queries", [query])
+                }
+            return {"domain": "all", "queries": [query]}
         except Exception as e:
             logger.error(f"Query generation failed: {e}")
-            return [query]
+            return {"domain": "all", "queries": [query]}
 
-    async def verify_legal_accuracy(self, query: str, response: str, context: str) -> str:
-        """Verification agent to ensure the answer matches retrieved legal norms."""
-        if not context:
-            return response
+    async def filter_relevant_context(self, query: str, context: str, domain: str) -> str:
+        """Legal Grounding Gate: Pre-filters RAG context for strict relevance."""
+        if not context.strip():
+            return ""
             
-        prompt = f"""Проверь ответ AI-юриста на соответствие предоставленным статьям закона Казахстана.
-Если в ответе есть фактические ошибки относительно статей, исправь их. 
-Если ответ верный, оставь его без изменений.
+        prompt = f"""Задача: Оценить юридическую релевантность найденных статей. Это фильтр от галлюцинаций.
+Вопрос пользователя: {query}
+Домен (Отрасль права): {domain}
 
-СТАТЬИ ЗАКОНА (RAG):
+Найденные статьи (КОНТЕКСТ):
 {context}
 
-ОТВЕТ AI:
+Инструкция: Прочитай каждую статью. Если статья прямо и непосредственно регулирует вопрос пользователя (например, содержит основания для увольнения, если вопрос про увольнение), выпиши её.
+Если статья НЕ имеет отношения к вопросу (например, вопрос про увольнение, а статья про охрану труда, профсоюзы или налоги), КАТЕГОРИЧЕСКИ ИГНОРИРУЙ ЕЁ.
+Если ни одна статья не подходит на 100%, верни ровно одно слово: NONE
+
+Верни только текст релевантных статей, либо "NONE". Никаких рассуждений."""
+        try:
+            response = await self.llm.chat(prompt, history=[], user_role="lawyer", model_type="cheap")
+            content = response.get("content", "").strip()
+            if "NONE" in content.upper() and len(content) < 15:
+                logger.info("Legal Grounding Gate: All RAG context was irrelevant. Dropped.")
+                return ""
+            logger.info("Legal Grounding Gate: Found relevant articles.")
+            return content
+        except Exception as e:
+            logger.error(f"Context filtering failed: {e}")
+            return context
+
+    async def verify_legal_accuracy(self, query: str, response: str, context: str) -> str:
+        """Article Verifier: Final check to eradicate post-hoc hallucinations."""
+        prompt = f"""Твоя задача — ЖЕСТКИЙ АУДИТ юридического ответа (Anti-Hallucination Gate).
+Проверь ответ ИИ на наличие выдуманных статей.
+
+СТАТЬИ ИЗ БАЗЫ ЗНАНИЙ (ЭТО ПРАВДА):
+{context if context else 'БАЗА ЗНАНИЙ ПУСТА. ССЫЛКИ НА СТАТЬИ ЗАПРЕЩЕНЫ.'}
+
+ОТВЕТ ИИ ДЛЯ ПРОВЕРКИ:
 {response}
 
-Верни исправленный текст или оригинал.
-"""
+ПРАВИЛА АУДИТА:
+1. Если в 'ОТВЕТ ИИ' упоминается номер статьи (например, "ст. 20", "статья 183"), но её НЕТ в блоке 'СТАТЬИ ИЗ БАЗЫ ЗНАНИЙ' — это галлюцинация! БЕЗЖАЛОСТНО удали это упоминание из текста.
+2. Если ИИ сделал ложный логический вывод (например, "приказ не подписан значит статья 183 нарушена", хотя ст. 183 про охрану труда) — перепиши это предложение на общие нормы или удали.
+3. Если ответ полностью придуман на фальшивых статьях, замени его на: "К сожалению, в базе знаний не нашлось точной нормы для вашего случая. Требуется консультация с актуальным законодательством."
+
+Верни исправленный, юридически чистый текст. Если ошибок нет, верни оригинал."""
         try:
             verified = await self.llm.chat(prompt, history=[], user_role="lawyer", model_type="cheap")
             return verified.get("content", response)
@@ -212,11 +260,14 @@ class LegalAgentOrchestrator:
         
         logger.info("Agent 2: Dynamic RAG Retrieval...")
         # Dynamic query for contract audit
-        audit_queries = await self.generate_search_queries(f"Риски в договоре ({doc_type}): {contract_text[:500]}", [])
+        query_data = await self.generate_search_queries(f"Риски в договоре ({doc_type}): {contract_text[:500]}", [])
+        audit_queries = query_data.get("queries", ["Риски в договоре"])
+        domain = query_data.get("domain", "civil")
+        if domain == "all": domain = None
         
         combined_context = ""
         for q in audit_queries[:2]:
-            context = self.rag.get_context_string(q, n_results=1)  # Compressed to 1 result to save tokens
+            context = self.rag.get_context_string(q, n_results=1, category=domain)  # Compressed to 1 result to save tokens
             if context:
                 combined_context += context + "\n---\n"
         
@@ -354,13 +405,17 @@ class LegalAgentOrchestrator:
             
             if is_short and not needs_history:
                 search_queries = [query]
+                domain = None
                 logger.info(f"Using original query for RAG search (saved query generation latency): {search_queries}")
             else:
-                search_queries = await self.generate_search_queries(query, history)
-                logger.info(f"Generated queries: {search_queries}")
+                query_data = await self.generate_search_queries(query, history)
+                search_queries = query_data.get("queries", [query])
+                domain = query_data.get("domain", "all")
+                if domain == "all": domain = None
+                logger.info(f"Generated queries: {search_queries}, Domain: {domain}")
 
             # 3. Multi-query Retrieval
-            tasks = [asyncio.to_thread(self.rag.search, sq, 2) for sq in search_queries]
+            tasks = [asyncio.to_thread(self.rag.search, sq, 2, domain) for sq in search_queries]
             docs_results = await asyncio.gather(*tasks)
             all_docs = []
             for docs in docs_results:
@@ -368,8 +423,11 @@ class LegalAgentOrchestrator:
             
             # 4. Context Token Compression: Limit to MAX 3 unique chunks
             unique_docs = list(set(all_docs))[:3]
-            context = "\n\n---\n".join(unique_docs)
-            logger.info(f"RAG Context compressed to {len(unique_docs)} chunks.")
+            raw_context = "\n\n---\n".join(unique_docs)
+            
+            # 5. Legal Grounding Gate: Filter out irrelevant articles
+            context = await self.filter_relevant_context(query, raw_context, domain)
+            logger.info(f"RAG Context post-filtering: {'Has Content' if context else 'Empty'}")
         
         # Fetch user documents context if db and user_id are provided
         docs_context = ""
@@ -416,16 +474,16 @@ class LegalAgentOrchestrator:
         if context.strip():
             citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ И РЕЛЕВАНТНОСТИ (КРИТИЧНО):
 Тебе предоставлен ВЕРИФИЦИРОВАННЫЙ КОНТЕКСТ из базы законов ниже (блок CONTEXT). 
-1. СНАЧАЛА ПРОВЕРЬ РЕЛЕВАНТНОСТЬ: Внимательно прочитай статьи из блока CONTEXT. Если какая-то статья НЕ ИМЕЕТ прямого отношения к проблеме пользователя (например, спор трудовой, а статья про налоги или сертификаты), КАТЕГОРИЧЕСКИ ИГНОРИРУЙ ЭТУ СТАТЬЮ! Не упоминай её вообще и не пытайся объяснить, почему она не подходит. Просто выкинь её из ответа.
-2. ЦИТИРОВАНИЕ: Ссылайся ТОЛЬКО на те статьи из CONTEXT, которые на 100% подходят к ситуации. 
+HARD RULE 1 (DOMAIN LOCK): Твой ответ должен СТРОГО соответствовать правовому домену запроса. Если вопрос касается Трудового права, категорически запрещено применять общие нормы Гражданского или Налогового кодекса.
+HARD RULE 2 (NO NORM = NO CITATION): СНАЧАЛА ПРОВЕРЬ РЕЛЕВАНТНОСТЬ переданных статей. Если статья НЕ ИМЕЕТ прямого отношения к проблеме пользователя, КАТЕГОРИЧЕСКИ ИГНОРИРУЙ ЭТУ СТАТЬЮ! Просто выкинь её из ответа.
 3. ЗАПРЕТ ГАЛЛЮЦИНАЦИЙ: ЗАПРЕЩЕНО выдумывать номера статей, которых нет в блоке CONTEXT.
-4. ЕСЛИ НЕТ ПОДХОДЯЩЕЙ СТАТЬИ: Если все переданные статьи оказались нерелевантными, честно скажи: "К сожалению, система не нашла точную статью под ваш случай, но опираясь на общие нормы [Название кодекса] РК..." и не указывай вымышленные номера статей."""
+4. ЕСЛИ НЕТ ПОДХОДЯЩЕЙ СТАТЬИ: Если все переданные статьи оказались нерелевантными, честно скажи: "Не удалось достоверно установить конкретную норму законодательства. Требуется дополнительная проверка." и не указывай вымышленные номера статей."""
         else:
             citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ ЗАКОНОВ (КРИТИЧНО - СТРОГИЙ РЕЖИМ):
 База знаний не вернула конкретных статей по данному запросу.
-КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО указывать ЛЮБЫЕ номера статей (например: "Ст. 44", "ст. 56", "п. 2 ст. 169").
+HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдумывать и указывать ЛЮБЫЕ номера статей (например: "Ст. 44", "ст. 56", "п. 2 ст. 169").
 ДОПУСКАЕТСЯ ссылаться ТОЛЬКО на название кодекса или закона (например: "согласно Трудовому кодексу РК", "по нормам ГК РК").
-Если пользователь ТРЕБУЕТ точные статьи, честно скажи: "Точные номера статей в базе по данному вопросу не найдены. Рекомендую проверить в актуальной редакции ТК РК на сайте adilet.zan.kz."""
+Если пользователь ТРЕБУЕТ точные статьи, честно скажи: "Не удалось достоверно установить конкретную норму законодательства в базе. Требуется дополнительная проверка."."""
 
         ecosystem_instruction = """
 ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:
@@ -443,9 +501,8 @@ class LegalAgentOrchestrator:
         
         response = await self.llm.chat(enriched_query, history, user_role, model_type=model_type)
         
-        # 4. Verification (Optional but recommended for high-stakes)
-        if context and user_role == "lawyer":
-            response["content"] = await self.verify_legal_accuracy(query, response["content"], context)
+        # 5. Article Verifier Gate (Run for ALL users to prevent hallucinations)
+        response["content"] = await self.verify_legal_accuracy(query, response["content"], context)
             
         response["thought"] = thought_process
         return response
@@ -466,11 +523,16 @@ class LegalAgentOrchestrator:
             
             if is_short and not needs_history:
                 search_queries = [query]
+                domain = None
                 logger.info(f"Using original query for RAG stream search (saved query generation latency): {search_queries}")
             else:
-                search_queries = await self.generate_search_queries(query, history)
+                query_data = await self.generate_search_queries(query, history)
+                search_queries = query_data.get("queries", [query])
+                domain = query_data.get("domain", "all")
+                if domain == "all": domain = None
+                logger.info(f"Generated queries: {search_queries}, Domain: {domain}")
             
-            tasks = [asyncio.to_thread(self.rag.search, sq, 2) for sq in search_queries]
+            tasks = [asyncio.to_thread(self.rag.search, sq, 2, domain) for sq in search_queries]
             docs_results = await asyncio.gather(*tasks)
             all_docs = []
             for docs in docs_results:
@@ -478,8 +540,11 @@ class LegalAgentOrchestrator:
             
             # Token Compression: Max 3 chunks
             unique_docs = list(set(all_docs))[:3]
-            context = "\n\n---\n".join(unique_docs)
-            logger.info(f"RAG Context compressed to {len(unique_docs)} chunks (Stream).")
+            raw_context = "\n\n---\n".join(unique_docs)
+            
+            # Legal Grounding Gate
+            context = await self.filter_relevant_context(query, raw_context, domain)
+            logger.info(f"RAG Context post-filtering (Stream): {'Has Content' if context else 'Empty'}")
         
         # Fetch user documents context if db and user_id are provided
         docs_context = ""
@@ -530,16 +595,16 @@ class LegalAgentOrchestrator:
         if context.strip():
             citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ И РЕЛЕВАНТНОСТИ (КРИТИЧНО):
 Тебе предоставлен ВЕРИФИЦИРОВАННЫЙ КОНТЕКСТ из базы законов ниже (блок CONTEXT). 
-1. СНАЧАЛА ПРОВЕРЬ РЕЛЕВАНТНОСТЬ: Внимательно прочитай статьи из блока CONTEXT. Если какая-то статья НЕ ИМЕЕТ прямого отношения к проблеме пользователя (например, спор трудовой, а статья про налоги или сертификаты), КАТЕГОРИЧЕСКИ ИГНОРИРУЙ ЭТУ СТАТЬЮ! Не упоминай её вообще и не пытайся объяснить, почему она не подходит. Просто выкинь её из ответа.
-2. ЦИТИРОВАНИЕ: Ссылайся ТОЛЬКО на те статьи из CONTEXT, которые на 100% подходят к ситуации. 
+HARD RULE 1 (DOMAIN LOCK): Твой ответ должен СТРОГО соответствовать правовому домену запроса. Если вопрос касается Трудового права, категорически запрещено применять общие нормы Гражданского или Налогового кодекса.
+HARD RULE 2 (NO NORM = NO CITATION): СНАЧАЛА ПРОВЕРЬ РЕЛЕВАНТНОСТЬ переданных статей. Если статья НЕ ИМЕЕТ прямого отношения к проблеме пользователя, КАТЕГОРИЧЕСКИ ИГНОРИРУЙ ЭТУ СТАТЬЮ! Просто выкинь её из ответа.
 3. ЗАПРЕТ ГАЛЛЮЦИНАЦИЙ: ЗАПРЕЩЕНО выдумывать номера статей, которых нет в блоке CONTEXT.
-4. ЕСЛИ НЕТ ПОДХОДЯЩЕЙ СТАТЬИ: Если все переданные статьи оказались нерелевантными, честно скажи: "К сожалению, система не нашла точную статью под ваш случай, но опираясь на общие нормы [Название кодекса] РК..." и не указывай вымышленные номера статей."""
+4. ЕСЛИ НЕТ ПОДХОДЯЩЕЙ СТАТЬИ: Если все переданные статьи оказались нерелевантными, честно скажи: "Не удалось достоверно установить конкретную норму законодательства. Требуется дополнительная проверка." и не указывай вымышленные номера статей."""
         else:
             citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ ЗАКОНОВ (КРИТИЧНО - СТРОГИЙ РЕЖИМ):
 База знаний не вернула конкретных статей по данному запросу.
-КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО указывать ЛЮБЫЕ номера статей (например: "Ст. 44", "ст. 56", "п. 2 ст. 169").
+HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдумывать и указывать ЛЮБЫЕ номера статей (например: "Ст. 44", "ст. 56", "п. 2 ст. 169").
 ДОПУСКАЕТСЯ ссылаться ТОЛЬКО на название кодекса или закона (например: "согласно Трудовому кодексу РК", "по нормам ГК РК").
-Если пользователь ТРЕБУЕТ точные статьи, честно скажи: "Точные номера статей в базе по данному вопросу не найдены. Рекомендую проверить в актуальной редакции ТК РК на сайте adilet.zan.kz."""
+Если пользователь ТРЕБУЕТ точные статьи, честно скажи: "Не удалось достоверно установить конкретную норму законодательства в базе. Требуется дополнительная проверка."."""
 
         ecosystem_instruction = """
 ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:
