@@ -167,7 +167,7 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-6 lg:p-10 selection:bg-white/20 relative font-sans">
+    <div className="flex flex-col h-full bg-[#050505] text-white overflow-hidden p-4 sm:p-6 lg:p-10 selection:bg-white/20 relative font-sans">
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -197,7 +197,7 @@ export default function DocumentsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
             <div className="relative flex-1 lg:w-64">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={16} />
               <input
@@ -219,16 +219,16 @@ export default function DocumentsPage() {
         </motion.header>
 
         {/* ── Stats ── */}
-        <motion.div variants={itemVariants} className="grid grid-cols-3 gap-4 shrink-0">
-          <div className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
+        <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 shrink-0">
+          <div className="p-4 sm:p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
             <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Всего</span>
             <span className="text-3xl font-black">{stats.total}</span>
           </div>
-          <div className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
+          <div className="p-4 sm:p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
             <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Загружено</span>
             <span className="text-3xl font-black">{stats.uploaded}</span>
           </div>
-          <div className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
+          <div className="p-4 sm:p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col justify-center">
             <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Создано ИИ</span>
             <span className="text-3xl font-black">{stats.generated}</span>
           </div>
@@ -265,21 +265,21 @@ export default function DocumentsPage() {
                 onClick={() => navigate(`/dashboard/documents/${doc.id}`)}
                 className="group flex flex-col p-6 lg:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden"
               >
-                <div className="flex items-start gap-5 mb-6">
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border ${doc.type === 'generated' ? 'bg-white text-black border-white' : 'bg-white/5 text-white border-white/10'}`}>
-                    <FileText size={24} />
+                <div className="flex items-start gap-4 sm:gap-5 mb-5 sm:mb-6">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 border ${doc.type === 'generated' ? 'bg-white text-black border-white' : 'bg-white/5 text-white border-white/10'}`}>
+                    <FileText size={20} className="sm:w-6 sm:h-6" />
                   </div>
                   <div className="flex-1 min-w-0 pt-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-xl font-bold text-white truncate" title={doc.name}>{normalizeDocName(doc.name)}</h3>
+                      <h3 className="text-lg sm:text-xl font-bold text-white truncate" title={doc.name}>{normalizeDocName(doc.name)}</h3>
                     </div>
-                    <span className="px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/50 shrink-0 inline-block mb-2">
+                    <span className="px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-white/50 shrink-0 inline-block mb-1 sm:mb-2">
                       {doc.type === 'generated' ? 'AI Сгенерировано' : 'Загруженный Файл'}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-5 border-t border-white/5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-4 sm:pt-5 border-t border-white/5 gap-4">
                   <div className="flex items-center gap-6">
                     <div className="flex flex-col">
                       <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1">Дата</span>
@@ -292,14 +292,14 @@ export default function DocumentsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/documents/${doc.id}`); }} className="h-10 px-4 rounded-xl bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-colors">
+                  <div className="flex items-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0 w-full sm:w-auto">
+                    <button onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/documents/${doc.id}`); }} className="flex-1 sm:flex-none h-10 px-4 rounded-xl bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-colors">
                       Аудит
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); docsApi.download(doc.id); }} className="w-10 h-10 rounded-xl bg-white/[0.05] text-white hover:bg-white/[0.1] flex items-center justify-center transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); docsApi.download(doc.id); }} className="w-10 h-10 rounded-xl bg-white/[0.05] text-white hover:bg-white/[0.1] flex items-center justify-center transition-colors shrink-0">
                       <Download size={16} />
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }} className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }} className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors shrink-0">
                       <Trash2 size={16} />
                     </button>
                   </div>
