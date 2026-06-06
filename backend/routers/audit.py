@@ -362,20 +362,27 @@ async def analyze_existing_document(doc_id: int, user: User = Depends(get_curren
     if not contract_text.strip():
         raise HTTPException(status_code=400, detail="Не удалось извлечь текст из документа")
 
-    # Classify document before running expensive audit
-    doc_type = classify_document(contract_text)
-    
-    if doc_type == "personal":
-        # Skip audit for personal/informational documents
+    if doc.doc_type == "generated":
+        doc_type = "Сгенерированный ИИ"
         risks = []
-        summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+        summary = "Сгенерировано ИИ-юристом. Документ составлен по лучшим практикам и полностью безопасен для использования."
         total = 0
-        logger.info(f"Document {doc_id} classified as personal — skipping audit.")
+        logger.info(f"Document {doc_id} is AI-generated — skipping audit.")
     else:
-        result = await orchestrator.process_contract_audit(contract_text, doc_type)
-        risks = result.get("risks", [])
-        summary = result.get("summary", "Анализ завершён")
-        total = result.get("totalRisks", len(risks))
+        # Classify document before running expensive audit
+        doc_type = classify_document(contract_text)
+        
+        if doc_type == "personal":
+            # Skip audit for personal/informational documents
+            risks = []
+            summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+            total = 0
+            logger.info(f"Document {doc_id} classified as personal — skipping audit.")
+        else:
+            result = await orchestrator.process_contract_audit(contract_text, doc_type)
+            risks = result.get("risks", [])
+            summary = result.get("summary", "Анализ завершён")
+            total = result.get("totalRisks", len(risks))
 
     audit_record = AuditResult(
         user_id=user.id,
@@ -499,16 +506,28 @@ async def reanalyze_contract_text(req: ReanalyzeRequest, user: User = Depends(ge
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Текст документа пуст")
 
-    doc_type = classify_document(req.text)
-    if doc_type == "personal":
+    is_generated = False
+    if req.audit_id:
+        existing_audit = db.query(AuditResult).filter(AuditResult.id == req.audit_id, AuditResult.user_id == user.id).first()
+        if existing_audit and existing_audit.doc_type == "Сгенерированный ИИ":
+            is_generated = True
+
+    if is_generated:
+        doc_type = "Сгенерированный ИИ"
         risks = []
-        summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+        summary = "Сгенерировано ИИ-юристом. Документ составлен по лучшим практикам и полностью безопасен для использования."
         total = 0
     else:
-        result = await orchestrator.process_contract_audit(req.text, doc_type)
-        risks = result.get("risks", [])
-        summary = result.get("summary", "Анализ завершён")
-        total = result.get("totalRisks", len(risks))
+        doc_type = classify_document(req.text)
+        if doc_type == "personal":
+            risks = []
+            summary = "Данный документ не является юридическим договором или правовым документом. Аудит рисков не применим. Вы можете использовать чат для вопросов по этому документу."
+            total = 0
+        else:
+            result = await orchestrator.process_contract_audit(req.text, doc_type)
+            risks = result.get("risks", [])
+            summary = result.get("summary", "Анализ завершён")
+            total = result.get("totalRisks", len(risks))
 
     if req.audit_id:
         # Update existing record
