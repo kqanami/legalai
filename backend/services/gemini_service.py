@@ -288,7 +288,10 @@ class LLMService:
 
         if anthropic and settings.ANTHROPIC_API_KEY:
             try:
-                self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+                if getattr(settings, "ANTHROPIC_BASE_URL", ""):
+                    self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY, base_url=settings.ANTHROPIC_BASE_URL)
+                else:
+                    self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
                 logger.info("Anthropic Claude client initialized")
             except Exception as e:
                 logger.error(f"Anthropic init error: {e}")
@@ -645,7 +648,7 @@ class LLMService:
                 )
                 if hasattr(resp, 'usage') and resp.usage:
                     logger.info(f"[TOKEN USAGE - CLAUDE QUICK FIX ({strategy})] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
-                llm_response = resp.content[0].text
+                llm_response = self._extract_claude_text(resp.content)
             except Exception as e:
                 logger.warning(f"Claude Quick Fix Error: {e}")
         elif provider == "groq" and self.groq_client:
@@ -717,7 +720,7 @@ class LLMService:
                     max_tokens=4096,
                     temperature=0.1
                 )
-                llm_response = resp.content[0].text
+                llm_response = self._extract_claude_text(resp.content)
             except Exception as e:
                 logger.warning(f"Claude Quick Fix Fallback Error: {e}")
 
@@ -748,6 +751,17 @@ class LLMService:
         return text.strip()
 
     # ── Anthropic Claude Implementations ──
+    def _extract_claude_text(self, content):
+        """Extracts text from Claude's response content, ignoring ThinkingBlocks."""
+        if not content: return ""
+        texts = []
+        for block in content:
+            if getattr(block, 'type', '') == 'text':
+                texts.append(block.text)
+        if not texts and hasattr(content[0], 'text'):
+            texts.append(content[0].text)
+        return "\n\n".join(texts).strip()
+
     def _build_claude_messages(self, message, history, max_history=6):
         messages = []
         if history:
@@ -780,7 +794,7 @@ class LLMService:
         )
         if hasattr(resp, 'usage') and resp.usage:
             logger.info(f"[TOKEN USAGE - CLAUDE CHAT] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
-        return self._parse_chat_response(resp.content[0].text)
+        return self._parse_chat_response(self._extract_claude_text(resp.content))
 
     async def _chat_claude_stream(self, message, history, user_role="citizen", model_type="fast") -> AsyncGenerator[str, None]:
         sys_prompt = LAWYER_CHAT_SYSTEM if user_role == "lawyer" else LEGAL_CHAT_SYSTEM
@@ -817,7 +831,7 @@ class LLMService:
         )
         if hasattr(resp, 'usage') and resp.usage:
             logger.info(f"[TOKEN USAGE - CLAUDE AUDIT] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
-        return self._normalize_audit_result(self._parse_json_response(resp.content[0].text, self._mock_audit()))
+        return self._normalize_audit_result(self._parse_json_response(self._extract_claude_text(resp.content), self._mock_audit()))
 
     async def _counterparty_claude(self, bin_num):
         resp = await self.anthropic_client.messages.create(
@@ -829,7 +843,7 @@ class LLMService:
         )
         if hasattr(resp, 'usage') and resp.usage:
             logger.info(f"[TOKEN USAGE - CLAUDE C-PARTY] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
-        return self._parse_json_response(resp.content[0].text, self._mock_counterparty(bin_num))
+        return self._parse_json_response(self._extract_claude_text(resp.content), self._mock_counterparty(bin_num))
 
     async def _gen_doc_claude(self, dtype, desc):
         resp = await self.anthropic_client.messages.create(
@@ -841,7 +855,7 @@ class LLMService:
         )
         if hasattr(resp, 'usage') and resp.usage:
             logger.info(f"[TOKEN USAGE - CLAUDE DOCGEN] Input: {resp.usage.input_tokens}, Output: {resp.usage.output_tokens}")
-        return resp.content[0].text
+        return self._extract_claude_text(resp.content)
 
     # ── Groq Implementations ──
     def _build_messages(self, message, history, max_history=6, user_role="citizen"):
@@ -1015,7 +1029,7 @@ class LLMService:
         config = types.GenerateContentConfig(
             system_instruction=sys_prompt, 
             temperature=getattr(settings, "LLM_TEMPERATURE", 0.1), 
-            tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
+            tools=[types.Tool(google_search=types.GoogleSearch())]
         )
         resp = await self.gemini_client.aio.models.generate_content(model=model, contents=contents, config=config)
         if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
@@ -1041,7 +1055,7 @@ class LLMService:
             system_instruction=sys_prompt, 
             temperature=getattr(settings, "LLM_TEMPERATURE", 0.1),
             max_output_tokens=2048,
-            tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
+            tools=[types.Tool(google_search=types.GoogleSearch())]
         )
         resp = await self.gemini_client.aio.models.generate_content_stream(model=model, contents=contents, config=config)
         async for chunk in resp:
@@ -1068,7 +1082,7 @@ class LLMService:
         config = types.GenerateContentConfig(
             system_instruction=COUNTERPARTY_SYSTEM, 
             temperature=0.0, 
-            tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
+            tools=[types.Tool(google_search=types.GoogleSearch())]
         )
         resp = await self.gemini_client.aio.models.generate_content(model=model, contents=f"Найди данные компании по БИН {bin_num} в Казахстане. Обязательно верни JSON.", config=config)
         if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
@@ -1133,7 +1147,7 @@ class LLMService:
         # Оставляем: Кирилллицу, Латиницу (для ссылок), Цифры и Пунктуацию.
         import re
         import urllib.parse
-        content = re.sub(r'[^\u0400-\u04FFa-zA-Z0-9\s\.,!?;:()\"\'\-\/\\\[\]\{\}\%\&\@\=\+\*\#\_\n\r<>]+', '', str(raw))
+        content = str(raw)
         
         all_tags = [
             "[REFS]", "[SEGMENT]", "[ESCALATION]", "[SUGGESTIONS]",

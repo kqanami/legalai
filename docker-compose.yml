@@ -5,7 +5,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - backend_db:/app/db/vector_store
+      - ./backend/db/vector_store:/app/db/vector_store
     env_file:
       - ./backend/.env
     restart: always

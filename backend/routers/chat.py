@@ -138,7 +138,7 @@ async def send_message(session_id: int, req: SendMessageRequest, request: Reques
                 ai_query = f"[ВЛОЖЕННЫЙ ДОКУМЕНТ: {doc.name}]\n{doc_text[:15000]}\n\n[ЗАПРОС ПОЛЬЗОВАТЕЛЯ]: {req.content}"
 
     lang_header = request.headers.get("x-app-language")
-    ai_response = await orchestrator.process_chat_query(ai_query, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header)
+    ai_response = await orchestrator.process_chat_query(ai_query, history, user_role=user.role, user_plan=user.plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header, is_thinking_enabled=req.is_thinking_enabled)
 
     # Server-side escalation safety net: force escalation for explicit lawyer requests
     forced_esc = _detect_lawyer_request(req.content)
@@ -236,7 +236,7 @@ async def stream_message(session_id: int, req: SendMessageRequest, request: Requ
         full_content = ""
         try:
             lang_header = request.headers.get("x-app-language")
-            async for chunk in orchestrator.process_chat_query_stream(ai_query, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header):
+            async for chunk in orchestrator.process_chat_query_stream(ai_query, history, user_role=user_role, user_plan=user_plan, total_messages=total_msgs, db=db, user_id=user.id, forced_lang=lang_header, is_thinking_enabled=req.is_thinking_enabled):
                 if not chunk:
                     continue
                 full_content += chunk

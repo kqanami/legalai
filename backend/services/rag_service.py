@@ -51,16 +51,23 @@ class LegalRAGService:
         try:
             self.client = chromadb.PersistentClient(path=db_path)
             
-            # Use ChromaDB's built-in local ONNX model (all-MiniLM-L6-v2)
-            # This is completely FREE, runs 100% locally, no API key needed, no rate limits!
-            # Model is ~80MB and downloaded once to /root/.cache/chroma/onnx_models/
-            self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
-            logger.info("Using local ONNX embedding model (all-MiniLM-L6-v2) — no API calls, no rate limits!")
+            # Use multilingual embedding model for better Russian/Kazakh semantic recall
+            self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="paraphrase-multilingual-MiniLM-L12-v2"
+            )
+            logger.info("Using multilingual ONNX embedding model (paraphrase-multilingual-MiniLM-L12-v2)")
+            
+            try:
+                from sentence_transformers import CrossEncoder
+                logger.info("Loading Multilingual Cross-Encoder (mmarco-mMiniLMv2-L12-H384-v1)...")
+                self.cross_encoder = CrossEncoder("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1", max_length=512)
+            except Exception as ce_err:
+                logger.warning(f"Could not load CrossEncoder: {ce_err}")
+                self.cross_encoder = None
             
             # Use a new collection name since the embedding model changed
-            # (vectors from Gemini and ONNX are incompatible)
             self.collection = self.client.get_or_create_collection(
-                name="kz_legal_v4_local",
+                name="kz_legal_v5_multilingual",
                 embedding_function=self.embedding_fn
             )
             doc_count = self.collection.count()
@@ -205,19 +212,35 @@ class LegalRAGService:
                 
             results = self.collection.query(
                 query_texts=[query],
-                n_results=n_results * 2,  # Fetch more for re-ranking
+                n_results=n_results * 4,  # Fetch MORE for Cross-Encoder reranking
                 where=where_clause
             )
             
             if results and results.get("documents") and len(results["documents"]) > 0:
-                docs = []
-                for i in range(len(results["documents"][0])):
-                    dist = results["distances"][0][i] if (results.get("distances") and len(results["distances"][0]) > i) else 0.0
-                    # ChromaDB default is Squared L2. For normalized vectors, Cosine Similarity = 1 - (L2^2 / 2)
-                    sim = max(0.0, min(1.0, 1.0 - (dist / 2.0)))
-                    if sim >= getattr(settings, "RAG_MIN_SIMILARITY", 0.40):
-                        docs.append(results["documents"][0][i])
-                docs = docs[:n_results]
+                retrieved_docs = results["documents"][0]
+                
+                # STAGE B: Cross-Encoder Reranking
+                if getattr(self, "cross_encoder", None) and retrieved_docs:
+                    logger.info(f"Reranking {len(retrieved_docs)} candidates with Cross-Encoder...")
+                    pairs = [[query, doc] for doc in retrieved_docs]
+                    scores = self.cross_encoder.predict(pairs)
+                    
+                    doc_scores = list(zip(retrieved_docs, scores))
+                    doc_scores.sort(key=lambda x: x[1], reverse=True)
+                    
+                    # Relaxing the threshold to -2.0 to avoid false negatives on complex legal phrasing
+                    top_docs = [doc for doc, score in doc_scores if score > -2.0]
+                    
+                    # If still empty, just fallback to the highest scored document
+                    if not top_docs:
+                        logger.warning(f"All docs scored < -2.0 by CrossEncoder. Max score: {doc_scores[0][1] if doc_scores else 'N/A'}. Fallback to top 2 documents.")
+                        docs = [doc for doc, score in doc_scores[:min(2, len(doc_scores))]]
+                    else:
+                        logger.info(f"Cross-Encoder kept {len(top_docs)} relevant docs. Top score: {doc_scores[0][1]}")
+                        docs = top_docs[:n_results]
+                else:
+                    docs = retrieved_docs[:n_results]
+                    
                 self._cache.set(query, n_results, category, docs)
                 return docs
             

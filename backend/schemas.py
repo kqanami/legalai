@@ -61,6 +61,7 @@ class CreateSessionRequest(BaseModel):
 class SendMessageRequest(BaseModel):
     content: str
     attached_document_id: Optional[int] = None
+    is_thinking_enabled: Optional[bool] = False
 
 class ReferenceItem(BaseModel):
     title: str

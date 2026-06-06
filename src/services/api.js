@@ -213,8 +213,8 @@ export const chatApi = {
     return request(`/chat/sessions${query ? '?' + query : ''}`);
   },
 
-  async sendMessage(sessionId, content, attachedDocumentId = null) {
-    const body = { content };
+  async sendMessage(sessionId, content, attachedDocumentId = null, isThinkingEnabled = false) {
+    const body = { content, is_thinking_enabled: isThinkingEnabled };
     if (attachedDocumentId) body.attached_document_id = attachedDocumentId;
     return request(`/chat/sessions/${sessionId}/messages`, {
       method: 'POST',
@@ -222,10 +222,10 @@ export const chatApi = {
     });
   },
 
-  async streamMessage(sessionId, content, onChunk, attachedDocumentId = null) {
+  async streamMessage(sessionId, content, onChunk, attachedDocumentId = null, isThinkingEnabled = false) {
     const token = getToken();
     const appLang = localStorage.getItem('app_lang') || 'ru';
-    const body = { content };
+    const body = { content, is_thinking_enabled: isThinkingEnabled };
     if (attachedDocumentId) body.attached_document_id = attachedDocumentId;
 
     const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
@@ -244,20 +244,42 @@ export const chatApi = {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const text = decoder.decode(value, { stream: true });
-      const lines = text.split('\n');
-      for (const line of lines) {
+      buffer += decoder.decode(value, { stream: true });
+      
+      // Split on double newline (SSE event boundary)
+      const parts = buffer.split('\n\n');
+      // Last part may be incomplete — keep it in the buffer
+      buffer = parts.pop() || '';
+
+      for (const part of parts) {
+        for (const line of part.split('\n')) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              onChunk(data);
+            } catch (e) {
+              // skip malformed chunks
+            }
+          }
+        }
+      }
+    }
+
+    // Process any remaining buffer content
+    if (buffer.trim()) {
+      for (const line of buffer.split('\n')) {
         if (line.startsWith('data: ')) {
           try {
             const data = JSON.parse(line.slice(6));
             onChunk(data);
           } catch (e) {
-            // skip malformed chunks
+            // skip
           }
         }
       }

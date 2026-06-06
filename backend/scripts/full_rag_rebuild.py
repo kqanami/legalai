@@ -24,7 +24,7 @@ import chromadb
 # ──────────────────────────────────────────────────────────────
 # Configuration
 # ──────────────────────────────────────────────────────────────
-COLLECTION_NAME = "kz_legal_v4_local"
+COLLECTION_NAME = "kz_legal_v5_multilingual"
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "vector_store")
 STORAGE_DIR = os.path.join(os.path.dirname(__file__), "..", "db", "legislation_md")
 os.makedirs(STORAGE_DIR, exist_ok=True)
@@ -130,12 +130,14 @@ HEADERS = {
 # ──────────────────────────────────────────────────────────────
 # Setup ChromaDB with local ONNX model
 # ──────────────────────────────────────────────────────────────
-print("🔧 Initializing local ChromaDB with ONNX embedding model...")
+print("🔧 Initializing local ChromaDB with multilingual ONNX embedding model...")
 client = chromadb.PersistentClient(path=DB_PATH)
-ef = DefaultEmbeddingFunction()
+
+from chromadb.utils import embedding_functions
+ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="paraphrase-multilingual-MiniLM-L12-v2")
 
 # Delete old collections
-for old_name in ["kz_legal_v4_local", "kz_legal_knowledge_v3"]:
+for old_name in ["kz_legal_v4_local", "kz_legal_knowledge_v3", "kz_legal_v5_multilingual"]:
     try:
         client.delete_collection(old_name)
         print(f"  🗑️  Deleted old collection: {old_name}")
@@ -208,13 +210,14 @@ def ingest(docs, metas, ids, source_title):
         print(f"  ⚠️  No articles parsed for {source_title}")
         return 0
     
-    batch_size = 100  # Large batches - no rate limit!
+    batch_size = 20  # Reduced batch size for ONNX local model
     for i in range(0, total, batch_size):
         b_docs = docs[i:i + batch_size]
         b_metas = metas[i:i + batch_size]
         b_ids = ids[i:i + batch_size]
+        print(f"  ⏳ Embedding and upserting batch {i // batch_size + 1}... ({len(b_docs)} docs)", flush=True)
         collection.upsert(documents=b_docs, metadatas=b_metas, ids=b_ids)
-        print(f"  📥 Batch {i // batch_size + 1}/{(total - 1) // batch_size + 1} ingested ({len(b_docs)} docs)")
+        print(f"  ✅ Batch {i // batch_size + 1}/{(total - 1) // batch_size + 1} ingested ({len(b_docs)} docs)", flush=True)
     
     return total
 

@@ -122,9 +122,43 @@ class LegalAgentOrchestrator:
             
         return True
 
+    def _extract_rag_query(self, query: str) -> str:
+        """
+        Extracts only the actual user case/question from large prompts.
+        Strips system instructions like 'РЕЖИМ АУДИТА RAG:', 'КЕЙС:', etc.
+        so the embedding search gets a clean, focused query.
+        """
+        import re
+
+        # If the query is short enough, return as-is
+        if len(query) < 400:
+            return query
+
+        # Try to extract content after 'КЕЙС:' or 'СИТУАЦИЯ:' marker
+        case_match = re.search(
+            r'(?:КЕЙС|СИТУАЦИЯ|ВОПРОС|ЗАДАЧА|ПРОБЛЕМА)\s*:\s*(.+)',
+            query,
+            re.IGNORECASE | re.DOTALL
+        )
+        if case_match:
+            extracted = case_match.group(1).strip()[:800]
+            logger.info(f"RAG query extracted from КЕЙС block: {extracted[:100]}...")
+            return extracted
+
+        # Try to get last paragraph (often the actual question)
+        paragraphs = [p.strip() for p in query.split('\n\n') if p.strip()]
+        if len(paragraphs) >= 2:
+            # Last 2 paragraphs often contain the actual case
+            extracted = ' '.join(paragraphs[-2:])[:800]
+            logger.info(f"RAG query extracted (last paragraphs): {extracted[:100]}...")
+            return extracted
+
+        # Fallback: just truncate to 600 chars
+        return query[:600]
+
     async def generate_search_queries(self, query: str, history: List[Dict]) -> Dict[str, Any]:
-        """Agent that transforms user intent into queries and identifies the legal domain."""
-        prompt = f"""Проанализируй вопрос пользователя и определи ПРАВОВОЙ ДОМЕН (отрасль права), а также сгенерируй 2-3 поисковых запроса.
+        """Intent Classifier & Legal Domain Extractor."""
+        prompt = f"""Проанализируй вопрос пользователя и определи ПРАВОВОЙ ДОМЕН (отрасль права), ТИП ДЕЙСТВИЯ (action_type) и СУБЪЕКТОВ (entity_type), а также сгенерируй 2-3 поисковых запроса.
 Доступные домены:
 - 'labor' (Трудовое право, увольнения, зарплата, отпуск)
 - 'civil' (Гражданское право, договоры ГПХ, займы, ТОО, ИП)
@@ -142,79 +176,34 @@ class LegalAgentOrchestrator:
 Верни СТРОГО валидный JSON в формате:
 {{
   "domain": "labor",
+  "action_type": "увольнение_без_причины",
+  "entity_type": "работник_работодатель",
   "queries": ["запрос 1", "запрос 2"]
 }}
 """
         try:
-            # Using LLM directly for utility tasks
             response = await self.llm.chat(prompt, history=[], user_role="lawyer", model_type="cheap")
             content = response.get("content", "").strip()
             
-            # Extract JSON block
             import re
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group(0))
                 return {
                     "domain": data.get("domain", "all"),
+                    "action_type": data.get("action_type", "unknown"),
+                    "entity_type": data.get("entity_type", "unknown"),
                     "queries": data.get("queries", [query])
                 }
-            return {"domain": "all", "queries": [query]}
+            return {"domain": "all", "action_type": "unknown", "entity_type": "unknown", "queries": [query]}
         except Exception as e:
             logger.error(f"Query generation failed: {e}")
-            return {"domain": "all", "queries": [query]}
+            return {"domain": "all", "action_type": "unknown", "entity_type": "unknown", "queries": [query]}
 
-    async def filter_relevant_context(self, query: str, context: str, domain: str) -> str:
-        """Legal Grounding Gate (Re-ranker): Pre-filters RAG context for strict relevance."""
-        if not context.strip():
-            return ""
-            
-        # Parse context into separate articles
-        articles = [art.strip() for art in context.split("\n---\n") if art.strip()]
-        if not articles:
-            return ""
-            
-        import re
-        prompt = f"Вопрос пользователя: {query}\nДомен: {domain}\n\nОцени релевантность каждой из найденных статей:\n"
-        for i, art in enumerate(articles):
-            title_match = re.search(r'\[(.*?)\]\s*(Статья\s+\d+|-бап)', art)
-            title = title_match.group(0) if title_match else f"Документ {i}"
-            snippet = art[:300].replace('\n', ' ')
-            prompt += f"Индекс {i}: {title} - {snippet}...\n"
-            
-        prompt += """
-Твоя задача: Оставь ТОЛЬКО индексы статей, которые ПРЯМО и НЕПОСРЕДСТВЕННО регулируют вопрос пользователя.
-Например, если вопрос про увольнение, а статья про забастовки, аттестацию или налоги — она НЕ подходит.
-Верни СТРОГО JSON массив с индексами подходящих статей. Например: [0, 2].
-Если ни одна статья не подходит, верни пустой массив: [].
-Не пиши никаких пояснений, только JSON.
-"""
-        try:
-            response = await self.llm.chat(prompt, history=[], user_role="lawyer", model_type="cheap")
-            content = response.get("content", "").strip()
-            
-            # Extract JSON array
-            json_match = re.search(r'\[.*?\]', content, re.DOTALL)
-            if json_match:
-                indices = json.loads(json_match.group(0))
-                valid_indices = [int(i) for i in indices if isinstance(i, (int, str)) and str(i).isdigit() and 0 <= int(i) < len(articles)]
-                
-                if not valid_indices:
-                    logger.info("Re-ranker: All articles rejected as irrelevant.")
-                    return ""
-                    
-                filtered_articles = [articles[i] for i in valid_indices]
-                logger.info(f"Re-ranker: Kept {len(filtered_articles)} out of {len(articles)} articles.")
-                return "\n\n---\n".join(filtered_articles)
-                
-            logger.warning("Re-ranker: Failed to parse JSON array. Dropping all context to be safe.")
-            return ""
-        except Exception as e:
-            logger.error(f"Context filtering (Re-ranker) failed: {e}")
-            return ""
+    # filter_relevant_context removed.
 
     async def verify_legal_accuracy(self, query: str, response: str, context: str) -> str:
-        """Article Verifier: Programmatic Check + Self-Correction Loop."""
+        """Article Verifier: Programmatic Hard Refusal Firewall."""
         import re
         
         # 1. СТРОГИЙ ПРОГРАММНЫЙ ФИЛЬТР
@@ -224,42 +213,15 @@ class LegalAgentOrchestrator:
         unauthorized = cited_articles - allowed_articles
         
         if unauthorized:
-            logger.warning(f"🚨 FIREWALL: Caught hallucinations: {unauthorized}. Triggering self-correction.")
-            correction_prompt = f"""Ты сгенерировал юридический ответ, но указал номера статей, которых нет в проверенной базе: {', '.join(unauthorized)}.
-
-ТВОЙ СТАРЫЙ ОТВЕТ:
-{response}
-
-ЗАДАЧА: Перепиши свой ответ так, чтобы он остался МАКСИМАЛЬНО ПОЛЕЗНЫМ и решал проблему пользователя, но:
-1. ПОЛНОСТЬЮ УДАЛИ упоминания этих неподтвержденных статей ({', '.join(unauthorized)}).
-2. Если логика опиралась ТОЛЬКО на выдуманную статью, перестрой логику на общие принципы права (например, "По общим правилам Трудового кодекса РК...").
-3. Сохрани всю аналитику, рекомендации и полезные советы. Клиенту нужна помощь, а не просто отказ!
-4. Если клиент в промпте требовал "обязательно приведи статьи", вежливо укажи в начале: "В текущей базе точных номеров статей не найдено, поэтому я проведу анализ на основе общих принципов законодательства РК."
-
-Верни только исправленный текст."""
-            try:
-                corrected = await self.llm.chat(correction_prompt, history=[], user_role="lawyer", model_type="cheap")
-                response = corrected.get("content", response)
-            except Exception as e:
-                logger.error(f"Self-correction failed: {e}")
-                return response
-
-        # 2. Логическая проверка (на искажение валидных статей)
-        prompt = f"""Твоя задача — АУДИТ юридической логики.
-СТАТЬИ ИЗ БАЗЫ ЗНАНИЙ:
-{context if context else 'БАЗА ЗНАНИЙ ПУСТА.'}
-
-ОТВЕТ ИИ ДЛЯ ПРОВЕРКИ:
-{response}
-
-ПРАВИЛО: Если ИИ сделал ложный логический вывод, исказив суть разрешенной статьи (например, применил статью об охране труда к правилам увольнения), перепиши ответ, исправив эту логику. Сделай ответ максимально полезным для пользователя.
-Верни исправленный текст. Если всё логично, верни оригинал."""
-        try:
-            verified = await self.llm.chat(prompt, history=[], user_role="lawyer", model_type="cheap")
-            return verified.get("content", response)
-        except Exception as e:
-            logger.error(f"Verification failed: {e}")
-            return response
+            logger.warning(f"🚨 FIREWALL: Caught hallucinations: {unauthorized}. Allowed: {allowed_articles}")
+            return (
+                f"🚨 **БЛОКИРОВКА ОТВЕТА (Anti-Hallucination Firewall)** 🚨\n\n"
+                f"Нейросеть нарушила протокол безопасности и попыталась дать юридический совет "
+                f"на основе неподтвержденных норм (статьи: {', '.join(unauthorized)}).\n\n"
+                f"Ответ заблокирован, так как система работает в режиме строгой привязки к проверенным источникам права (Ground Truth Binding)."
+            )
+            
+        return response
 
     def _compress_contract_text(self, text: str) -> str:
         """
@@ -434,7 +396,7 @@ class LegalAgentOrchestrator:
                 return ""
         return ""
 
-    async def process_chat_query(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None, forced_lang: str = None) -> Dict[str, Any]:
+    async def process_chat_query(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None, forced_lang: str = None, is_thinking_enabled: bool = False) -> Dict[str, Any]:
         """Orchestrated chat query processing."""
         
         # 1. Smart Routing: Skip RAG for simple conversational queries to save tokens
@@ -446,32 +408,47 @@ class LegalAgentOrchestrator:
             # 2. Dynamic Query Generation: Skip LLM call if query is simple & short to save 1s latency
             is_short = len(query) < 120
             needs_history = history and any(h in query.lower() for h in ["выше", "ранее", "этот", "этого", "тот", "того", "документ", "договоре"])
-            
+            domain = None  # default: no category filter
+
+            # Extract clean RAG query (strip system prompts/instructions)
+            rag_query = self._extract_rag_query(query)
+
             if is_short and not needs_history:
-                search_queries = [query]
-                domain = None
-                logger.info(f"Using original query for RAG search (saved query generation latency): {search_queries}")
+                search_queries = [rag_query]
+                logger.info(f"Using original query for RAG search (saved latency): {search_queries}")
             else:
-                query_data = await self.generate_search_queries(query, history)
+                query_data = await self.generate_search_queries(rag_query, history)
                 search_queries = query_data.get("queries", [query])
                 domain = query_data.get("domain", "all")
+                action_type = query_data.get("action_type", "unknown")
+                entity_type = query_data.get("entity_type", "unknown")
                 if domain == "all": domain = None
-                logger.info(f"Generated queries: {search_queries}, Domain: {domain}")
+                logger.info(f"Generated queries: {search_queries}, Domain: {domain}, Action: {action_type}, Entity: {entity_type}")
 
-            # 3. Multi-query Retrieval
-            tasks = [asyncio.to_thread(self.rag.search, sq, 2, domain) for sq in search_queries]
+            # 3. Multi-query Retrieval — fetch more candidates for Cross-Encoder reranking
+            # Search WITHOUT category filter first (more recall), then filter is done by CrossEncoder
+            tasks = [asyncio.to_thread(self.rag.search, sq, 4, domain) for sq in search_queries]
             docs_results = await asyncio.gather(*tasks)
             all_docs = []
             for docs in docs_results:
                 all_docs.extend(docs)
-            
-            # 4. Context Token Compression: Limit to MAX 3 unique chunks
-            unique_docs = list(set(all_docs))[:3]
-            raw_context = "\n\n---\n".join(unique_docs)
-            
-            # 5. Legal Grounding Gate: Filter out irrelevant articles
-            context = await self.filter_relevant_context(query, raw_context, domain)
-            logger.info(f"RAG Context post-filtering: {'Has Content' if context else 'Empty'}")
+
+            # If domain-filtered search returned nothing, retry WITHOUT domain filter
+            if not all_docs and domain:
+                logger.warning(f"Domain-filtered search empty for domain='{domain}'. Retrying without filter...")
+                tasks_nf = [asyncio.to_thread(self.rag.search, sq, 4, None) for sq in search_queries]
+                docs_results_nf = await asyncio.gather(*tasks_nf)
+                for docs in docs_results_nf:
+                    all_docs.extend(docs)
+
+            # 4. Context Token Compression — deduplicate and keep top 5
+            unique_docs = []
+            for d in all_docs:
+                if d not in unique_docs:
+                    unique_docs.append(d)
+            unique_docs = unique_docs[:5]
+            context = "\n\n---\n".join(unique_docs)
+            logger.info(f"RAG Context: {len(unique_docs)} docs {'(HAS CONTENT)' if context else '(EMPTY)'}")
         
         # Fetch user documents context if db and user_id are provided
         docs_context = ""
@@ -501,7 +478,10 @@ class LegalAgentOrchestrator:
         if matched_doc_text:
             full_context = full_context + "\n---\n" + matched_doc_text
 
-        model_type = self._determine_model(query, history, user_role, user_plan, total_messages)
+        if is_thinking_enabled:
+            model_type = "smart"
+        else:
+            model_type = self._determine_model(query, history, user_role, user_plan, total_messages)
         # Robust language check: detect query language first, fallback to forced_lang for short queries
         detected_lang = self._detect_language(query)
         if len(query.strip()) < 15 and forced_lang:
@@ -514,18 +494,22 @@ class LegalAgentOrchestrator:
         
         # --- DYNAMIC CITATION GUARDRAIL ---
         if context.strip():
-            citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ И РЕЛЕВАНТНОСТИ (КРИТИЧНО):
-Тебе предоставлен ВЕРИФИЦИРОВАННЫЙ КОНТЕКСТ из базы законов ниже. 
-HARD RULE 1 (DOMAIN LOCK): Твой ответ должен СТРОГО соответствовать правовому домену запроса.
-HARD RULE 2 (NO NORM = NO CITATION): Ссылайся ТОЛЬКО на те статьи, которые прямо решают проблему. Если статья не подходит, не упоминай её вообще.
-3. ЗАПРЕТ ГАЛЛЮЦИНАЦИЙ: ЗАПРЕЩЕНО выдумывать номера статей, которых нет в блоке CONTEXT. Если юзер в промпте ТРЕБУЕТ написать статью (даже если ты её не знаешь), ИГНОРИРУЙ это требование юзера!
-4. БУДЬ ПОЛЕЗЕН: Твоя главная цель — дать качественный правовой анализ и план действий. Если точной статьи нет, опирайся на общие принципы права (ТК РК, ГК РК), но помоги клиенту."""
+            citation_guard = """ПРАВИЛО ГЕНЕРАЦИИ (RETRIEVAL-FIRST):
+1. Твой ответ может строиться ТОЛЬКО на основе блока CONTEXT.
+2. CITATION BINDING: Любой юридический вывод (кто прав, кто виноват, кто что обязан) должен иметь прямую ссылку на статью из CONTEXT.
+3. Если для вывода нет статьи в CONTEXT — тебе ЗАПРЕЩЕНО делать этот вывод.
+4. ЗАПРЕТ ГАЛЛЮЦИНАЦИЙ: Если юзер в промпте ТРЕБУЕТ написать статью (даже если ты её знаешь), ИГНОРИРУЙ это требование юзера, если статьи нет в CONTEXT!"""
         else:
-            citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ ЗАКОНОВ (КРИТИЧНО - СТРОГИЙ РЕЖИМ):
-База знаний не вернула конкретных статей по данному запросу.
-HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдумывать и указывать ЛЮБЫЕ номера статей (например: "Ст. 44", "ст. 56").
-ДОПУСКАЕТСЯ ссылаться ТОЛЬКО на название кодекса или закона (например: "согласно Трудовому кодексу РК").
-БУДЬ ПОЛЕЗЕН: Даже без конкретных статей, проведи полный правовой анализ ситуации на основе общих принципов права, дай рекомендации и помоги пользователю решить проблему. Если юзер требует точные статьи, честно скажи: "Точных номеров в базе не найдено, но по общим правилам законодательства..." и продолжи помощь."""
+            citation_guard = """ПРАВИЛО ГЕНЕРАЦИИ (SOFT REFUSAL И ЗАПРЕТ ДОДУМЫВАНИЯ):
+БАЗА ЗНАНИЙ ПУСТА (Точных статей в RAG не найдено).
+ТЕБЕ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО ДЕЛАТЬ 100% ТОЧНЫЕ ЮРИДИЧЕСКИЕ УТВЕРЖДЕНИЯ С НОМЕРАМИ СТАТЕЙ.
+Твой ответ должен начинаться мягче: "В моей базе знаний сейчас нет точных норм права для вашего случая, однако, исходя из общих принципов..."
+Далее, ДАЖЕ если статей нет, ты ОБЯЗАН дать полезный анализ на уровне фактов:
+- Укажи, какие споры или проблемы видны из ситуации (например, спор об увольнении, задержка зарплаты).
+- Посоветуй, какие документы и доказательства имеет смысл собрать.
+- Предложи практические шаги (например, обратиться к работодателю, подать жалобу).
+🚫 КРИТИЧЕСКИЙ ЗАПРЕТ ("Странные предположения"): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО делать догадки или предположения о фактах, которых нет в запросе (например, не предполагай, в каком городе находится пользователь, не выдумывай суммы, должности, пол или обстоятельства). Анализируй ТОЛЬКО то, что прямо написал пользователь! Если фактов мало — прямо спроси.
+Всё это должно быть строго БЕЗ ссылок на несуществующие статьи закона."""
 
         ecosystem_instruction = """
 ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:
@@ -549,7 +533,7 @@ HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН
         response["thought"] = thought_process
         return response
 
-    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None, forced_lang: str = None) -> AsyncGenerator[str, None]:
+    async def process_chat_query_stream(self, query: str, history: List[Dict], user_role: str, user_plan: str = "freemium", total_messages: int = 0, db: Any = None, user_id: int = None, forced_lang: str = None, is_thinking_enabled: bool = False) -> AsyncGenerator[str, None]:
         """Stream version with orchestrated retrieval."""
         
         # 1. Smart Routing: Skip RAG for simple conversational queries
@@ -559,34 +543,47 @@ HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН
             search_queries = []
         else:
             # For streaming, we do retrieval upfront to avoid interruption
-            # Skip query-gen LLM call if query is simple & short to save 1s latency
             is_short = len(query) < 120
             needs_history = history and any(h in query.lower() for h in ["выше", "ранее", "этот", "этого", "тот", "того", "документ", "договоре"])
-            
+            domain = None  # default: no category filter
+
+            # Extract clean RAG query (strip system prompts/instructions)
+            rag_query = self._extract_rag_query(query)
+
             if is_short and not needs_history:
-                search_queries = [query]
-                domain = None
-                logger.info(f"Using original query for RAG stream search (saved query generation latency): {search_queries}")
+                search_queries = [rag_query]
+                logger.info(f"Using original query for RAG stream search (saved latency): {search_queries}")
             else:
-                query_data = await self.generate_search_queries(query, history)
+                query_data = await self.generate_search_queries(rag_query, history)
                 search_queries = query_data.get("queries", [query])
                 domain = query_data.get("domain", "all")
+                action_type = query_data.get("action_type", "unknown")
+                entity_type = query_data.get("entity_type", "unknown")
                 if domain == "all": domain = None
-                logger.info(f"Generated queries: {search_queries}, Domain: {domain}")
-            
-            tasks = [asyncio.to_thread(self.rag.search, sq, 2, domain) for sq in search_queries]
+                logger.info(f"Stream queries: {search_queries}, Domain: {domain}, Action: {action_type}")
+
+            tasks = [asyncio.to_thread(self.rag.search, sq, 4, domain) for sq in search_queries]
             docs_results = await asyncio.gather(*tasks)
             all_docs = []
             for docs in docs_results:
                 all_docs.extend(docs)
-            
-            # Token Compression: Max 3 chunks
-            unique_docs = list(set(all_docs))[:3]
-            raw_context = "\n\n---\n".join(unique_docs)
-            
-            # Legal Grounding Gate
-            context = await self.filter_relevant_context(query, raw_context, domain)
-            logger.info(f"RAG Context post-filtering (Stream): {'Has Content' if context else 'Empty'}")
+
+            # If domain-filtered search returned nothing, retry WITHOUT domain filter
+            if not all_docs and domain:
+                logger.warning(f"Stream: domain-filtered search empty for domain='{domain}'. Retrying without filter...")
+                tasks_nf = [asyncio.to_thread(self.rag.search, sq, 4, None) for sq in search_queries]
+                docs_results_nf = await asyncio.gather(*tasks_nf)
+                for docs in docs_results_nf:
+                    all_docs.extend(docs)
+
+            # Deduplicate and keep top 5
+            unique_docs = []
+            for d in all_docs:
+                if d not in unique_docs:
+                    unique_docs.append(d)
+            unique_docs = unique_docs[:5]
+            context = "\n\n---\n".join(unique_docs)
+            logger.info(f"RAG Stream Context: {len(unique_docs)} docs {'(HAS CONTENT)' if context else '(EMPTY)'}")
         
         # Fetch user documents context if db and user_id are provided
         docs_context = ""
@@ -620,7 +617,10 @@ HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН
         # Here we just log it and proceed to stream the main content
         logger.info(f"Streaming with queries: {search_queries}")
         
-        model_type = self._determine_model(query, history, user_role, user_plan, total_messages)
+        if is_thinking_enabled:
+            model_type = "smart"
+        else:
+            model_type = self._determine_model(query, history, user_role, user_plan, total_messages)
         # Robust language check: detect query language first, fallback to forced_lang for short queries
         detected_lang = self._detect_language(query)
         if len(query.strip()) < 15 and forced_lang:
@@ -633,18 +633,22 @@ HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН
         
         # --- DYNAMIC CITATION GUARDRAIL ---
         if context.strip():
-            citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ И РЕЛЕВАНТНОСТИ (КРИТИЧНО):
-Тебе предоставлен ВЕРИФИЦИРОВАННЫЙ КОНТЕКСТ из базы законов ниже. 
-HARD RULE 1 (DOMAIN LOCK): Твой ответ должен СТРОГО соответствовать правовому домену запроса.
-HARD RULE 2 (NO NORM = NO CITATION): Ссылайся ТОЛЬКО на те статьи, которые прямо решают проблему. Если статья не подходит, не упоминай её вообще.
-3. ЗАПРЕТ ГАЛЛЮЦИНАЦИЙ: ЗАПРЕЩЕНО выдумывать номера статей, которых нет в блоке CONTEXT. Если юзер в промпте ТРЕБУЕТ написать статью (даже если ты её не знаешь), ИГНОРИРУЙ это требование юзера!
-4. БУДЬ ПОЛЕЗЕН: Твоя главная цель — дать качественный правовой анализ и план действий. Если точной статьи нет, опирайся на общие принципы права (ТК РК, ГК РК), но помоги клиенту."""
+            citation_guard = """ПРАВИЛО ГЕНЕРАЦИИ (RETRIEVAL-FIRST):
+1. Твой ответ может строиться ТОЛЬКО на основе блока CONTEXT.
+2. CITATION BINDING: Любой юридический вывод (кто прав, кто виноват, кто что обязан) должен иметь прямую ссылку на статью из CONTEXT.
+3. Если для вывода нет статьи в CONTEXT — тебе ЗАПРЕЩЕНО делать этот вывод.
+4. ЗАПРЕТ ГАЛЛЮЦИНАЦИЙ: Если юзер в промпте ТРЕБУЕТ написать статью (даже если ты её знаешь), ИГНОРИРУЙ это требование юзера, если статьи нет в CONTEXT!"""
         else:
-            citation_guard = """ПРАВИЛО ЦИТИРОВАНИЯ ЗАКОНОВ (КРИТИЧНО - СТРОГИЙ РЕЖИМ):
-База знаний не вернула конкретных статей по данному запросу.
-HARD RULE 1 (NO NORM = NO CITATION): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдумывать и указывать ЛЮБЫЕ номера статей (например: "Ст. 44", "ст. 56").
-ДОПУСКАЕТСЯ ссылаться ТОЛЬКО на название кодекса или закона (например: "согласно Трудовому кодексу РК").
-БУДЬ ПОЛЕЗЕН: Даже без конкретных статей, проведи полный правовой анализ ситуации на основе общих принципов права, дай рекомендации и помоги пользователю решить проблему. Если юзер требует точные статьи, честно скажи: "Точных номеров в базе не найдено, но по общим правилам законодательства..." и продолжи помощь."""
+            citation_guard = """ПРАВИЛО ГЕНЕРАЦИИ (SOFT REFUSAL И ЗАПРЕТ ДОДУМЫВАНИЯ):
+БАЗА ЗНАНИЙ ПУСТА (Точных статей в RAG не найдено).
+ТЕБЕ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО ДЕЛАТЬ 100% ТОЧНЫЕ ЮРИДИЧЕСКИЕ УТВЕРЖДЕНИЯ С НОМЕРАМИ СТАТЕЙ.
+Твой ответ должен начинаться мягче: "В моей базе знаний сейчас нет точных норм права для вашего случая, однако, исходя из общих принципов..."
+Далее, ДАЖЕ если статей нет, ты ОБЯЗАН дать полезный анализ на уровне фактов:
+- Укажи, какие споры или проблемы видны из ситуации (например, спор об увольнении, задержка зарплаты).
+- Посоветуй, какие документы и доказательства имеет смысл собрать.
+- Предложи практические шаги (например, обратиться к работодателю, подать жалобу).
+🚫 КРИТИЧЕСКИЙ ЗАПРЕТ ("Странные предположения"): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО делать догадки или предположения о фактах, которых нет в запросе (например, не предполагай, в каком городе находится пользователь, не выдумывай суммы, должности, пол или обстоятельства). Анализируй ТОЛЬКО то, что прямо написал пользователь! Если фактов мало — прямо спроси.
+Всё это должно быть строго БЕЗ ссылок на несуществующие статьи закона."""
 
         ecosystem_instruction = """
 ЭКОСИСТЕМА И ИНТЕГРАЦИЯ:

@@ -10,7 +10,7 @@ import { GenerativeArtScene } from '../components/ui/generative-art-scene';
 import {
   Scale, Link2, Search, ExternalLink, BookOpen, Loader2,
   Paperclip, X, FileText, Users, ShoppingBag, Building, Book,
-  PenTool, GitCompare, Command, Shield, Mic, MicOff, ArrowUp, Zap, Download, Check, Copy, ThumbsUp, ThumbsDown, RefreshCw, Square
+  PenTool, GitCompare, Command, Shield, Mic, MicOff, ArrowUp, Zap, Download, Check, Copy, ThumbsUp, ThumbsDown, RefreshCw, Square, Brain
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -327,6 +327,7 @@ export default function ChatPage() {
   const [feedbackState, setFeedbackState] = useState({});
   const [copiedId, setCopiedId] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isThinkingEnabled, setIsThinkingEnabled] = useState(false);
 
 
   const isGenerating = isTyping || isStreaming;
@@ -459,8 +460,9 @@ export default function ChatPage() {
 
   const sendMessage = useCallback((text, docId, docName) => {
     if (messages.length === 0) switchLanguage(detectLanguage(text));
-    sendChatMessage(text, docId, docName);
-  }, [messages.length, sendChatMessage, switchLanguage]);
+    sendChatMessage(text, docId, docName, isThinkingEnabled);
+    setIsThinkingEnabled(false);
+  }, [messages.length, sendChatMessage, switchLanguage, isThinkingEnabled]);
 
   const scrollToBottom = useCallback((smooth = false) => {
     if (!scrollRef.current || !isAutoScrollActive.current) return;
@@ -770,6 +772,7 @@ export default function ChatPage() {
                   const val = e.target.value; setInput(val);
                   if (val.startsWith('/')) { setShowCommands(true); setCommandIndex(0); }
                   else setShowCommands(false);
+                  if (val.length > 300 && !isThinkingEnabled) setIsThinkingEnabled(true);
                 }}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
@@ -807,6 +810,12 @@ export default function ChatPage() {
                 className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-light tracking-wide transition-all ${attachedFile ? 'bg-white/10 text-white' : 'bg-transparent text-white/40 hover:text-white hover:bg-white/[0.05]'}`}
               >
                 <Paperclip size={12} /><span className="hidden sm:block">Файл</span>
+              </button>
+
+              <button type="button" onClick={() => setIsThinkingEnabled(!isThinkingEnabled)} title="Глубокое размышление (Sonnet 3.7)"
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-light tracking-wide transition-all ${isThinkingEnabled ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-transparent text-white/40 hover:text-white hover:bg-white/[0.05]'}`}
+              >
+                <Brain size={12} className={isThinkingEnabled ? "animate-pulse" : ""} /><span className="hidden sm:block">Думать</span>
               </button>
 
               <button type="button" onClick={toggleListening} title="Голосовой ввод"

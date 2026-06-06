@@ -57,7 +57,7 @@ export function ChatProvider({ children }) {
     }
   }, []);
 
-  const sendMessage = useCallback(async (text, attachedDocumentId = null, attachedDocumentName = null) => {
+  const sendMessage = useCallback(async (text, attachedDocumentId = null, attachedDocumentName = null, isThinkingEnabled = false) => {
     // Add user message to UI immediately
     const userMsg = {
       id: Date.now().toString(),
@@ -117,10 +117,11 @@ export function ChatProvider({ children }) {
           } else if (data.error) {
             throw new Error(data.error);
           }
-        }, attachedDocumentId);
+        }, attachedDocumentId, isThinkingEnabled);
 
         // Update with final data (refs, segment, real ID)
         if (aiMsgId) {
+          // Normal case: streaming worked, update the existing bubble with final metadata
           setMessages((prev) => prev.map(m =>
             m.id === aiMsgId ? {
               ...m,
@@ -133,17 +134,33 @@ export function ChatProvider({ children }) {
               suggestions: finalData.suggestions,
             } : m
           ));
+        } else if (finalData.content) {
+          // Edge case: backend sent done event without prior content chunks
+          // (happens when the whole response arrives as one block)
+          const fallbackId = finalData.id?.toString() || (Date.now() + 1).toString();
+          setIsTyping(false);
+          setMessages((prev) => [...prev, {
+            id: fallbackId,
+            role: 'assistant',
+            content: finalData.content,
+            segment: finalData.segment,
+            references: finalData.references,
+            escalation: finalData.escalation,
+            suggestions: finalData.suggestions,
+            timestamp: new Date().toISOString(),
+          }]);
         }
 
         if (finalData.segment) {
           setCurrentSegment(finalData.segment);
         }
 
+
       } catch (streamError) {
         // Fallback to non-streaming
         console.warn('Streaming failed, falling back:', streamError);
 
-        const response = await chatApi.sendMessage(currentSessionId, text, attachedDocumentId);
+        const response = await chatApi.sendMessage(currentSessionId, text, attachedDocumentId, isThinkingEnabled);
         const fallbackId = (Date.now() + 2).toString();
 
         if (aiMsgId) {
