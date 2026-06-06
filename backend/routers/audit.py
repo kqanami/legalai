@@ -11,6 +11,7 @@ from models import User, AuditResult, Document
 from schemas import AuditResponse, AuditHistoryItem, ReanalyzeRequest, SaveTextRequest, QuickFixRequest
 from services.gemini_service import gemini_service
 from services.agent_orchestrator import orchestrator
+from services.pdf_generator import generate_audit_pdf
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/audit", tags=["audit"])
@@ -469,7 +470,7 @@ def download_audit_report(audit_id: int, user: User = Depends(get_current_user),
             media_type="application/pdf"
         )
     except Exception as e:
-        logger.error(f"Error generating PDF: {e}")
+        logger.exception(f"Error generating PDF: {e}")
         raise HTTPException(status_code=500, detail="Ошибка при генерации отчета")
 
 

@@ -30,27 +30,31 @@ class LegalAgentOrchestrator:
         kz_char_count = sum(1 for char in query_l if char in kazakh_specific)
         ru_char_count = sum(1 for char in query_l if char in russian_specific)
         
-        # 2. Check for common Kazakh keywords (including keyboard-friendly versions)
-        kz_keywords = {
-            'мен', 'сен', 'біз', 'сіз', 'олар', 'және', 'үшін', 'бар', 'жоқ', 
-            'болады', 'керек', 'қандай', 'қалай', 'неге', 'қашан', 'рахмет',
-            'биз', 'сиз', 'жане', 'ушин', 'жок', 'кандай', 'калай', 'кашан',
-            'салем', 'кайырлы', 'кун', 'кеш', 'таң', 'жаксы', 'жаман', 'калайсын',
-            'бер', 'берди', 'ал', 'алды', 'кел', 'келди', 'кет', 'кетти', 'айт', 'айтты',
-            'маган', 'саган', 'бизге', 'сизге', 'оларга', 'барма', 'жокпа', 'ма', 'ме', 'па', 'пе',
-            'кой', 'гой', 'шы', 'ши', 'болсын', 'сау', 'бол', 'кездескенше'
-        }
-        
-        words = set(re.findall(r'[а-яёәғқңөұүһі]+', query_l))
-        kz_word_match = len(words.intersection(kz_keywords))
-        
-        # 3. Decision
-        # If specific characters are found, they carry a lot of weight
         if kz_char_count > ru_char_count:
             return "kazakh"
+            
+        # 2. Check for common unambiguous Kazakh keywords
+        kz_keywords = {
+            'біз', 'сіз', 'олар', 'және', 'үшін', 'жоқ', 
+            'болады', 'керек', 'қандай', 'қалай', 'неге', 'қашан', 'рахмет',
+            'биз', 'сиз', 'жане', 'ушин', 'жок', 'кандай', 'калай', 'кашан',
+            'кайырлы', 'жаксы', 'калайсын',
+            'берди', 'алды', 'келди', 'кетти', 'айтты',
+            'маган', 'саган', 'бизге', 'сизге', 'оларга', 'барма', 'жокпа',
+            'кездескенше', 'көмек', 'сәлем'
+        }
         
-        # If mixed or no specific chars, check keywords
-        if kz_word_match >= 1:
+        words = re.findall(r'[а-яёәғқңөұүһі]+', query_l)
+        if not words:
+            return "russian"
+            
+        kz_word_match = sum(1 for w in words if w in kz_keywords)
+        
+        # 3. Decision
+        # If there are no specific characters, check if at least 15% of the words are uniquely Kazakh
+        # For very short phrases (1-3 words), 1 match is enough
+        ratio = kz_word_match / len(words)
+        if (len(words) <= 3 and kz_word_match >= 1) or ratio > 0.15:
             return "kazakh"
             
         return "russian"
@@ -529,7 +533,7 @@ class LegalAgentOrchestrator:
 2. Если в контексте выше передан 'ТЕКСТ АКТИВНОГО ДОКУМЕНТА ПОЛЬЗОВАТЕЛЯ', обязательно сошлись на него и ответь на вопросы пользователя именно на основе этого текста.
 """
         
-        enriched_query = f"INSTRUCTION: {lang_instruction}\n\n{citation_guard}\n{ecosystem_instruction}\n\nCONTEXT (ВЕРИФИЦИРОВАННЫЕ ЗАКОНЫ РК):\n{full_context if full_context.strip() else 'Статьи не найдены. Используй только общие ссылки на кодексы.'}\n\nQUERY: {query}"
+        enriched_query = f"""<search_context>\n{full_context if full_context.strip() else 'Статьи не найдены. Используй только общие ссылки на кодексы.'}\n</search_context>\n\n<generation_rules>\n{lang_instruction}\n{citation_guard}\n{ecosystem_instruction}\n</generation_rules>\n\n<user_query>\n{query}\n</user_query>"""
         thought_process = f"Использую базу знаний для ответа. Язык: {lang}. Модель: {model_type}"
         
         response = await self.llm.chat(enriched_query, history, user_role, model_type=model_type)
@@ -668,7 +672,7 @@ class LegalAgentOrchestrator:
 2. Если в контексте выше передан 'ТЕКСТ АКТИВНОГО ДОКУМЕНТА ПОЛЬЗОВАТЕЛЯ', обязательно сошлись на него и ответь на вопросы пользователя именно на основе этого текста.
 """
 
-        enriched_query = f"INSTRUCTION: {lang_instruction}\n\n{citation_guard}\n{ecosystem_instruction}\n\nCONTEXT (ВЕРИФИЦИРОВАННЫЕ ЗАКОНЫ РК):\n{full_context if full_context.strip() else 'Статьи не найдены. Используй только общие ссылки на кодексы.'}\n\nQUERY: {query}"
+        enriched_query = f"""<search_context>\n{full_context if full_context.strip() else 'Статьи не найдены. Используй только общие ссылки на кодексы.'}\n</search_context>\n\n<generation_rules>\n{lang_instruction}\n{citation_guard}\n{ecosystem_instruction}\n</generation_rules>\n\n<user_query>\n{query}\n</user_query>"""
         async for chunk in self.llm.chat_stream(enriched_query, history, user_role, model_type=model_type):
             yield chunk
 
