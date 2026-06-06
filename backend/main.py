@@ -154,3 +154,13 @@ def root():
 def health():
     return {"status": "ok"}
 
+@app.get("/debug/rag")
+def debug_rag():
+    from services.rag_service import rag_service
+    return {
+        "client_is_none": rag_service.client is None,
+        "collection_is_none": rag_service.collection is None,
+        "cross_encoder_is_none": getattr(rag_service, "cross_encoder", None) is None,
+        "collection_count": rag_service.collection.count() if rag_service.collection else 0
+    }
+

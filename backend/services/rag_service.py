@@ -210,42 +210,45 @@ class LegalRAGService:
             if category:
                 where_clause = {"category": category}
                 
+            logger.info(f"DEBUG RAG: Querying '{query}' with where={where_clause}...")
             results = self.collection.query(
                 query_texts=[query],
                 n_results=n_results * 4,  # Fetch MORE for Cross-Encoder reranking
                 where=where_clause
             )
+            logger.info(f"DEBUG RAG: Results returned keys: {results.keys()}")
             
             if results and results.get("documents") and len(results["documents"]) > 0:
                 retrieved_docs = results["documents"][0]
+                logger.info(f"DEBUG RAG: Retrieved {len(retrieved_docs)} candidates before reranking.")
+            else:
+                retrieved_docs = []
+                logger.warning(f"DEBUG RAG: Retrieved 0 docs for query: '{query}'. Results object: {results}")
                 
-                # STAGE B: Cross-Encoder Reranking
-                if getattr(self, "cross_encoder", None) and retrieved_docs:
-                    logger.info(f"Reranking {len(retrieved_docs)} candidates with Cross-Encoder...")
-                    pairs = [[query, doc] for doc in retrieved_docs]
-                    scores = self.cross_encoder.predict(pairs)
-                    
-                    doc_scores = list(zip(retrieved_docs, scores))
-                    doc_scores.sort(key=lambda x: x[1], reverse=True)
-                    
-                    # Relaxing the threshold to -2.0 to avoid false negatives on complex legal phrasing
-                    top_docs = [doc for doc, score in doc_scores if score > -2.0]
-                    
-                    # If still empty, just fallback to the highest scored document
-                    if not top_docs:
-                        logger.warning(f"All docs scored < -2.0 by CrossEncoder. Max score: {doc_scores[0][1] if doc_scores else 'N/A'}. Fallback to top 2 documents.")
-                        docs = [doc for doc, score in doc_scores[:min(2, len(doc_scores))]]
-                    else:
-                        logger.info(f"Cross-Encoder kept {len(top_docs)} relevant docs. Top score: {doc_scores[0][1]}")
-                        docs = top_docs[:n_results]
+            # STAGE B: Cross-Encoder Reranking
+            if getattr(self, "cross_encoder", None) and retrieved_docs:
+                logger.info(f"Reranking {len(retrieved_docs)} candidates with Cross-Encoder...")
+                pairs = [[query, doc] for doc in retrieved_docs]
+                scores = self.cross_encoder.predict(pairs)
+                
+                doc_scores = list(zip(retrieved_docs, scores))
+                doc_scores.sort(key=lambda x: x[1], reverse=True)
+                
+                # Relaxing the threshold to -2.0 to avoid false negatives on complex legal phrasing
+                top_docs = [doc for doc, score in doc_scores if score > -2.0]
+                
+                # If still empty, just fallback to the highest scored document
+                if not top_docs:
+                    logger.warning(f"All docs scored < -2.0 by CrossEncoder. Max score: {doc_scores[0][1] if doc_scores else 'N/A'}. Fallback to top 2 documents.")
+                    docs = [doc for doc, score in doc_scores[:min(2, len(doc_scores))]]
                 else:
-                    docs = retrieved_docs[:n_results]
-                    
-                self._cache.set(query, n_results, category, docs)
-                return docs
-            
-            self._cache.set(query, n_results, category, [])
-            return []
+                    logger.info(f"Cross-Encoder kept {len(top_docs)} relevant docs. Top score: {doc_scores[0][1]}")
+                    docs = top_docs[:n_results]
+            else:
+                docs = retrieved_docs[:n_results]
+                
+            self._cache.set(query, n_results, category, docs)
+            return docs
         except Exception as e:
             logger.error(f"RAG search error: {e}. Falling back to local/Groq search.")
             fallback_docs = self._local_keyword_search(query, n_results, category)

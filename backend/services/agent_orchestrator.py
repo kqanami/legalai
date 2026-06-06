@@ -426,9 +426,16 @@ class LegalAgentOrchestrator:
                 logger.info(f"Generated queries: {search_queries}, Domain: {domain}, Action: {action_type}, Entity: {entity_type}")
 
             # 3. Multi-query Retrieval — fetch more candidates for Cross-Encoder reranking
-            # Search WITHOUT category filter first (more recall), then filter is done by CrossEncoder
-            tasks = [asyncio.to_thread(self.rag.search, sq, 4, domain) for sq in search_queries]
-            docs_results = await asyncio.gather(*tasks)
+            # Run sequentially to avoid PyTorch/ChromaDB sqlite multi-threading conflicts!
+            docs_results = []
+            for sq in search_queries:
+                try:
+                    res = self.rag.search(sq, 4, domain)
+                    docs_results.append(res)
+                except Exception as e:
+                    logger.error(f"RAG search error in orchestrator: {e}")
+                    docs_results.append([])
+
             all_docs = []
             for docs in docs_results:
                 all_docs.extend(docs)
